@@ -12,13 +12,26 @@ type ViewMode = 'top' | 'iso' | 'corridor' | 'free'
 interface Cfg { floors: number; apts: number; aw: number; ad: number; cw: number }
 
 interface Props {
-  initialCfg?:   Partial<Cfg>
-  viewOnly?:     boolean
-  showControls?: boolean
-  label?:        string
+  initialCfg?:       Partial<Cfg>
+  viewOnly?:         boolean
+  showControls?:     boolean
+  label?:            string
+  initialViewMode?:  ViewMode
+  initialFloor?:     number | 'last'
 }
 
-export function Building3DViewer({ initialCfg, viewOnly = false, showControls = false, label }: Props = {}) {
+export function Building3DViewer({
+  initialCfg, viewOnly = false, showControls = false, label,
+  initialViewMode = 'iso', initialFloor = 0,
+}: Props = {}) {
+  const resolvedCfg   = { floors: 4, apts: 3, aw: 9, ad: 11, cw: 2.4, ...initialCfg }
+  const resolvedFloor = initialFloor === 'last'
+    ? Math.max(0, resolvedCfg.floors - 1)
+    : initialFloor
+  const VIEW_LABELS: Record<ViewMode, string> = {
+    top: 'Top-Down View', iso: 'Isometric View',
+    corridor: 'Corridor Walk View', free: 'Free Camera',
+  }
   const wrapRef   = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const threeRef  = useRef<{
@@ -35,13 +48,13 @@ export function Building3DViewer({ initialCfg, viewOnly = false, showControls = 
     viewMode: ViewMode
   } | null>(null)
 
-  const [cfg, setCfg] = useState<Cfg>({ floors: 4, apts: 3, aw: 9, ad: 11, cw: 2.4, ...initialCfg })
-  const [viewMode,       setViewMode]       = useState<ViewMode>('iso')
-  const [currentFloor,   setCurrentFloor]   = useState(0)
-  const [floorInfo,      setFloorInfo]      = useState('Floor 1 of 4')
-  const [tooltip,        setTooltip]        = useState<{ x:number; y:number; html:string } | null>(null)
-  const [zoom,           setZoom]           = useState(93)
-  const [viewLabel,      setViewLabel]      = useState('Isometric View')
+  const [cfg, setCfg]             = useState<Cfg>(resolvedCfg)
+  const [viewMode,   setViewMode] = useState<ViewMode>(initialViewMode)
+  const [currentFloor, setCurrentFloor] = useState(resolvedFloor)
+  const [floorInfo,  setFloorInfo]  = useState(`Floor ${resolvedFloor + 1} of ${resolvedCfg.floors}`)
+  const [tooltip,    setTooltip]    = useState<{ x:number; y:number; html:string } | null>(null)
+  const [zoom,       setZoom]       = useState(93)
+  const [viewLabel,  setViewLabel]  = useState(VIEW_LABELS[initialViewMode])
 
   /* ── Stats ── */
   const stats = {
@@ -97,7 +110,7 @@ export function Building3DViewer({ initialCfg, viewOnly = false, showControls = 
       renderer, scene, camera, controls,
       buildingGrp: null, hitMeshes: [],
       drawerOffset: [], drawerTarget: [],
-      animating: false, currentFloorWalk: 0, viewMode: 'iso',
+      animating: false, currentFloorWalk: resolvedFloor, viewMode: initialViewMode,
     }
 
     // Animate loop
