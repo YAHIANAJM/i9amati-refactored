@@ -11,6 +11,7 @@ import { complaintRouter } from './routes/complaint'
 import { meetingRouter } from './routes/meeting'
 import { feedRouter } from './routes/feed'
 import { documentRouter } from './routes/document'
+import { chatbotRouter } from './routes/chatbot'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -31,6 +32,7 @@ app.use('/api/complaints', complaintRouter)
 app.use('/api/meetings', meetingRouter)
 app.use('/api/feed', feedRouter)
 app.use('/api/documents', documentRouter)
+app.use('/api/chatbot', chatbotRouter)
 
 app.use(errorHandler)
 
