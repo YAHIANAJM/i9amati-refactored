@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { ChatBot } from '../chatbot/ChatBot'
 
 export function SyndicLayout() {
   const [open, setOpen] = useState(false)
@@ -20,6 +21,8 @@ export function SyndicLayout() {
         </main>
       </div>
 
+      {/* Floating Chatbot Widget */}
+      <ChatBot />
     </div>
   )
 }
