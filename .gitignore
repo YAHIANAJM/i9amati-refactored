@@ -46,7 +46,8 @@ android/
 ios/
 web-build/
 
-# Claude Code / AI tools
+# AI tools
 .claude/
 .agents/
+.gemini/
 skills-lock.json
