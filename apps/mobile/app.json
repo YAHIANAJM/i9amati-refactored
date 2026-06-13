@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "i9amati",
+    "slug": "i9amati",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "i9amati",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"],
+    "plugins": ["expo-router"]
+  }
+}

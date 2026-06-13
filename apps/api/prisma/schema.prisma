@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SYNDIC
+  OWNER
+  TENANT
+  STAFF
+}
+
+enum ApartmentStatus {
+  OCCUPIED
+  VACANT
+  MAINTENANCE
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentType {
+  CHARGE
+  MAINTENANCE
+  REPAIR
+  INSURANCE
+  OTHER
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  firstName    String
+  lastName     String
+  phone        String?
+  avatar       String?
+  role         UserRole  @default(OWNER)
+  residenceId  String?
+  residence    Residence? @relation("ResidenceMembers", fields: [residenceId], references: [id])
+  managedResidences Residence[] @relation("ResidenceSyndic")
+  apartments   Apartment[] @relation("ApartmentOwner")
+  tenancies    Apartment[] @relation("ApartmentTenant")
+  complaints   Complaint[]
+  feedPosts    FeedPost[]
+  feedComments FeedComment[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Residence {
+  id          String      @id @default(cuid())
+  name        String
+  address     String
+  city        String
+  totalUnits  Int         @default(0)
+  syndicId    String
+  syndic      User        @relation("ResidenceSyndic", fields: [syndicId], references: [id])
+  members     User[]      @relation("ResidenceMembers")
+  apartments  Apartment[]
+  payments    Payment[]
+  complaints  Complaint[]
+  meetings    Meeting[]
+  feedPosts   FeedPost[]
+  documents   Document[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("residences")
+}
+
+model Apartment {
+  id          String          @id @default(cuid())
+  number      String
+  floor       Int             @default(0)
+  surface     Float
+  status      ApartmentStatus @default(VACANT)
+  ownerId     String?
+  owner       User?           @relation("ApartmentOwner", fields: [ownerId], references: [id])
+  tenantId    String?
+  tenant      User?           @relation("ApartmentTenant", fields: [tenantId], references: [id])
+  residenceId String
+  residence   Residence       @relation(fields: [residenceId], references: [id], onDelete: Cascade)
+  payments    Payment[]
+  complaints  Complaint[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([number, residenceId])
+  @@map("apartments")
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  amount      Float
+  status      PaymentStatus @default(PENDING)
+  type        PaymentType   @default(CHARGE)
+  dueDate     DateTime
+  paidAt      DateTime?
+  description String?
+  apartmentId String
+  apartment   Apartment     @relation(fields: [apartmentId], references: [id])
+  residenceId String
+  residence   Residence     @relation(fields: [residenceId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@map("payments")
+}
+
+model Complaint {
+  id          String            @id @default(cuid())
+  title       String
+  description String
+  status      ComplaintStatus   @default(OPEN)
+  priority    ComplaintPriority @default(MEDIUM)
+  authorId    String
+  author      User              @relation(fields: [authorId], references: [id])
+  apartmentId String?
+  apartment   Apartment?        @relation(fields: [apartmentId], references: [id])
+  residenceId String
+  residence   Residence         @relation(fields: [residenceId], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("complaints")
+}
+
+model Meeting {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  status      MeetingStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  location    String?
+  residenceId String
+  residence   Residence     @relation(fields: [residenceId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@map("meetings")
+}
+
+model FeedPost {
+  id          String        @id @default(cuid())
+  content     String
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  residenceId String
+  residence   Residence     @relation(fields: [residenceId], references: [id])
+  comments    FeedComment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("feed_posts")
+}
+
+model FeedComment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("feed_comments")
+}
+
+model Document {
+  id          String    @id @default(cuid())
+  name        String
+  url         String
+  type        String
+  size        Int
+  residenceId String
+  residence   Residence @relation(fields: [residenceId], references: [id])
+  uploadedAt  DateTime  @default(now())
+
+  @@map("documents")
+}

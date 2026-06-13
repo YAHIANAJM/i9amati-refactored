@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building 3D Floor View</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#1a1a1a; font-family:'Segoe UI',sans-serif; overflow:hidden; display:flex; height:100vh; }
+#sidebar { width:230px; min-width:230px; background:#111; border-right:1px solid #222; padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; z-index:10; }
+#sidebar h1 { color:#fff; font-size:13px; font-weight:700; padding-bottom:8px; border-bottom:1px solid #222; }
+.sec { color:#666; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
+.ctrl { display:flex; flex-direction:column; gap:3px; }
+.ctrl label { color:#999; font-size:11px; display:flex; justify-content:space-between; }
+.ctrl label span { color:#fff; font-weight:700; }
+.ctrl input[type=range] { -webkit-appearance:none; width:100%; height:3px; background:#333; border-radius:2px; outline:none; cursor:pointer; }
+.ctrl input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:#E8A030; cursor:pointer; }
+.divider { border:none; border-top:1px solid #222; }
+.floor-btns { display:flex; flex-wrap:wrap; gap:4px; }
+.fbtn { padding:4px 9px; border-radius:4px; border:1px solid #333; background:#1a1a1a; color:#888; font-size:10px; cursor:pointer; transition:all 0.15s; }
+.fbtn.active { background:#E8A030; border-color:#E8A030; color:#000; font-weight:700; }
+.vbtn { padding:5px 0; border-radius:5px; border:1px solid #333; background:#1a1a1a; color:#888; font-size:10px; cursor:pointer; transition:all 0.15s; text-align:center; flex:1; }
+.vbtn:hover { background:#2a2a2a; color:#fff; }
+.vbtn.active { background:#4466cc; border-color:#4466cc; color:#fff; font-weight:700; }
+.view-row { display:flex; gap:4px; }
+.stats { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:auto; padding-top:10px; border-top:1px solid #222; }
+.stat { background:#1a1a1a; border-radius:5px; padding:6px 8px; }
+.stat .val { color:#E8A030; font-size:14px; font-weight:700; }
+.stat .lbl { color:#555; font-size:9px; text-transform:uppercase; }
+#canvas-wrap { flex:1; position:relative; overflow:hidden; }
+canvas { display:block; }
+#tooltip { position:absolute; background:rgba(10,8,5,0.96); border:1px solid #E8A030; border-radius:7px; padding:9px 13px; color:#fff; font-size:11px; pointer-events:none; display:none; line-height:2; z-index:100; }
+#tooltip strong { color:#E8A030; font-size:12px; display:block; }
+#fl-info { position:absolute; top:14px; left:14px; background:rgba(10,8,5,0.9); border:1px solid #444; border-radius:6px; padding:5px 12px; color:#E8A030; font-size:12px; font-weight:600; pointer-events:none; z-index:100; }
+#hint { position:absolute; bottom:10px; right:10px; color:#444; font-size:10px; text-align:right; line-height:2; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h1>🏢 3D Floor Viewer</h1>
+  <div class="sec">Building</div>
+  <div class="ctrl"><label>Floors <span id="v-floors">4</span></label><input type="range" id="s-floors" min="1" max="10" value="4"></div>
+  <div class="ctrl"><label>Apts per side <span id="v-apts">3</span></label><input type="range" id="s-apts" min="1" max="5" value="3"></div>
+  <hr class="divider">
+  <div class="sec">Apartment (m)</div>
+  <div class="ctrl"><label>Width <span id="v-aw">9</span>m</label><input type="range" id="s-aw" min="5" max="14" value="9" step="0.5"></div>
+  <div class="ctrl"><label>Depth <span id="v-ad">11</span>m</label><input type="range" id="s-ad" min="6" max="16" value="11" step="0.5"></div>
+  <div class="ctrl"><label>Corridor <span id="v-cw">2.4</span>m</label><input type="range" id="s-cw" min="1.5" max="4" value="2.4" step="0.1"></div>
+  <hr class="divider">
+  <div class="sec">Camera View</div>
+  <div class="view-row">
+    <button class="vbtn" id="vbtn-top" onclick="setView('top')" title="Top down">⬆ Top</button>
+    <button class="vbtn active" id="vbtn-iso" onclick="setView('iso')" title="Isometric">◈ Iso</button>
+    <button class="vbtn" id="vbtn-corridor" onclick="setView('corridor')" title="Corridor inside">🚶 Walk</button>
+    <button class="vbtn" id="vbtn-free" onclick="setView('free')" title="Free camera">✥ Free</button>
+  </div>
+  <hr class="divider">
+  <div class="sec">Floors</div>
+  <div class="floor-btns" id="floor-btns"></div>
+  <div class="stats">
+    <div class="stat"><div class="val" id="st-units">6</div><div class="lbl">Units/floor</div></div>
+    <div class="stat"><div class="val" id="st-area">99</div><div class="lbl">m² each</div></div>
+    <div class="stat"><div class="val" id="st-total">24</div><div class="lbl">Total units</div></div>
+    <div class="stat"><div class="val" id="st-foot">350</div><div class="lbl">Footprint m²</div></div>
+  </div>
+</div>
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+  <div id="fl-info">Floor 1 of 4</div>
+  <div id="tooltip"></div>
+  <div id="hint">🖱 Drag to rotate · Scroll to zoom · Right-click to pan</div>
+  <div id="zoom-badge" style="position:absolute;bottom:38px;right:12px;background:rgba(10,8,5,0.88);border:1px solid #444;border-radius:6px;padding:4px 10px;color:#E8A030;font-size:11px;font-weight:700;pointer-events:none;z-index:100;">Zoom: 100%</div>
+  <div id="view-label" style="position:absolute;top:14px;right:14px;background:rgba(10,8,5,0.85);border:1px solid #444;border-radius:6px;padding:4px 10px;color:#aaa;font-size:11px;pointer-events:none;z-index:100;">Isometric View</div>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const wrap = document.getElementById('canvas-wrap');
+const canvas = document.getElementById('c');
+
+// ── Renderer ──────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+// ── Scene ─────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2a2a);
+
+// ── Camera ───────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(50, wrap.clientWidth / wrap.clientHeight, 0.1, 500);
+
+// ── OrbitControls ─────────────────────────────────────────
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 2;
+controls.maxDistance = 200;
+controls.maxPolarAngle = Math.PI * 0.90;
+controls.minPolarAngle = 0;
+
+// ── Current view mode ─────────────────────────────────────
+let viewMode = 'iso';   // 'top' | 'iso' | 'corridor'
+let currentZoom = 93;  // displayed zoom %
+let currentFloorWalk = 0; // which floor corridor view looks at
+
+window.setView = function(v) {
+  viewMode = v;
+  document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
+  document.getElementById('vbtn-'+v).classList.add('active');
+  const labels = { top:'Top-Down View', iso:'Isometric View', corridor:'Corridor Walk View', free:'Free Camera' };
+  document.getElementById('view-label').textContent = labels[v] || '';
+  applyView();
+};
+
+function applyView() {
+  if (!buildingGrp) return;
+  const { floors, apts, aw, ad, cw } = cfg;
+  const WT=0.28, ST=0.18, STW=3.8, WallH=3.2, FloorH=WallH+ST;
+  const TW=apts*aw, TD=ad*2+cw, FW=TW+STW;
+  const ox=-FW/2, oz=-TD/2;
+  const totalH = floors * FloorH;
+  const cx=ox+FW/2, cz=oz+TD/2;
+
+  // Update wall visibility per view + per floor
+  updateWallVisibility();
+
+  if (viewMode === 'top') {
+    // Top view — locked straight down, no rotation allowed
+    currentZoom = 111;
+    controls.maxPolarAngle = 0.001;
+    controls.minPolarAngle = 0;
+    controls.minAzimuthAngle =  0;
+    controls.maxAzimuthAngle =  0;
+    controls.enableRotate = false;
+    const maxDim = Math.max(FW, TD, totalH);
+    const zoomPct = 111 - (currentFloorWalk * 8);
+    const camDist = (maxDim * 1.2) / (zoomPct / 100);
+    controls.target.set(cx, 0, cz);
+    camera.position.set(cx, camDist, cz + 0.001);
+    controls.update();
+
+  } else if (viewMode === 'iso') {
+    currentZoom = 93;
+    controls.maxPolarAngle = Math.PI * 0.90;
+    controls.minAzimuthAngle = Infinity;
+    controls.maxAzimuthAngle = Infinity;
+    controls.enableRotate = false;
+    const dist = Math.max(FW, TD) * 0.97;
+    controls.target.set(cx, totalH * 0.35, cz);
+    camera.position.set(cx - dist*0.15, totalH + dist * 0.95, cz + dist * 0.55);
+    controls.update();
+
+  } else if (viewMode === 'corridor') {
+    // Walk view: west side elevated — locked angle
+    controls.maxPolarAngle = Math.PI * 0.90;
+    controls.minAzimuthAngle = Infinity;
+    controls.maxAzimuthAngle = Infinity;
+    controls.enableRotate = false;
+    const flY = currentFloorWalk * FloorH + WallH * 0.5;
+    const maxDim = Math.max(FW, TD, totalH);
+    controls.target.set(cx, flY, oz + TD/2);
+    // Place camera at exact distance for 125%: dist = maxDim*1.2/1.25
+    const wDist = (maxDim * 1.2) / 1.07;
+    // Direction: west side (-X) and elevated (+Y), normalized then scaled
+    const dirX = -0.85, dirY = 0.52, dirZ = 0.0;
+    const len = Math.sqrt(dirX*dirX + dirY*dirY + dirZ*dirZ);
+    camera.position.set(
+      cx + (dirX/len) * wDist,
+      flY + (dirY/len) * wDist,
+      oz + TD/2 + (dirZ/len) * wDist
+    );
+    controls.update();
+
+  } else if (viewMode === 'free') {
+    // Free view — full rotation, pan, zoom, no restrictions
+    controls.enableRotate = true;
+    controls.minAzimuthAngle = -Infinity;
+    controls.maxAzimuthAngle =  Infinity;
+    controls.maxPolarAngle   = Math.PI * 0.90;
+    controls.minPolarAngle   = 0;
+    const dist = Math.max(FW, TD, totalH) * 1.1;
+    controls.target.set(cx, totalH * 0.3, cz);
+    camera.position.set(cx + dist*0.5, totalH + dist*0.6, cz + dist*0.7);
+    controls.update();
+  }
+}
+let floorGroups  = [];
+let backWalls    = [];
+let drawerOffset = [];
+let drawerTarget = [];
+
+// Called whenever floor selection changes
+function updateFloorAppearance() {
+  if (!buildingGrp) return;
+  const { floors, apts, aw, ad, cw } = cfg;
+  const WallH = 3.2, ST = 0.18, FloorH = WallH + ST;
+  const TD = ad * 2 + cw;
+  // Each floor above slides 1x building depth behind the selected floor
+  const drawerGap = TD * 1.05;
+
+  for (let fl = 0; fl < floors; fl++) {
+    const isAbove = fl > currentFloorWalk;
+    // All floors above slide the SAME fixed distance — not multiplied by how far above they are
+    drawerTarget[fl] = isAbove ? drawerGap : 0;
+    if (drawerOffset[fl] === undefined) drawerOffset[fl] = 0;
+  }
+
+  buildingGrp.traverse(m => {
+    if (!m.isMesh) return;
+    const fl = m.userData.floor;
+    if (fl === undefined || fl < 0) return;
+
+    const isAbove = (fl > currentFloorWalk);
+
+    // Clone material if not already cloned (so we dont affect shared materials)
+    if (!m.userData.matCloned) {
+      if (Array.isArray(m.material)) {
+        m.material = m.material.map(mat => mat.clone());
+      } else if (m.material) {
+        m.material = m.material.clone();
+      }
+      m.userData.matCloned = true;
+    }
+
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    mats.forEach(mat => {
+      if (!mat) return;
+      mat.transparent = isAbove;
+      mat.opacity     = isAbove ? 0.15 : 1.0;
+      mat.depthWrite  = !isAbove;
+      mat.needsUpdate = true;
+    });
+
+    if (m.userData.isBackWall !== undefined) {
+      // SOUTH wall always visible in ALL views — never hide it
+      m.visible = true;
+    }
+    // WEST corridor section: hide for selected floor always,
+    // AND hide for all floors when in walk view (camera is on west side)
+    if (m.userData.isWestCorr !== undefined) {
+      if (viewMode === 'corridor') {
+        m.visible = false; // hide all west corr sections in walk view
+      } else {
+        m.visible = (m.userData.isWestCorr !== currentFloorWalk);
+      }
+    }
+  });
+}
+
+function updateWallVisibility() {
+  updateFloorAppearance();
+}
+
+// Smooth drawer animation
+let animating = false;
+function animateDrawer() {
+  const { floors } = cfg;
+  let stillMoving = false;
+
+  // Update offsets
+  for (let fl = 0; fl < floors; fl++) {
+    if (drawerOffset[fl] === undefined) drawerOffset[fl] = 0;
+    if (drawerTarget[fl] === undefined) drawerTarget[fl] = 0;
+    const diff = drawerTarget[fl] - drawerOffset[fl];
+    if (Math.abs(diff) > 0.02) {
+      drawerOffset[fl] += diff * 0.14;
+      stillMoving = true;
+    } else {
+      drawerOffset[fl] = drawerTarget[fl];
+    }
+  }
+
+  // Apply Z offset — floors slide BACKWARD (toward NORTH wall = negative Z)
+  if (buildingGrp) {
+    buildingGrp.traverse(m => {
+      if (!m.isMesh) return;
+      const fl = m.userData.floor;
+      if (fl === undefined || fl < 0) return;
+      if (m.userData.baseZ === undefined) m.userData.baseZ = m.position.z;
+      // Slide toward negative Z (NORTH = back of building)
+      m.position.z = m.userData.baseZ - (drawerOffset[fl] || 0);
+    });
+  }
+
+  if (stillMoving) requestAnimationFrame(animateDrawer);
+  else animating = false;
+}
+
+function triggerDrawer() {
+  updateFloorAppearance();
+  animating = true;
+  animateDrawer();
+}
+
+// ── Lights ────────────────────────────────────────────────
+// Main overhead light — like the reference image bright studio light
+const sun = new THREE.DirectionalLight(0xFFFFFF, 4.0);
+sun.position.set(-15, 40, -10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far  = 120;
+sun.shadow.camera.left = sun.shadow.camera.bottom = -55;
+sun.shadow.camera.right= sun.shadow.camera.top    =  55;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
+scene.add(sun);
+
+scene.add(new THREE.AmbientLight(0xF5F0E8, 2.5));
+const fill = new THREE.DirectionalLight(0xE0EEFF, 0.8);
+fill.position.set(20, 15, 25);
+scene.add(fill);
+
+// ── Textures ──────────────────────────────────────────────
+function tex(fn, w=512, h=512) {
+  const c = Object.assign(document.createElement('canvas'), {width:w, height:h});
+  fn(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+const WOOD = tex((ctx, w, h) => {
+  ctx.fillStyle = '#7B6B59'; ctx.fillRect(0,0,w,h);
+  for (let y=0; y<h; y+=20) {
+    ctx.fillStyle = `rgba(0,0,0,${0.06+Math.random()*0.08})`; ctx.fillRect(0,y,w,1.5);
+  }
+  for (let x=0; x<w; x+=16) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.04})`; ctx.fillRect(x,0,1,h);
+  }
+  for (let y=0; y<h; y+=20) {
+    for (let x=Math.random()*60; x<w; x+=50+Math.random()*70) {
+      ctx.fillStyle='rgba(0,0,0,0.10)'; ctx.fillRect(x,y,1,20);
+    }
+  }
+});
+WOOD.repeat.set(2, 2);
+
+const TILE = tex((ctx, w, h) => {
+  ctx.fillStyle = '#D5D0C8'; ctx.fillRect(0,0,w,h);
+  const ts = 40;
+  for (let x=0; x<w; x+=ts) for (let y=0; y<h; y+=ts) {
+    ctx.fillStyle='rgba(255,255,255,0.20)'; ctx.fillRect(x+1,y+1,ts-2,ts-2);
+    ctx.strokeStyle='rgba(150,145,138,0.55)'; ctx.lineWidth=1.2; ctx.strokeRect(x,y,ts,ts);
+  }
+});
+TILE.repeat.set(3,3);
+
+const WALL_TEX = tex((ctx,w,h)=>{
+  ctx.fillStyle='#F3F0EA'; ctx.fillRect(0,0,w,h);
+  for(let i=0;i<300;i++){ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.015})`;ctx.fillRect(Math.random()*w,Math.random()*h,Math.random()*5,Math.random()*5);}
+});
+
+// ── Materials ─────────────────────────────────────────────
+const M = {
+  // Walls — bright white like reference image
+  wall:      new THREE.MeshStandardMaterial({map:WALL_TEX, roughness:0.88, metalness:0.0, color:0xF5F2EC}),
+  wallDark:  new THREE.MeshStandardMaterial({roughness:0.90, metalness:0.0, color:0xE0DDD6}),
+  // Floors
+  wood:      new THREE.MeshStandardMaterial({map:WOOD, roughness:0.72, metalness:0.04}),
+  woodDark:  new THREE.MeshStandardMaterial({map:WOOD, roughness:0.72, metalness:0.04, color:0x998878}),
+  tile:      new THREE.MeshStandardMaterial({map:TILE, roughness:0.45, metalness:0.08}),
+  kitFloor:  new THREE.MeshStandardMaterial({roughness:0.80, color:0xCDC8BE}),
+  corridor:  new THREE.MeshStandardMaterial({roughness:0.82, color:0xC8C3B8}),
+  entry:     new THREE.MeshStandardMaterial({roughness:0.80, color:0xD5D0C5}),
+  balcony:   new THREE.MeshStandardMaterial({roughness:0.88, color:0xD0CBC2}),
+  // Windows
+  winFrame:  new THREE.MeshStandardMaterial({roughness:0.55, metalness:0.15, color:0x252220}),
+  glass:     new THREE.MeshStandardMaterial({color:0x88B8CC, roughness:0.04, metalness:0.1, transparent:true, opacity:0.50}),
+  // Doors
+  doorFrame: new THREE.MeshStandardMaterial({roughness:0.65, color:0x201E1C}),
+  doorLeaf:  new THREE.MeshStandardMaterial({roughness:0.65, color:0x302820}),
+  // Furniture
+  sofa:      new THREE.MeshStandardMaterial({roughness:0.88, color:0x5A7A9A}),  // blue
+  sofaLight: new THREE.MeshStandardMaterial({roughness:0.88, color:0x8898A8}),
+  bed:       new THREE.MeshStandardMaterial({roughness:0.88, color:0xE8E4DC}),
+  bedSheet:  new THREE.MeshStandardMaterial({roughness:0.88, color:0xC8CCCE}),
+  pillow:    new THREE.MeshStandardMaterial({roughness:0.90, color:0xD0D4D8}),
+  table:     new THREE.MeshStandardMaterial({roughness:0.72, color:0xC5BEB0}),
+  chair:     new THREE.MeshStandardMaterial({roughness:0.85, color:0xB8B4AE}),
+  rug:       new THREE.MeshStandardMaterial({roughness:0.97, color:0x858090}),
+  kitTop:    new THREE.MeshStandardMaterial({roughness:0.55, metalness:0.1, color:0xE8E5DE}),
+  kitBase:   new THREE.MeshStandardMaterial({roughness:0.80, color:0x2E2820}),
+  toilet:    new THREE.MeshStandardMaterial({roughness:0.55, color:0xF0EEEA}),
+  tub:       new THREE.MeshStandardMaterial({roughness:0.45, metalness:0.05, color:0xF0EEEA}),
+  plant:     new THREE.MeshStandardMaterial({roughness:0.90, color:0x3D6A2E}),
+  pot:       new THREE.MeshStandardMaterial({roughness:0.80, color:0x9A7055}),
+  railing:   new THREE.MeshStandardMaterial({roughness:0.55, metalness:0.2, color:0x252220}),
+  stair:     new THREE.MeshStandardMaterial({roughness:0.90, color:0x454540}),
+  lift:      new THREE.MeshStandardMaterial({roughness:0.80, metalness:0.25, color:0x2A2830}),
+  slab:      new THREE.MeshStandardMaterial({roughness:0.92, color:0x909090}),
+};
+
+// ── Config ────────────────────────────────────────────────
+let cfg = { floors:4, apts:3, aw:9, ad:11, cw:2.4 };
+let buildingGrp  = null;
+let hitMeshes    = [];
+
+// ── Helpers ───────────────────────────────────────────────
+function B(w,h,d, mat, x,y,z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.position.set(x,y,z);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function CYL(rt,rb,h, mat, x,y,z, seg=10) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mat);
+  m.position.set(x,y,z); m.castShadow=true;
+  return m;
+}
+function add(grp,...meshes){ meshes.forEach(m=>grp.add(m)); }
+
+// ── BUILD ─────────────────────────────────────────────────
+function build() {
+  if (buildingGrp) scene.remove(buildingGrp);
+  buildingGrp = new THREE.Group();
+  hitMeshes   = [];
+
+  const { floors, apts, aw, ad, cw } = cfg;
+  const WT    = 0.28;   // wall thickness
+  const ST    = 0.18;   // floor slab thickness between floors
+  const STW   = 3.8;    // stair core width
+  const WallH = 3.2;    // height of each floor's walls
+  const FloorH = WallH + ST; // total height per floor
+  const TW    = apts * aw;
+  const TD    = ad * 2 + cw;
+  const FW    = TW + STW;
+  const ox    = -FW / 2;
+  const oz    = -TD / 2;
+
+  // ── GROUND SLAB ──────────────────────────────────────
+  const groundSlab = B(FW, 0.20, TD, M.slab, ox+FW/2, -0.10, oz+TD/2);
+  groundSlab.userData.floor = -1; // ground, always visible
+  buildingGrp.add(groundSlab);
+
+  // ── LOOP OVER ALL FLOORS ─────────────────────────────
+  for (let fl = 0; fl < floors; fl++) {
+    const Y0 = fl * FloorH;
+    const wy  = Y0 + WallH/2;
+
+    // addF: add mesh tagged with floor index for drawer/transparency
+    const addF = (mesh) => {
+      mesh.userData.floor  = fl;
+      mesh.userData.baseY  = mesh.position.y;
+      buildingGrp.add(mesh);
+      return mesh;
+    };
+
+    // ── Floor slab ──────────────────────────────────
+    if (fl > 0) addF(B(FW, ST, TD, M.slab, ox+FW/2, Y0 - ST/2, oz+TD/2));
+
+    // ── Corridor floor ──────────────────────────────
+    addF(B(TW-WT*2, 0.02, cw-WT*2, M.corridor, ox+TW/2, Y0+0.01, oz+ad+cw/2));
+
+    // ── Outer walls ─────────────────────────────────
+    addF(B(TW+WT*2, WallH, WT, M.wall, ox+TW/2, wy, oz));   // front
+    // Back wall — tagged for corridor-view hide per floor
+    const bw = B(TW+WT*2, WallH, WT, M.wall, ox+TW/2, wy, oz+TD);
+    bw.userData.isBackWall = fl; bw.userData.floor = fl; bw.userData.baseY = bw.position.y;
+    buildingGrp.add(bw);
+    // WEST wall — split into 3 parts so corridor section can be hidden per floor
+    addF(B(WT, WallH, ad+WT, M.wall, ox, wy, oz+(ad+WT)/2));              // WEST top-apt section
+    const westCorr = B(WT, WallH, cw, M.wall, ox, wy, oz+ad+cw/2);
+    westCorr.userData.isWestCorr = fl;
+    westCorr.userData.floor = fl;
+    westCorr.userData.baseZ = westCorr.position.z;
+    buildingGrp.add(westCorr);
+    addF(B(WT, WallH, ad+WT, M.wall, ox, wy, oz+ad+cw+(ad+WT)/2));        // WEST bottom-apt section
+    addF(B(WT, WallH, TD+WT*2, M.wall, ox+TW, wy, oz+TD/2));   // EAST wall (right, between apts and stair core)
+
+    // ── Corridor walls ──────────────────────────────
+    addF(B(TW-WT, WallH, WT, M.wallDark, ox+TW/2+WT/2, wy, oz+ad));
+    addF(B(TW-WT, WallH, WT, M.wallDark, ox+TW/2+WT/2, wy, oz+ad+cw));
+
+    // ── Apt divider walls ───────────────────────────
+    for (let i=1; i<apts; i++) {
+      const xd = ox + i*aw;
+      addF(B(WT, WallH, ad-WT, M.wall, xd, wy, oz+ad/2+WT/2));
+      addF(B(WT, WallH, ad-WT, M.wall, xd, wy, oz+ad+cw+ad/2-WT/2));
+    }
+
+    // ── Per apartment ───────────────────────────────
+    for (let i=0; i<apts; i++) {
+      const ax0 = ox + i*aw;
+      const prevCount = buildingGrp.children.length;
+      buildApt(buildingGrp, ax0, oz,       aw, ad, WallH, WT, 'top',    i, Y0);
+      buildApt(buildingGrp, ax0, oz+ad+cw, aw, ad, WallH, WT, 'bottom', i, Y0);
+      // Tag newly added apt meshes with this floor
+      for (let k = prevCount; k < buildingGrp.children.length; k++) {
+        const m = buildingGrp.children[k];
+        if (m.userData.floor === undefined) { m.userData.floor = fl; m.userData.baseY = m.position.y; }
+      }
+      const h1 = B(aw-WT, 0.1, ad-WT, new THREE.MeshBasicMaterial({visible:false}), ax0+aw/2, Y0+0.05, oz+ad/2);
+      h1.userData = { label:`Apt ${fl+1}${(i+1).toString().padStart(2,'0')}`, floor:fl+1, side:'North', area:Math.round(aw*ad), floorIdx:fl };
+      buildingGrp.add(h1); hitMeshes.push(h1);
+      const h2 = B(aw-WT, 0.1, ad-WT, new THREE.MeshBasicMaterial({visible:false}), ax0+aw/2, Y0+0.05, oz+ad+cw+ad/2);
+      h2.userData = { label:`Apt ${fl+1}${(apts+i+1).toString().padStart(2,'0')}`, floor:fl+1, side:'South', area:Math.round(aw*ad), floorIdx:fl };
+      buildingGrp.add(h2); hitMeshes.push(h2);
+    }
+
+    // ── Stair core ──────────────────────────────────
+    const stairStart = buildingGrp.children.length;
+    buildStair(buildingGrp, ox+TW, oz, STW, TD, WallH, WT, Y0);
+    for (let k = stairStart; k < buildingGrp.children.length; k++) {
+      const m = buildingGrp.children[k];
+      if (m.userData.floor === undefined) { m.userData.floor = fl; m.userData.baseY = m.position.y; }
+    }
+  }
+  // NO ROOF — open top on last floor, exactly as requested
+
+  scene.add(buildingGrp);
+
+  // ── Collect floor groups after build ─────────────────
+  backWalls   = [];
+  floorGroups = [];
+  drawerOffset = [];
+  drawerTarget = [];
+  for (let fl = 0; fl < floors; fl++) {
+    floorGroups[fl] = [];
+    drawerOffset[fl] = 0;
+    drawerTarget[fl] = 0;
+  }
+  buildingGrp.children.forEach(m => {
+    if (m.userData && m.userData.floor !== undefined) {
+      const fl = m.userData.floor;
+      if (!floorGroups[fl]) floorGroups[fl] = [];
+      floorGroups[fl].push(m);
+      // Store base Y position for drawer animation
+      m.userData.baseY = m.position.y;
+    }
+    if (m.userData && m.userData.isBackWall !== undefined) {
+      backWalls[m.userData.isBackWall] = m;
+    }
+  });
+
+  applyView();
+  triggerDrawer();
+  rebuildBtns();
+  updateStats();
+}
+
+// ── ONE APARTMENT ─────────────────────────────────────────
+function buildApt(grp, ax, az, aw, ad, WH, WT, side, idx, Y0=0) {
+  const isTop = side === 'top';
+  const cx = ax + aw/2;
+  const cz = az + ad/2;
+  const y = Y0;
+
+  // ── FLOOR ────────────────────────────────────────────
+  grp.add(B(aw-WT, 0.02, ad-WT, M.wood, cx, y+0.01, cz));
+
+  // Room proportions
+  const bedW = aw * 0.44, bedD = ad * 0.50;
+  const bthW = aw * 0.30, bthD = ad * 0.35;
+  const kitW = aw * 0.38, kitD = ad * 0.20;
+
+  const bedX = ax + aw - bedW/2;
+  const bedZ = isTop ? az + bedD/2 : az + ad - bedD/2;
+  const bthX = ax + bthW/2;
+  const bthZ = isTop ? az + ad - bthD/2 : az + bthD/2;
+  const kitX = ax + bthW + kitW/2;
+  const kitZ = isTop ? az + kitD/2 : az + ad - kitD/2;
+
+  // Bedroom floor (slightly different wood)
+  grp.add(B(bedW-WT, 0.025, bedD-WT, M.woodDark, bedX, y+0.012, bedZ));
+  // Bathroom tile
+  grp.add(B(bthW-WT, 0.025, bthD-WT, M.tile, bthX, y+0.012, bthZ));
+  // Kitchen floor
+  grp.add(B(kitW-WT, 0.025, kitD-WT, M.kitFloor, kitX, y+0.012, kitZ));
+  // Entry mat near door
+  const entW=aw*0.18, entD=ad*0.10;
+  grp.add(B(entW, 0.022, entD, M.entry, cx, y+0.011, isTop?az+ad-entD/2-WT:az+entD/2+WT));
+
+  // ── INTERIOR WALLS ───────────────────────────────────
+  // Bedroom vertical wall
+  grp.add(B(WT, WH, bedD, M.wall, ax+aw-bedW, y+WH/2, bedZ));
+  // Bedroom horizontal cap
+  grp.add(B(bedW+WT, WT, WT, M.wall, bedX-WT/2, y+WH-WT/2, isTop?az+bedD:az+ad-bedD));
+  // Bathroom vertical wall
+  grp.add(B(WT, WH, bthD, M.wallDark, ax+bthW, y+WH/2, bthZ));
+  // Bathroom horizontal cap
+  grp.add(B(bthW+WT, WT, WT, M.wallDark, bthX-WT/2, y+WH-WT/2, isTop?az+ad-bthD:az+bthD));
+  // Closet walls
+  const clsW=aw*0.20, clsD=ad*0.18;
+  const clsX=ax+clsW/2, clsZ=isTop?az+ad-bthD-clsD/2:az+bthD+clsD/2;
+  grp.add(B(WT, WH*0.90, clsD, M.wallDark, ax+clsW, y+WH*0.45, clsZ));
+  grp.add(B(clsW+WT, WT, WT, M.wallDark, clsX-WT/2, y+WH*0.90-WT/2, isTop?clsZ+clsD/2:clsZ-clsD/2));
+
+  // ── WINDOWS ──────────────────────────────────────────
+  const winZ = isTop ? az : az+ad;
+  const nWin = Math.max(1, Math.floor((aw-WT*2)/3.5));
+  const wW = Math.min(1.5, (aw-WT*2)/nWin * 0.60);
+  for (let w=0; w<nWin; w++) {
+    const spacing = (aw-WT*2-nWin*wW)/(nWin+1);
+    const wx = ax+WT+spacing+w*(wW+spacing)+wW/2;
+    grp.add(B(wW, 1.25, WT+0.06, M.winFrame, wx, y+1.05, winZ));
+    grp.add(B(wW-0.1, 1.08, 0.06, M.glass, wx, y+1.08, winZ));
+    // Sill
+    grp.add(B(wW+0.2, 0.06, 0.20, M.wallDark, wx, y+0.41, isTop?winZ-0.08:winZ+0.08));
+  }
+
+  // ── ENTRANCE DOOR ────────────────────────────────────
+  const dW=0.92, dH=2.10;
+  const dZ = isTop ? az+ad : az;
+  grp.add(B(dW+0.14, dH+0.12, WT+0.06, M.wall, cx, y+dH/2+0.06, dZ));
+  grp.add(B(dW, dH, WT+0.08, M.doorFrame, cx, y+dH/2, dZ));
+  // Door leaf (slightly open)
+  grp.add(B(dW-0.04, dH-0.08, 0.05, M.doorLeaf, cx-dW*0.15, y+dH/2, dZ+(isTop?0.12:-0.12)));
+
+  // ── BALCONY ──────────────────────────────────────────
+  const balW=aw*0.48, balD=1.4;
+  const balZ = isTop ? az-balD/2 : az+ad+balD/2;
+  grp.add(B(balW, 0.12, balD, M.balcony, cx, y+0.06, balZ));
+  // Railing top bar
+  grp.add(B(balW, 0.055, 0.05, M.railing, cx, y+1.02, isTop?balZ-balD/2+0.025:balZ+balD/2-0.025));
+  // Side panels
+  grp.add(B(0.05, 1.0, balD, M.railing, cx-balW/2+0.025, y+0.56, balZ));
+  grp.add(B(0.05, 1.0, balD, M.railing, cx+balW/2-0.025, y+0.56, balZ));
+  // Posts
+  const nPost = Math.ceil(balW/0.9);
+  for (let p=1; p<nPost; p++)
+    grp.add(B(0.04,1.0,0.04, M.railing, cx-balW/2+p*(balW/nPost), y+0.56, balZ));
+
+  // ── FURNITURE ────────────────────────────────────────
+  // ── BED ──────────────────────────────────────────────
+  const bfX = bedX, bfZ = isTop ? bedZ+bedD*0.1 : bedZ-bedD*0.1;
+  grp.add(B(bedW*0.70, 0.28, bedD*0.58, M.bed, bfX, y+0.14, bfZ));
+  grp.add(B(bedW*0.70, 0.08, bedD*0.58, M.bedSheet, bfX, y+0.30, bfZ));
+  grp.add(B(bedW*0.28, 0.08, bedD*0.13, M.pillow, bfX-bedW*0.18, y+0.32, isTop?bfZ-bedD*0.20:bfZ+bedD*0.20));
+  grp.add(B(bedW*0.28, 0.08, bedD*0.13, M.pillow, bfX+bedW*0.18, y+0.32, isTop?bfZ-bedD*0.20:bfZ+bedD*0.20));
+  // Nightstands
+  grp.add(B(0.45,0.48,0.45, M.table, bfX-bedW*0.37, y+0.24, bfZ));
+  grp.add(B(0.45,0.48,0.45, M.table, bfX+bedW*0.37, y+0.24, bfZ));
+
+  // ── SOFA ─────────────────────────────────────────────
+  const livW=aw-bthW-bedW-WT*3;
+  const sfX  = ax+bthW+livW*0.55, sfZ = isTop?az+ad*0.65:az+ad-ad*0.65;
+  const sfW  = livW*0.90, sfD = aw*0.18;
+  grp.add(B(sfW, 0.42, sfD, M.sofa, sfX, y+0.21, sfZ));
+  grp.add(B(sfW, 0.55, 0.12, M.sofa, sfX, y+0.275, isTop?sfZ+sfD/2:sfZ-sfD/2));
+  // Armrests
+  grp.add(B(0.12,0.55,sfD, M.sofa, sfX-sfW/2+0.06, y+0.275, sfZ));
+  grp.add(B(0.12,0.55,sfD, M.sofa, sfX+sfW/2-0.06, y+0.275, sfZ));
+  // Cushions
+  grp.add(B(sfW*0.44, 0.10, sfD*0.85, M.sofaLight, sfX-sfW*0.24, y+0.47, sfZ));
+  grp.add(B(sfW*0.44, 0.10, sfD*0.85, M.sofaLight, sfX+sfW*0.24, y+0.47, sfZ));
+  // Coffee table
+  grp.add(B(sfW*0.54, 0.06, sfD*1.1, M.table, sfX, y+0.30, isTop?sfZ-sfD*1.2:sfZ+sfD*1.2));
+  // Rug
+  grp.add(B(sfW+1.0, 0.016, sfD*3.2, M.rug, sfX, y+0.016, sfZ));
+
+  // ── DINING TABLE ─────────────────────────────────────
+  const dtX=ax+bthW+livW*0.45, dtZ=isTop?az+ad*0.25:az+ad-ad*0.25;
+  grp.add(B(1.3, 0.08, 0.8, M.table, dtX, y+0.38, dtZ));
+  [[dtX-0.68,dtZ],[dtX+0.68,dtZ],[dtX,dtZ-0.5],[dtX,dtZ+0.5]].forEach(([cx2,cz2])=>{
+    grp.add(B(0.42,0.06,0.42, M.chair, cx2, y+0.22, cz2));
+  });
+
+  // ── KITCHEN ──────────────────────────────────────────
+  const kcZ = isTop?az+0.30:az+ad-0.30;
+  grp.add(B(kitW-0.1, 0.90, 0.58, M.kitBase, kitX, y+0.45, kcZ));
+  grp.add(B(kitW-0.1, 0.06, 0.62, M.kitTop,  kitX, y+0.93, kcZ));
+  // Side run
+  const ksX = ax+bthW+0.30;
+  grp.add(B(0.58, 0.90, kitD-0.1, M.kitBase, ksX, y+0.45, kitZ));
+  grp.add(B(0.62, 0.06, kitD-0.1, M.kitTop,  ksX, y+0.93, kitZ));
+
+  // ── BATHROOM FIXTURES ────────────────────────────────
+  grp.add(B(0.40,0.45,0.55, M.toilet, ax+0.22, y+0.225, isTop?az+ad-bthD*0.22:az+bthD*0.22));
+  grp.add(B(bthW*0.62, 0.48, bthD*0.42, M.tub, bthX+0.05, y+0.24, isTop?az+ad-bthD*0.70:az+bthD*0.70));
+
+  // ── PLANT ────────────────────────────────────────────
+  grp.add(CYL(0.14,0.18,0.32, M.pot,   ax+bthW+0.22, y+0.16, isTop?az+ad*0.88:az+ad*0.12));
+  grp.add(CYL(0.22,0.14,0.40, M.plant, ax+bthW+0.22, y+0.56, isTop?az+ad*0.88:az+ad*0.12));
+}
+
+// ── STAIR + LIFT CORE ─────────────────────────────────────
+function buildStair(grp, sx, sz, sw, sd, WH, WT, Y0=0) {
+  // Left wall (shared with apts)
+  grp.add(B(WT, WH, sd+WT*2, M.wall, sx, Y0+WH/2, sz+sd/2));
+  // Right wall
+  grp.add(B(WT, WH, sd+WT*2, M.wall, sx+sw, Y0+WH/2, sz+sd/2));
+  // Front + back walls
+  grp.add(B(sw+WT*2, WH, WT, M.wall, sx+sw/2, Y0+WH/2, sz));
+  grp.add(B(sw+WT*2, WH, WT, M.wall, sx+sw/2, Y0+WH/2, sz+sd));
+
+  // Stair floor
+  grp.add(B(sw-WT*2, 0.02, sd*0.52-0.2, M.stair, sx+sw/2, Y0+0.01, sz+sd*0.26));
+  // Steps
+  const nS=13, sH=WH/nS, sD=(sd*0.52-0.4)/nS;
+  for (let s=0; s<nS; s++)
+    grp.add(B(sw-WT*2-0.1, sH, sD+0.05, M.stair, sx+sw/2, Y0+sH*s+sH/2, sz+0.2+s*sD));
+  // Handrail
+  grp.add(B(0.04, WH*0.65, 0.04, M.railing, sx+sw/2+0.3, Y0+WH*0.325, sz+sd*0.26));
+
+  // Lift box
+  const lZ = sz + sd*0.52 + 0.1;
+  const lH = sd*0.48 - 0.2;
+  grp.add(B(sw-WT*2, WH-0.1, lH, M.lift, sx+sw/2, Y0+(WH-0.1)/2, lZ+lH/2));
+  // Lift door
+  grp.add(B(sw*0.5, WH*0.72, 0.05, M.winFrame, sx+sw/2, Y0+WH*0.36, sz+sd*0.52));
+}
+
+// ── Stats ─────────────────────────────────────────────────
+function updateStats() {
+  const {floors,apts,aw,ad,cw} = cfg;
+  document.getElementById('st-units').textContent = apts*2;
+  document.getElementById('st-area').textContent  = Math.round(aw*ad);
+  document.getElementById('st-total').textContent = floors*apts*2;
+  document.getElementById('st-foot').textContent  = Math.round((apts*aw+3.8)*(ad*2+cw));
+}
+
+// ── Raycasting ─────────────────────────────────────────────
+const ray = new THREE.Raycaster();
+const mp  = new THREE.Vector2();
+const tip = document.getElementById('tooltip');
+
+renderer.domElement.addEventListener('mousemove', e => {
+  const r = renderer.domElement.getBoundingClientRect();
+  mp.x =  ((e.clientX-r.left)/r.width )*2-1;
+  mp.y = -((e.clientY-r.top )/r.height)*2+1;
+  ray.setFromCamera(mp, camera);
+  const hits = ray.intersectObjects(hitMeshes);
+  if (hits.length) {
+    const ud = hits[0].object.userData;
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX-r.left+14)+'px';
+    tip.style.top  = (e.clientY-r.top -10)+'px';
+    tip.innerHTML  = `<strong>${ud.label}</strong>Floor ${ud.floor} · ${ud.side}<br>Area: ${ud.area} m²<br>Living · Bedroom · Bath · Kitchen`;
+    renderer.domElement.style.cursor = 'pointer';
+  } else {
+    tip.style.display = 'none';
+    renderer.domElement.style.cursor = 'default';
+  }
+});
+renderer.domElement.addEventListener('mouseleave', () => tip.style.display='none');
+
+// ── Controls wiring ────────────────────────────────────────
+[['s-floors','v-floors','floors',null],
+ ['s-apts',  'v-apts',  'apts',  null],
+ ['s-aw',    'v-aw',    'aw',    'm'],
+ ['s-ad',    'v-ad',    'ad',    'm'],
+ ['s-cw',    'v-cw',    'cw',    'm'],
+].forEach(([sid,vid,key,sfx]) => {
+  document.getElementById(sid).addEventListener('input', function() {
+    cfg[key] = parseFloat(this.value);
+    document.getElementById(vid).textContent = this.value+(sfx||'');
+    build();
+  });
+});
+
+function rebuildBtns() {
+  const fb = document.getElementById('floor-btns');
+  fb.innerHTML = '';
+  for (let i=0; i<cfg.floors; i++) {
+    const b = document.createElement('button');
+    b.className = 'fbtn'+(i===currentFloorWalk?' active':'');
+    b.textContent = `F${i+1}`;
+    b.onclick = () => {
+      document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      currentFloorWalk = i;
+      document.getElementById('fl-info').textContent = `Floor ${i+1} of ${cfg.floors}`;
+      // Trigger drawer animation + transparency
+      triggerDrawer();
+      // Update camera for all views when floor changes
+      applyView();
+    };
+    fb.appendChild(b);
+  }
+}
+
+// ── Resize ─────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = wrap.clientWidth/wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+});
+
+// ── Animate ────────────────────────────────────────────────
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+
+  // Update zoom badge — always from real camera distance
+  const zoomBadge = document.getElementById('zoom-badge');
+  if (zoomBadge) {
+    const { floors: _f, apts: _a, aw: _aw, ad: _ad, cw: _cw } = cfg;
+    const _WH=3.2,_ST=0.18,_STW=3.8,_TW=_a*_aw,_TD=_ad*2+_cw,_FW=_TW+_STW;
+    const _tot=_f*(_WH+_ST), _maxD=Math.max(_FW,_TD,_tot);
+    const defDist = _maxD * 1.2;
+    const curDist = camera.position.distanceTo(controls.target);
+    const pct = Math.round((defDist / curDist) * 100);
+    zoomBadge.textContent = `Zoom: ${Math.max(10, pct)}%`;
+  }
+})();
+
+build();
+</script>
+</body>
+</html>
