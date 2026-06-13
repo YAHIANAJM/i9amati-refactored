@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Bot, Sparkles } from 'lucide-react'
+import { X, MessageSquare, Scale, HelpCircle } from 'lucide-react'
 import { ChatMessage, type Message } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { TypingIndicator } from './TypingIndicator'
@@ -11,9 +11,15 @@ const WELCOME_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
   content:
-    '👋 Bonjour! I\'m the IQAMATI Assistant.\n\nI can help you with:\n• Building management questions\n• Moroccan co-ownership law (Loi 18-00 / 106-12)\n• Syndic duties and responsibilities\n• Payment and charge regulations\n• Assemblée générale procedures\n\nHow can I help you today?',
+    'Welcome to IQAMATI Copilot ✨\n\nI am your intelligent assistant. How can I help you manage your residence today?',
   timestamp: new Date(),
 }
+
+const SUGGESTED_CHOICES = [
+  { icon: <MessageSquare size={14} />, text: 'What are the syndic\'s legal duties?' },
+  { icon: <Scale size={14} />, text: 'Explain the Loi 18-00 rules' },
+  { icon: <HelpCircle size={14} />, text: 'How do I add a new complaint?' },
+]
 
 export function ChatBot() {
   const [isOpen, setIsOpen] = useState(false)
@@ -22,60 +28,33 @@ export function ChatBot() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hasNewMessage = useRef(false)
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current && hasNewMessage.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth',
-      })
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
       hasNewMessage.current = false
     }
   }, [messages, isLoading])
 
   const sendMessage = useCallback(async (content: string) => {
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    }
-
+    const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content, timestamp: new Date() }
     setMessages(prev => [...prev, userMessage])
     hasNewMessage.current = true
     setIsLoading(true)
 
     try {
-      // Build history from previous messages (exclude welcome)
-      const history = messages
-        .filter(m => m.id !== 'welcome')
-        .slice(-10) // Last 10 messages
-        .map(m => ({ role: m.role, content: m.content }))
-
+      const history = messages.filter(m => m.id !== 'welcome').slice(-10).map(m => ({ role: m.role, content: m.content }))
       const res = await fetch(`${API_URL}/api/chatbot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: content, history }),
       })
-
       const data = await res.json()
-
-      const botMessage: Message = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: data.response || 'Sorry, I could not process your request. Please try again.',
-        timestamp: new Date(),
-      }
-
+      const botMessage: Message = { id: `bot-${Date.now()}`, role: 'assistant', content: data.response || 'Sorry, an error occurred.', timestamp: new Date() }
       setMessages(prev => [...prev, botMessage])
       hasNewMessage.current = true
     } catch (error) {
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: '⚠️ Unable to connect to the server. Please check your connection and try again.',
-        timestamp: new Date(),
-      }
+      const errorMessage: Message = { id: `error-${Date.now()}`, role: 'assistant', content: '⚠️ Connection error. Please try again.', timestamp: new Date() }
       setMessages(prev => [...prev, errorMessage])
       hasNewMessage.current = true
     } finally {
@@ -85,76 +64,101 @@ export function ChatBot() {
 
   return (
     <>
-      {/* ── Floating Action Button ─────────────────────── */}
+      {/* Floating Button */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            id="chatbot-fab"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.08 }}
+            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 transition-shadow hover:shadow-xl hover:shadow-blue-500/30"
+            className="fixed bottom-6 right-6 z-50 flex items-center justify-center transition-all group cursor-pointer"
           >
-            <Bot size={24} />
-            {/* Pulse ring */}
-            <span className="absolute inset-0 rounded-full animate-ping bg-blue-400/20" />
-            {/* Sparkle badge */}
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 shadow-sm">
-              <Sparkles size={10} className="text-amber-900" />
-            </span>
+            <img src="/chatbot.png" alt="IQAMATI Chatbot" className="h-24 w-24 object-contain drop-shadow-2xl group-hover:scale-105 group-active:scale-95 transition-transform duration-300" />
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* ── Chat Panel ─────────────────────────────────── */}
+      {/* Side Drawer Panel */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 right-6 z-50 flex flex-col w-[380px] h-[560px] rounded-2xl bg-white/95 backdrop-blur-xl border border-gray-200/60 shadow-2xl shadow-black/10 overflow-hidden"
-          >
-            {/* ── Header ──────────────────────────────── */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-                  <Bot size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold leading-tight">IQAMATI Assistant</h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[11px] text-white/70">Online — AI Powered</span>
+          <>
+            {/* Dark Backdrop (Optional, but gives focus) */}
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-40"
+              onClick={() => setIsOpen(false)}
+            />
+
+            <motion.div
+              initial={{ x: '100%', opacity: 0, scale: 0.98 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: '100%', opacity: 0, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 250 }}
+              className="fixed top-4 bottom-4 right-4 z-50 flex flex-col w-[420px] rounded-[2rem] bg-[#f8fafc]/95 backdrop-blur-3xl border border-white shadow-2xl shadow-slate-400/30 overflow-hidden"
+            >
+              {/* Premium Header */}
+              <div className="flex items-center justify-between px-6 py-5 bg-white/60 border-b border-white shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center">
+                    <img src="/chatbot.png" alt="Bot" className="h-14 w-14 object-contain drop-shadow-md" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 tracking-tight">IQAMATI Copilot</h3>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+                      <span className="text-xs font-medium text-slate-500">Always here to help</span>
+                    </div>
                   </div>
                 </div>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* ── Messages ────────────────────────────── */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto py-3 space-y-1 bg-gradient-to-b from-gray-50/50 to-white"
-            >
-              {messages.map(msg => (
-                <ChatMessage key={msg.id} message={msg} />
-              ))}
-              {isLoading && <TypingIndicator />}
-            </div>
+              {/* Messages Area */}
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+                {messages.map(msg => (
+                  <ChatMessage key={msg.id} message={msg} />
+                ))}
+                
+                {/* Suggestions Choices (Show only when it's the welcome message) */}
+                {messages.length === 1 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                    className="flex flex-col gap-2 mt-4"
+                  >
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-1">Suggested for you</span>
+                    {SUGGESTED_CHOICES.map((choice, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => sendMessage(choice.text)}
+                        className="flex items-center gap-3 w-full p-3.5 text-left bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 hover:bg-slate-50 transition-all group"
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 group-hover:bg-slate-800 group-hover:text-white transition-colors">
+                          {choice.icon}
+                        </div>
+                        <span className="text-[13px] font-semibold text-slate-600 group-hover:text-slate-800">{choice.text}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
 
-            {/* ── Input ───────────────────────────────── */}
-            <ChatInput onSend={sendMessage} disabled={isLoading} />
-          </motion.div>
+                {isLoading && <TypingIndicator />}
+              </div>
+
+              {/* Input Area */}
+              <div className="p-4 bg-white/80 border-t border-white shrink-0">
+                <ChatInput onSend={sendMessage} disabled={isLoading} />
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
