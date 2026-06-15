@@ -16,14 +16,14 @@ const sections = [
     label: 'DASHBOARDS',
     defaultOpen: true,
     items: [
-      { label: 'Global Overview',       icon: LayoutDashboard, to: '/syndic' },
-      { label: 'Apartments Analytics',  icon: PieChart,        to: '/syndic/dash/apartments' },
-      { label: 'Payments Analytics',    icon: TrendingUp,      to: '/syndic/dash/payments' },
-      { label: 'Meetings Analytics',    icon: CalendarCheck,   to: '/syndic/dash/meetings' },
-      { label: 'Accounting Analytics',  icon: BarChart3,       to: '/syndic/dash/accounting' },
-      { label: 'Feed Analytics',        icon: Rss,             to: '/syndic/dash/feed' },
-      { label: 'Services Analytics',    icon: Wrench,          to: '/syndic/dash/services' },
-      { label: 'Union Analytics',       icon: Users,           to: '/syndic/dash/union' },
+      { label: 'Global Overview', icon: LayoutDashboard, to: '/syndic' },
+      { label: 'Apartments Analytics', icon: PieChart, to: '/syndic/dash/apartments' },
+      { label: 'Payments Analytics', icon: TrendingUp, to: '/syndic/dash/payments' },
+      { label: 'Meetings Analytics', icon: CalendarCheck, to: '/syndic/dash/meetings' },
+      { label: 'Accounting Analytics', icon: BarChart3, to: '/syndic/dash/accounting' },
+      { label: 'Feed Analytics', icon: Rss, to: '/syndic/dash/feed' },
+      { label: 'Services Analytics', icon: Wrench, to: '/syndic/dash/services' },
+      { label: 'Union Analytics', icon: Users, to: '/syndic/dash/union' },
     ],
   },
   {
@@ -39,11 +39,11 @@ const sections = [
     label: 'MANAGEMENT',
     defaultOpen: false,
     items: [
-      { label: "Owners' Association", icon: Home,         to: '/syndic/association' },
-      { label: 'Payments',          icon: CreditCard,   to: '/syndic/payments' },
-      { label: 'Documents',         icon: FileText,     to: '/syndic/documents' },
-      { label: 'Meeting & Voting',  icon: CalendarCheck,to: '/syndic/meetings' },
-      { label: 'Accounting',        icon: BarChart3,    to: '/syndic/accounting' },
+      { label: "Owners' Association", icon: Home, to: '/syndic/association' },
+      { label: 'Payments', icon: CreditCard, to: '/syndic/payments' },
+      { label: 'Documents', icon: FileText, to: '/syndic/documents' },
+      { label: 'Meeting & Voting', icon: CalendarCheck, to: '/syndic/meetings' },
+      { label: 'Accounting', icon: BarChart3, to: '/syndic/accounting' },
     ],
   },
   {
@@ -51,9 +51,9 @@ const sections = [
     label: 'COMMUNITY',
     defaultOpen: false,
     items: [
-      { label: 'Feed Management',        icon: Rss,    to: '/syndic/feed' },
-      { label: 'Service Tracking',       icon: Wrench, to: '/syndic/services' },
-      { label: 'Alerts & Notifications', icon: Bell,   to: '/syndic/alerts' },
+      { label: 'Feed Management', icon: Rss, to: '/syndic/feed' },
+      { label: 'Service Tracking', icon: Wrench, to: '/syndic/services' },
+      { label: 'Alerts & Notifications', icon: Bell, to: '/syndic/alerts' },
     ],
   },
   {
@@ -118,7 +118,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary bg-white shadow-sm hover:bg-primary hover:text-white transition-all shrink-0"
         >
           {open
-            ? <ChevronLeft  size={12} className="text-primary" />
+            ? <ChevronLeft size={12} className="text-primary" />
             : <ChevronRight size={12} className="text-primary" />}
         </button>
       </div>
@@ -128,7 +128,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         {sections.map(section => (
           <div key={section.key}>
 
-            {/* Section header — clickable accordion trigger */}
+            {/* Section header - clickable accordion trigger */}
             <button
               onClick={() => open && toggleSection(section.key)}
               className={cn(

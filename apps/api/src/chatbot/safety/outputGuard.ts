@@ -1,4 +1,4 @@
-// Output Guard — Last line of defense before sending response to user
+// Output Guard - Last line of defense before sending response to user
 // Validates that the LLM response is safe and on-topic
 
 export interface GuardResult {
@@ -25,7 +25,7 @@ const DANGEROUS_PATTERNS = [
   /\bprocess\.env/i,
 ]
 
-// Domain keywords — at least one should be present in a valid response
+// Domain keywords - at least one should be present in a valid response
 const DOMAIN_KEYWORDS = [
   'iqamati', 'إقامتي', 'syndic', 'copropriété', 'copropriétaire',
   'immeuble', 'building', 'apartment', 'owner', 'propriétaire',
@@ -68,7 +68,7 @@ export function guardOutput(response: string): GuardResult {
     }
   }
 
-  // 3. Lightweight domain check — only flag if response is long and has zero domain keywords
+  // 3. Lightweight domain check - only flag if response is long and has zero domain keywords
   if (text.length > 100) {
     const lowerText = text.toLowerCase()
     const hasDomainKeyword = DOMAIN_KEYWORDS.some(kw => lowerText.includes(kw.toLowerCase()))
@@ -76,7 +76,7 @@ export function guardOutput(response: string): GuardResult {
       return {
         safe: false,
         filtered: "I specialize in IQAMATI platform features and Moroccan co-ownership law. Could you please ask me something related to building management?",
-        reason: 'Response appears off-topic — no domain keywords found',
+        reason: 'Response appears off-topic - no domain keywords found',
       }
     }
   }

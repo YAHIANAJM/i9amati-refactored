@@ -6,12 +6,12 @@ import { mockFeedPosts } from '@/data/mock/feed'
 const engagementData = mockFeedPosts.map(p => ({
   name: p.authorName.split(' ')[0],
   likes: p.likes,
-  comments: p.comments,
+  comments: p.comments.length,
 }))
 
 export function FeedDash() {
   const totalLikes    = mockFeedPosts.reduce((s,p)=>s+p.likes, 0)
-  const totalComments = mockFeedPosts.reduce((s,p)=>s+p.comments, 0)
+  const totalComments = mockFeedPosts.reduce((s,p)=>s+p.comments.length, 0)
 
   return (
     <div className="flex flex-col min-h-full">

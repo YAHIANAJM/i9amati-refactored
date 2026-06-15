@@ -1,4 +1,4 @@
-// RAG Retriever — Wraps the BM25 index and formats context for the LLM
+// RAG Retriever - Wraps the BM25 index and formats context for the LLM
 
 import { BM25Index, Chunk } from './chunks'
 
@@ -36,7 +36,7 @@ class KnowledgeRetriever {
   }
 }
 
-// Singleton instance — initialized once when the module is first imported
+// Singleton instance - initialized once when the module is first imported
 let _retriever: KnowledgeRetriever | null = null
 
 export function getRetriever(): KnowledgeRetriever {

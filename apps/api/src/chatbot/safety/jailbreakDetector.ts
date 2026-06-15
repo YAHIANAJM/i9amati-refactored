@@ -1,4 +1,4 @@
-// Jailbreak Detection — Pattern matching for known prompt injection attacks
+// Jailbreak Detection - Pattern matching for known prompt injection attacks
 // Uses a weighted scoring system: each pattern has a severity weight.
 // If the cumulative score exceeds the threshold, the input is blocked.
 

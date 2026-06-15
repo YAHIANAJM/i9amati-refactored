@@ -148,7 +148,7 @@ export function Payments() {
                   <td className="px-4 py-3 text-sm font-semibold">{formatCurrency(p.amount)}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(p.dueDate)}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {p.paidAt ? formatDate(p.paidAt) : '—'}
+                    {p.paidAt ? formatDate(p.paidAt) : '-'}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={statusConfig[p.status as keyof typeof statusConfig]?.variant || 'secondary'}>

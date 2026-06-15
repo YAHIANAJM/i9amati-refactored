@@ -5,7 +5,7 @@ export interface Building {
   name: string
   address: string
   unionType: UnionType
-  residenceId: string        // always set — IMMEUBLE gets an auto-created Residence
+  residenceId: string        // always set - IMMEUBLE gets an auto-created Residence
   image?: string             // if null → default building illustration
   propertyPlanNumber?: string
   numberOfFloors?: number
