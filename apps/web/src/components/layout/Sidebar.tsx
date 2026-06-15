@@ -17,7 +17,7 @@ const sections = [
     defaultOpen: true,
     items: [
       { label: 'Global Overview',       icon: LayoutDashboard, to: '/syndic' },
-      { label: 'Apartments Analytics',  icon: PieChart,        to: '/syndic/dash/apartments' },
+      { label: "Owners' Association",    icon: PieChart,        to: '/syndic/dash/apartments' },
       { label: 'Payments Analytics',    icon: TrendingUp,      to: '/syndic/dash/payments' },
       { label: 'Meetings Analytics',    icon: CalendarCheck,   to: '/syndic/dash/meetings' },
       { label: 'Accounting Analytics',  icon: BarChart3,       to: '/syndic/dash/accounting' },
@@ -151,9 +151,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     )}
                   />
                 </>
-              ) : (
-                <div className="h-px w-8 bg-border/60" />
-              )}
+              ) : null}
             </button>
 
             {/* Section items */}

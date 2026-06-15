@@ -184,6 +184,37 @@ function FacilityPill({ name }: { name: string }) {
   )
 }
 
+/* ── AddMenu — simple 3-step hierarchy ── */
+function AddMenu({
+  onGoResidences,
+  onGoBuildings,
+  onGoApartments,
+}: {
+  onGoResidences: () => void
+  onGoBuildings:  () => void
+  onGoApartments: () => void
+}) {
+  return (
+    <div className="w-56 py-1.5">
+      <button onClick={onGoResidences} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors">
+        <span className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
+        <span className="text-sm font-medium">Résidence</span>
+        <ArrowRight size={12} className="ml-auto text-muted-foreground/40" />
+      </button>
+      <button onClick={onGoBuildings} className="w-full flex items-center gap-3 px-4 py-2.5 pl-8 text-left hover:bg-muted/50 transition-colors">
+        <span className="h-2 w-2 rounded-full bg-violet-400 shrink-0" />
+        <span className="text-sm font-medium">Bâtiment</span>
+        <ArrowRight size={12} className="ml-auto text-muted-foreground/40" />
+      </button>
+      <button onClick={onGoApartments} className="w-full flex items-center gap-3 px-4 py-2.5 pl-12 text-left hover:bg-muted/50 transition-colors">
+        <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+        <span className="text-sm font-medium">Appartement</span>
+        <ArrowRight size={12} className="ml-auto text-muted-foreground/40" />
+      </button>
+    </div>
+  )
+}
+
 /* ── NavBar — shared inner navigation for deep modal levels ── */
 function NavBar({
   onBack, crumbs, onManage, onClose,
@@ -265,54 +296,69 @@ function StickyTickets({
   }
 
   return (
-    <div className="absolute right-3 top-14 flex flex-col items-end gap-1 z-20 pointer-events-none">
+    <div
+      className="fixed flex flex-col items-start gap-2 pointer-events-none"
+      style={{
+        left: 'calc(50vw + min(46vw, 40rem))',
+        top: 'calc(6vh + 2.75rem)',
+        zIndex: 60,
+      }}
+    >
 
-      {/* Building tickets */}
-      {buildings.map(b => {
-        const isActive = b.id === currentBuildingId
-        return (
-          <button
-            key={b.id}
-            onClick={() => onSelectBuilding(b.id)}
-            title={b.name}
-            className={cn(
-              'pointer-events-auto flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all shadow-lg ring-1',
-              isActive
-                ? 'bg-primary text-white ring-primary/30'
-                : 'bg-background ring-border text-muted-foreground hover:text-foreground hover:bg-muted',
-            )}
-          >
-            <span className="truncate max-w-[80px]">{b.name}</span>
-            {isActive && <span className="h-1.5 w-1.5 rounded-full bg-white/60 shrink-0" />}
-          </button>
-        )
-      })}
+      {/* Buildings — one tab each */}
+      <div className="flex flex-col items-start gap-1">
+        {buildings.map(b => {
+          const isActive = b.id === currentBuildingId
+          return (
+            <button
+              key={b.id}
+              onClick={() => onSelectBuilding(b.id)}
+              title={b.name}
+              className={cn(
+                'pointer-events-auto flex items-center gap-1.5 h-7 px-3 rounded-r-lg text-[11px] font-semibold transition-all shadow-md',
+                isActive
+                  ? 'bg-slate-800 text-white shadow-slate-900/30'
+                  : 'bg-white/90 border border-border text-slate-500 hover:text-slate-800 hover:bg-white',
+              )}
+            >
+              {isActive && <span className="h-1.5 w-1.5 rounded-full bg-white/60 shrink-0" />}
+              <span className="truncate max-w-[80px]">{b.name}</span>
+            </button>
+          )
+        })}
+      </div>
 
-      {/* Divider between buildings + apartments */}
+      {/* Apartments — single unified card */}
       {currentAptId && buildingApts.length > 0 && (
-        <div className="w-16 h-px bg-border/60 mr-0 my-0.5" />
+        <div className="pointer-events-auto rounded-r-xl bg-white/95 border border-border shadow-xl overflow-hidden" style={{ minWidth: 110 }}>
+          {/* Card title */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 border-b border-slate-700">
+            <Home size={10} className="text-slate-300 shrink-0" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-300">Apartments</span>
+          </div>
+          {/* Apt rows */}
+          <div className="flex flex-col divide-y divide-border/50">
+            {buildingApts.map(apt => {
+              const isActive = apt.id === currentAptId
+              return (
+                <button
+                  key={apt.id}
+                  onClick={() => onSelectApt(apt.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition-colors text-left w-full',
+                    isActive
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                  )}
+                >
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', isActive ? 'bg-white/70' : statusDot[apt.status])} />
+                  <span>{apt.unitCode}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
       )}
-
-      {/* Apartment tickets */}
-      {currentAptId && buildingApts.map(apt => {
-        const isActive = apt.id === currentAptId
-        return (
-          <button
-            key={apt.id}
-            onClick={() => onSelectApt(apt.id)}
-            title={apt.unitCode}
-            className={cn(
-              'pointer-events-auto flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[10px] font-medium transition-all shadow-md ring-1',
-              isActive
-                ? 'bg-primary text-white ring-primary/30'
-                : 'bg-background ring-border text-muted-foreground hover:text-foreground hover:bg-muted',
-            )}
-          >
-            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', isActive ? 'bg-white/70' : statusDot[apt.status])} />
-            <span>{apt.unitCode}</span>
-          </button>
-        )
-      })}
     </div>
   )
 }
@@ -967,7 +1013,25 @@ function ResidenceModal({
 
               {/* RIGHT — owners (view only) */}
               <div className="flex flex-col overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-3 border-b shrink-0">
+                {/* Apartment title header */}
+                <div className="px-5 py-3.5 border-b shrink-0 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Home size={13} className="text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold leading-none">{activeApt.unitCode}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Apartment · {activeBuilding?.name}</p>
+                      </div>
+                    </div>
+                    <Badge variant={aptStatus[activeApt.status].variant} className="text-[10px]">
+                      {aptStatus[activeApt.status].label}
+                    </Badge>
+                  </div>
+                </div>
+                {/* Owners sub-header */}
+                <div className="flex items-center gap-2 px-5 py-2.5 border-b shrink-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Owners</p>
                   <span className="h-5 min-w-5 px-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
                     {aptOwners.length}
@@ -1070,9 +1134,14 @@ export function Association() {
   const drillToBuildings = (r: Residence) => { setSelectedResidence(r); setSelectedBuilding(null); setView('buildings') }
   const openModal  = (r: Residence) => setModalResidence(r)
   const closeModal = () => setModalResidence(null)
-  const drillToApartments = (b: Building) => { setSelectedBuilding(b); setExpandedApt(null); setView('apartments') }
+  const drillToApartments = (b: Building) => {
+    const firstApt = getApartmentsByBuilding(b.id)[0]
+    setSelectedBuilding(b)
+    setExpandedApt(firstApt?.id ?? null)
+    setView('apartments')
+  }
   const goBack = () => {
-    if (view === 'apartments') { setView('buildings'); setExpandedApt(null) }
+    if (view === 'apartments') { setView('buildings'); setSelectedBuilding(null); setExpandedApt(null) }
     else if (view === 'buildings') { setView('residences'); setSelectedResidence(null) }
   }
 
@@ -1152,17 +1221,18 @@ export function Association() {
     return null
   }
 
-  /* ── top actions ── */
-  const Actions = () => (
-    <Button size="sm" className="gap-1.5 text-xs">
-      <Plus size={13} />
-      {view === 'residences' ? 'Ajouter résidence' : view === 'buildings' ? 'Ajouter bâtiment' : 'Ajouter appartement'}
-    </Button>
-  )
+  const menuLabel = view === 'residences' ? 'Ajouter résidence'
+                  : view === 'buildings'  ? 'Ajouter bâtiment'
+                  : 'Ajouter appartement'
 
   return (
     <div className="flex flex-col min-h-full">
-      <TopBar title="Owners' Association" subtitle={<HeaderSubtitle />} actions={<Actions />} />
+      <TopBar title="Owners' Association" subtitle={<HeaderSubtitle />} actions={
+        <Button size="sm" className="gap-1.5 text-xs">
+          <Plus size={13} />
+          {menuLabel}
+        </Button>
+      } />
 
       {/* Residence overview modal */}
       <ResidenceModal
@@ -1247,10 +1317,11 @@ export function Association() {
                           </span>
                         )}
                         <button
-                          onClick={e => { e.stopPropagation(); openModal(r) }}
-                          className="ml-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-primary hover:bg-primary/90 transition-colors"
+                          onClick={e => { e.stopPropagation(); drillToBuildings(r) }}
+                          className="ml-1.5 flex items-center gap-1.5 h-7 px-3 rounded-lg bg-primary hover:bg-primary/90 transition-colors"
                         >
-                          <ChevronRight size={13} className="text-white" strokeWidth={2.5} />
+                          <span className="text-white text-xs font-medium">Manage</span>
+                          <ArrowRight size={12} className="text-white" strokeWidth={2.5} />
                         </button>
                       </div>
                     </div>
@@ -1314,7 +1385,16 @@ export function Association() {
                         {b.hasGarage   && <span className="bg-muted px-1.5 py-0.5 rounded">Garage</span>}
                         {b.propertyPlanNumber && <span className="bg-muted px-1.5 py-0.5 rounded font-mono">{b.propertyPlanNumber}</span>}
                       </div>
-                      <AvatarStack owners={bldOwners} />
+                      <div className="flex items-center justify-between">
+                        <AvatarStack owners={bldOwners} />
+                        <button
+                          onClick={e => { e.stopPropagation(); drillToApartments(b) }}
+                          className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-dashed border-primary/40 text-primary hover:bg-primary hover:text-white hover:border-primary transition-all text-xs font-medium"
+                        >
+                          <Plus size={12} />
+                          Add Owner
+                        </button>
+                      </div>
                     </CardContent>
                   </Card>
                 )

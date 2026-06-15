@@ -76,7 +76,7 @@ export function ChatBot() {
             onClick={() => setIsOpen(true)}
             className="fixed bottom-6 right-6 z-50 flex items-center justify-center transition-all group cursor-pointer"
           >
-            <img src="/chatbot.png" alt="IQAMATI Chatbot" className="h-24 w-24 object-contain drop-shadow-2xl group-hover:scale-105 group-active:scale-95 transition-transform duration-300" />
+            <img src="/chatbot.png" alt="IQAMATI Chatbot" className="h-32 w-32 object-contain drop-shadow-2xl group-hover:scale-105 group-active:scale-95 transition-transform duration-300" />
           </motion.button>
         )}
       </AnimatePresence>
