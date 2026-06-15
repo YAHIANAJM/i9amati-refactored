@@ -4,7 +4,7 @@ export interface Owner {
   id: string
   firstName: string
   lastName: string
-  nationalId: string         // CIN — becomes default password
+  nationalId: string         // CIN - becomes default password
   phone?: string
   email?: string             // auto-generated for representative
   gender: Gender

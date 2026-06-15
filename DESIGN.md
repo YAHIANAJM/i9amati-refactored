@@ -2,7 +2,7 @@
 
 ## Theme
 
-Light mode app shell on a grey canvas. White cards float on `#d8dce3` page background — the grey creates depth and separates regions without borders. Dark sidebar for strong visual anchor on the left.
+Light mode app shell on a grey canvas. White cards float on `#d8dce3` page background - the grey creates depth and separates regions without borders. Dark sidebar for strong visual anchor on the left.
 
 ## Color Palette
 
@@ -10,7 +10,7 @@ Light mode app shell on a grey canvas. White cards float on `#d8dce3` page backg
 |------|-------|-------|
 | Primary | `hsl(221 83% 53%)` / `#3b82f6` | CTAs, active nav, links, chart primary |
 | Background | `hsl(0 0% 100%)` | Cards, modals, TopBar |
-| Page canvas | `#d8dce3` | Body background — the "table" cards sit on |
+| Page canvas | `#d8dce3` | Body background - the "table" cards sit on |
 | Foreground | `hsl(222 47% 11%)` | Body text, headings |
 | Muted | `hsl(210 40% 96%)` | Secondary backgrounds, input fills |
 | Muted foreground | `hsl(215 16% 47%)` | Captions, labels, secondary text |
@@ -29,11 +29,11 @@ Light mode app shell on a grey canvas. White cards float on `#d8dce3` page backg
 | Inactive / Vacant | `bg-slate-100` | `text-slate-500` |
 
 ### Facility / tag pill colors (cycling)
-`blue → violet → emerald → amber → pink → cyan` — light background + darker same-hue text.
+`blue → violet → emerald → amber → pink → cyan` - light background + darker same-hue text.
 
 ## Typography
 
-- **Font**: Inter (system-ui fallback) — loaded from system or CDN
+- **Font**: Inter (system-ui fallback) - loaded from system or CDN
 - **Scale**:
   - Page title (TopBar h1): `text-base font-semibold`
   - Section headings (CardTitle): `text-sm font-semibold`
@@ -57,7 +57,7 @@ Light mode app shell on a grey canvas. White cards float on `#d8dce3` page backg
 White background, `border border-border`, `rounded-lg shadow-sm`. Cards are the primary content container. They sit on the grey page canvas.
 
 ### TopBar
-Sticky top, `bg-background/95 backdrop-blur`, `border-b`. Contains: `h1` title + optional subtitle (accepts `React.ReactNode` — can be pill badges), search input, bell icon with red dot, settings icon, optional actions slot.
+Sticky top, `bg-background/95 backdrop-blur`, `border-b`. Contains: `h1` title + optional subtitle (accepts `React.ReactNode` - can be pill badges), search input, bell icon with red dot, settings icon, optional actions slot.
 
 ### Sidebar
 Dark navy (`hsl(222 47% 11%)`). Collapsible accordion sections. DASHBOARDS section open by default; all others closed until the user navigates to their route (auto-open via `useLocation`). Section labels: `text-[11px] font-extrabold tracking-widest uppercase`. Active nav item: `bg-sidebar-accent`.
@@ -81,15 +81,15 @@ Icon badge (colored `bg-*-50` rounded-lg) + large bold number + small label + op
 
 Framer Motion is installed. Use sparingly:
 - Page enter: `animate-fade-in` (opacity 0→1, 200ms)
-- Card hover: subtle `scale(1.01)` or shadow lift — not required on every card
+- Card hover: subtle `scale(1.01)` or shadow lift - not required on every card
 - Drill-down transitions: slide-in from right when navigating deeper (residences → buildings → apartments)
 - Always wrap with `prefers-reduced-motion` check or use `useReducedMotion()`
 
 ## Iconography
 
-Lucide React throughout. Stroke icons only — no filled icons except for status indicators. Icon sizes: `16` default, `14` in compact rows, `18` in KPI card badges.
+Lucide React throughout. Stroke icons only - no filled icons except for status indicators. Icon sizes: `16` default, `14` in compact rows, `18` in KPI card badges.
 
 ## Images
 
 - Building/residence images: Unsplash URLs as default placeholders
-- Owner avatars: DiceBear `avataaars` style — `https://api.dicebear.com/7.x/avataaars/svg?seed=male` / `seed=female` as gender-based fallback when no `profileImage` set
+- Owner avatars: DiceBear `avataaars` style - `https://api.dicebear.com/7.x/avataaars/svg?seed=male` / `seed=female` as gender-based fallback when no `profileImage` set

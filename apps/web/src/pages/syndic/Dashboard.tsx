@@ -70,8 +70,8 @@ const quickActions = [
 
 // ── Recent activity (translated) ─────────────────────────────────────
 const recentActivity = [
-  { id: '1', icon: <CreditCard size={13} className="text-emerald-600" />, bg: 'bg-emerald-50', text: 'Mohammed El Fassi paid June contribution — A101', time: '2h ago' },
-  { id: '2', icon: <AlertCircle size={13} className="text-amber-600" />, bg: 'bg-amber-50', text: 'Urgent complaint: Elevator out of service — B201', time: '4h ago' },
+  { id: '1', icon: <CreditCard size={13} className="text-emerald-600" />, bg: 'bg-emerald-50', text: 'Mohammed El Fassi paid June contribution - A101', time: '2h ago' },
+  { id: '2', icon: <AlertCircle size={13} className="text-amber-600" />, bg: 'bg-amber-50', text: 'Urgent complaint: Elevator out of service - B201', time: '4h ago' },
   { id: '3', icon: <Users size={13} className="text-blue-600" />, bg: 'bg-blue-50', text: 'New owner added: Omar Tahiri (B201)', time: '1d ago' },
   { id: '4', icon: <CalendarCheck size={13} className="text-violet-600" />, bg: 'bg-violet-50', text: '"Elevator emergency" meeting scheduled', time: '1d ago' },
   { id: '5', icon: <FileText size={13} className="text-slate-500" />, bg: 'bg-slate-50', text: 'AGM Minutes May 2024 added to documents', time: '3d ago' },
@@ -149,7 +149,7 @@ export function Dashboard() {
           <Card className="lg:col-span-2">
             <CardHeader className="pb-1 pt-4 px-5">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Monthly Revenue — MAD</CardTitle>
+                <CardTitle className="text-sm font-semibold">Monthly Revenue - MAD</CardTitle>
                 <Link to="/syndic/dash/payments" className="text-[11px] text-primary flex items-center gap-0.5 hover:underline">
                   Full report <ChevronRight size={12} />
                 </Link>
@@ -170,7 +170,7 @@ export function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v/1000}k`} />
+                  <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v / 1000}k`} />
                   <Tooltip
                     formatter={(v: number) => formatCurrency(v)}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}

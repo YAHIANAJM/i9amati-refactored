@@ -1,7 +1,7 @@
 import type { Building } from '@i9amati/shared'
 
 export const mockBuildings: Building[] = [
-  // ── res-1: إقامة النور — 2 buildings ──────────────────────────
+  // ── res-1: إقامة النور - 2 buildings ──────────────────────────
   {
     id: 'bld-1',
     name: 'البناية A',
@@ -35,7 +35,7 @@ export const mockBuildings: Building[] = [
     updatedAt: '2024-06-01T00:00:00.000Z',
   },
 
-  // ── res-2: عمارة الأطلس — standalone (1 building) ─────────────
+  // ── res-2: عمارة الأطلس - standalone (1 building) ─────────────
   {
     id: 'bld-3',
     name: 'عمارة الأطلس',
@@ -53,7 +53,7 @@ export const mockBuildings: Building[] = [
     updatedAt: '2024-05-20T00:00:00.000Z',
   },
 
-  // ── res-3: إقامة مارينا — 2 buildings ─────────────────────────
+  // ── res-3: إقامة مارينا - 2 buildings ─────────────────────────
   {
     id: 'bld-4',
     name: 'برج المحيط',

@@ -23,7 +23,7 @@ export const mockResidences: Residence[] = [
     status: 'ACTIVE',
     image: undefined,
     totalUnits: 6,
-    description: 'عمارة فردية — auto-created residence wrapper',
+    description: 'عمارة فردية - auto-created residence wrapper',
     facilities: ['Elevator'],
     syndicId: 'syndic-1',
     createdAt: '2023-03-10T00:00:00.000Z',

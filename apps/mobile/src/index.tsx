@@ -1,3 +1,3 @@
-// Mobile app entry — Expo Router handles routing via /app directory
+// Mobile app entry - Expo Router handles routing via /app directory
 // Run: npx expo start
-export {}
+export { }

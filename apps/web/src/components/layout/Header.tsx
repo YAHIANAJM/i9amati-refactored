@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 export function Header() {
   return (
     <header className="flex items-center justify-between px-5 py-3 shrink-0 bg-white rounded-xl shadow-sm border border-border/40">
-      {/* Left — brand */}
+      {/* Left - brand */}
       <div className="flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
           <span className="text-white font-bold text-sm">i9</span>
@@ -15,7 +15,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Center — search */}
+      {/* Center - search */}
       <div className="flex-1 max-w-md mx-8 hidden md:flex items-center relative">
         <Search size={14} className="absolute left-3 text-muted-foreground pointer-events-none" />
         <input
@@ -25,7 +25,7 @@ export function Header() {
         <kbd className="absolute right-3 text-[10px] text-foreground/40 hidden lg:block">⌘K</kbd>
       </div>
 
-      {/* Right — actions + user */}
+      {/* Right - actions + user */}
       <div className="flex items-center gap-2">
         <button className="relative flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors">
           <Bell size={16} className="text-muted-foreground" />

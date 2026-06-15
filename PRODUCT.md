@@ -6,10 +6,10 @@ product
 
 ## Users
 
-Multi-role platform — every actor in a Moroccan residential building ecosystem:
+Multi-role platform - every actor in a Moroccan residential building ecosystem:
 - **Syndic** (property manager): the primary operator. Day-to-day work is collecting fees, resolving complaints, organizing meetings, managing documents, and overseeing service contracts.
 - **Property owners (co-owners)**: track their payment history, vote in meetings, submit requests, view building announcements.
-- **Delegates / union members**: intermediate role between syndic and owners — building representatives who assist in management.
+- **Delegates / union members**: intermediate role between syndic and owners - building representatives who assist in management.
 - More roles are planned (tenants, building staff, accountants).
 
 All roles share one app; each sees a scoped view of the same data.
@@ -25,23 +25,23 @@ Success looks like: a syndic who previously ran everything on WhatsApp and paper
 Professional, trustworthy, and approachable. Like a tool that takes your work seriously but doesn't intimidate you.
 Three words: **Reliable. Clear. Human.**
 
-The design should feel like it was made specifically for this context — not a generic SaaS template, not a government portal. It should inspire confidence in the syndic and feel respectful to the owner.
+The design should feel like it was made specifically for this context - not a generic SaaS template, not a government portal. It should inspire confidence in the syndic and feel respectful to the owner.
 
 ## Anti-references
 
 - Legacy government / e-government portals (grey, form-heavy, intimidating)
 - Generic off-the-shelf Tailwind/Bootstrap admin templates (cookie-cutter table layouts, copy-paste sidebar patterns)
-- Anything that feels overly corporate or foreign — the product serves a local Moroccan audience
+- Anything that feels overly corporate or foreign - the product serves a local Moroccan audience
 
 The current design direction (white cards on `#d8dce3` grey background, blue primary, clean sidebar) is intentional and good. Improvements should build on it, not replace it.
 
 ## Design Principles
 
-1. **Clarity over cleverness** — every screen answers one question. Don't make the syndic hunt for what they need.
-2. **Local first** — respect the bilingual Arabic/French reality of the audience. Design for RTL readiness even if currently English-only.
-3. **Data earns its space** — show numbers only when they help a decision. Empty KPI cards are noise.
-4. **Trust through detail** — small things (consistent spacing, correct icons, real data formats) signal that the software takes the user's work seriously.
-5. **Progressive complexity** — simple entry point (dashboard), depth on demand (drill-down to apartments → owners). Never overwhelm on first load.
+1. **Clarity over cleverness** - every screen answers one question. Don't make the syndic hunt for what they need.
+2. **Local first** - respect the bilingual Arabic/French reality of the audience. Design for RTL readiness even if currently English-only.
+3. **Data earns its space** - show numbers only when they help a decision. Empty KPI cards are noise.
+4. **Trust through detail** - small things (consistent spacing, correct icons, real data formats) signal that the software takes the user's work seriously.
+5. **Progressive complexity** - simple entry point (dashboard), depth on demand (drill-down to apartments → owners). Never overwhelm on first load.
 
 ## Accessibility & Inclusion
 

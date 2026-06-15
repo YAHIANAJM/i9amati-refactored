@@ -1,4 +1,4 @@
-# IQAMATI AI Chatbot Assistant — LangGraph + RAG + Groq
+# IQAMATI AI Chatbot Assistant - LangGraph + RAG + Groq
 
 Build a secure, domain-specific AI chatbot assistant that knows everything about IQAMATI and Moroccan co-ownership law (Law 18-00 / 106-12).
 
@@ -6,7 +6,7 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
 
 ## Proposed Changes
 
-### Backend — Knowledge Base (RAG)
+### Backend - Knowledge Base (RAG)
 
 #### [NEW] [documents.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/knowledge/documents.ts)
 - Hardcodes the full text content from `IQAMATI_Story.md` and `law.md` as string constants
@@ -14,19 +14,19 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
 - This avoids filesystem reads at runtime and ensures deployment portability
 
 #### [NEW] [chunks.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/knowledge/chunks.ts)
-- `chunkDocument()` — Splits documents into ~800-char segments with 150-char overlap
+- `chunkDocument()` - Splits documents into ~800-char segments with 150-char overlap
 - `Chunk` type with `{ text, source, index }` metadata
-- `buildIndex()` — Pre-computes BM25-style term frequency maps for each chunk
-- `searchChunks(query, topK)` — Scores chunks against the query using BM25 ranking, returns top K results
+- `buildIndex()` - Pre-computes BM25-style term frequency maps for each chunk
+- `searchChunks(query, topK)` - Scores chunks against the query using BM25 ranking, returns top K results
 
 #### [NEW] [retriever.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/knowledge/retriever.ts)
-- `KnowledgeRetriever` class — Initializes once, loads all chunks and builds the search index
-- `retrieve(query: string): RetrievedContext[]` — Returns the top 5 most relevant chunks
+- `KnowledgeRetriever` class - Initializes once, loads all chunks and builds the search index
+- `retrieve(query: string): RetrievedContext[]` - Returns the top 5 most relevant chunks
 - Formats chunks into a context string for the LLM prompt
 
 ---
 
-### Backend — Security (Defense in Depth)
+### Backend - Security (Defense in Depth)
 
 #### [NEW] [inputSanitizer.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/safety/inputSanitizer.ts)
 - `sanitizeInput(raw: string): SanitizedResult`
@@ -56,7 +56,7 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
 
 ---
 
-### Backend — LangGraph State Machine
+### Backend - LangGraph State Machine
 
 #### [NEW] [state.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/graph/state.ts)
 - Defines the `ChatbotState` using LangGraph's `Annotation`:
@@ -74,11 +74,11 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
   ```
 
 #### [NEW] [nodes.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/graph/nodes.ts)
-- **`sanitizeNode`** — Runs `inputSanitizer` on the user message
-- **`safetyCheckNode`** — Runs `jailbreakDetector`. If unsafe, sets `isBlocked = true`
-- **`retrieveNode`** — Runs `KnowledgeRetriever.retrieve()` with the sanitized query
-- **`generateNode`** — Calls Groq API with hardened system prompt + retrieved context + conversation history
-- **`outputGuardNode`** — Runs `outputGuard` on the LLM response
+- **`sanitizeNode`** - Runs `inputSanitizer` on the user message
+- **`safetyCheckNode`** - Runs `jailbreakDetector`. If unsafe, sets `isBlocked = true`
+- **`retrieveNode`** - Runs `KnowledgeRetriever.retrieve()` with the sanitized query
+- **`generateNode`** - Calls Groq API with hardened system prompt + retrieved context + conversation history
+- **`outputGuardNode`** - Runs `outputGuard` on the LLM response
 
 #### [NEW] [graph.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/graph/graph.ts)
 - Assembles the LangGraph `StateGraph`:
@@ -91,7 +91,7 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
 
 ---
 
-### Backend — Groq Integration
+### Backend - Groq Integration
 
 #### [NEW] [groq.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/chatbot/groq.ts)
 - Initializes `ChatGroq` from `@langchain/groq` with:
@@ -107,7 +107,7 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
 
 ---
 
-### Backend — API Route & Integration
+### Backend - API Route & Integration
 
 #### [NEW] [chatbot.ts](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/api/src/routes/chatbot.ts)
 - `POST /api/chatbot` endpoint
@@ -130,7 +130,7 @@ Build a secure, domain-specific AI chatbot assistant that knows everything about
 
 ---
 
-### Frontend — Chat Widget
+### Frontend - Chat Widget
 
 #### [NEW] [ChatBot.tsx](file:///c:/Users/HP%20ZBOOK/Desktop/i9amati-refactored/apps/web/src/components/chatbot/ChatBot.tsx)
 - **Floating Action Button (FAB)** in bottom-right corner with a robot/assistant icon
