@@ -1,18 +1,19 @@
-export type UserRole = 'SYNDIC' | 'OWNER' | 'TENANT' | 'STAFF' | 'ADMIN'
+export type OrgRole = 'admin' | 'syndic' | 'owner' | 'tenant' | 'staff'
 
 export interface User {
   id: string
+  name: string
   email: string
-  firstName: string
-  lastName: string
+  emailVerified: boolean
+  image?: string
+  firstName?: string
+  lastName?: string
   phone?: string
-  avatar?: string
-  role: UserRole
-  residenceId?: string
+  role?: string
   createdAt: string
   updatedAt: string
 }
 
-export interface AuthUser extends User {
-  token: string
+export interface SessionUser extends User {
+  activeOrganizationId?: string
 }

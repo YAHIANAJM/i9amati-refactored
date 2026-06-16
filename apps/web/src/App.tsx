@@ -4,7 +4,6 @@ import { SyndicLayout }   from '@/components/layout/SyndicLayout'
 import { authClient }     from '@/lib/auth-client'
 
 import { Login }          from '@/pages/auth/Login'
-import { Register }       from '@/pages/auth/Register'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = authClient.useSession()
@@ -48,7 +47,6 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/syndic" replace />} />
       <Route path="/auth/login" element={<Login />} />
-      <Route path="/auth/register" element={<Register />} />
       <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
 
         {/* ── DASHBOARDS section ── */}

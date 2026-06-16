@@ -10,6 +10,13 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  user: {
+    additionalFields: {
+      firstName: { type: 'string', required: false, defaultValue: '' },
+      lastName: { type: 'string', required: false, defaultValue: '' },
+      phone: { type: 'string', required: false },
+    },
+  },
   plugins: [
     organization({
       ac: ac,
@@ -25,10 +32,9 @@ export const auth = betterAuth({
       }
     }),
     magicLink({
-      sendMagicLink: async ({ email, token, url }, request) => {
-        // Implement Magic Link email sending logic here
+      sendMagicLink: async ({ email, url }) => {
         console.log(`Sending Magic Link to ${email}: ${url}`);
-      }
+      },
     })
   ]
 });

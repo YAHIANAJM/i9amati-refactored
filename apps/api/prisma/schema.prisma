@@ -1,0 +1,378 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Better Auth tables ──────────────────────────────────────
+
+model User {
+  id               String       @id
+  name             String
+  email            String       @unique
+  emailVerified    Boolean      @default(false)
+  image            String?
+  firstName        String?
+  lastName         String?
+  phone            String?
+  role             String?
+  banned           Boolean?     @default(false)
+  banReason        String?
+  banExpires       DateTime?
+  twoFactorEnabled Boolean?     @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  sessions         Session[]
+  accounts         Account[]
+  members          Member[]
+  invitations      Invitation[]
+  twofactors       TwoFactor[]
+
+  @@map("users")
+}
+
+model Session {
+  id                   String   @id
+  expiresAt            DateTime
+  token                String   @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  ipAddress            String?
+  userAgent            String?
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganizationId String?
+  impersonatedBy       String?
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Organization {
+  id          String       @id
+  name        String
+  slug        String       @unique
+  logo        String?
+  createdAt   DateTime
+  metadata    String?
+  members     Member[]
+  invitations Invitation[]
+  residences  Residence[]
+
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("member")
+  createdAt      DateTime
+
+  // Domain relations
+  syndicResidences Residence[]
+  ownedApartments  Apartment[]   @relation("Owner")
+  rentedApartments Apartment[]   @relation("Tenant")
+  complaints       Complaint[]
+  feedPosts        FeedPost[]
+  feedComments     FeedComment[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String       @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  inviterId      String
+  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitation")
+}
+
+model TwoFactor {
+  id          String   @id
+  secret      String
+  backupCodes String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified    Boolean? @default(true)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
+}
+
+// ── Domain enums ────────────────────────────────────────────
+
+enum ResidenceStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum UnionType {
+  IMMEUBLE
+  RESIDENCE
+}
+
+enum ApartmentStatus {
+  OCCUPIED
+  VACANT
+  MAINTENANCE
+}
+
+enum UsageType {
+  RESIDENTIAL
+  COMMERCIAL
+  MIXED
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentType {
+  CHARGE
+  MAINTENANCE
+  REPAIR
+  INSURANCE
+  OTHER
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ── Domain models ───────────────────────────────────────────
+
+model Residence {
+  id             String          @id @default(cuid())
+  name           String
+  address        String
+  city           String?
+  status         ResidenceStatus @default(ACTIVE)
+  image          String?
+  description    String?
+  facilities     String[]
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  syndicMemberId String
+  syndicMember   Member          @relation(fields: [syndicMemberId], references: [id])
+  buildings      Building[]
+  apartments     Apartment[]
+  payments       Payment[]
+  complaints     Complaint[]
+  meetings       Meeting[]
+  feedPosts      FeedPost[]
+  documents      Document[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("residences")
+}
+
+model Building {
+  id                  String     @id @default(cuid())
+  name                String
+  address             String?
+  unionType           UnionType  @default(IMMEUBLE)
+  image               String?
+  propertyPlanNumber  String?
+  numberOfFloors      Int?
+  totalUnits          Int        @default(0)
+  hasElevator         Boolean    @default(false)
+  hasGarage           Boolean    @default(false)
+  hasSharedParts      Boolean    @default(false)
+  sharedWithTitleDeed String?
+  description         String?
+  residenceId         String
+  residence           Residence  @relation(fields: [residenceId], references: [id])
+  apartments          Apartment[]
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  @@map("buildings")
+}
+
+model Apartment {
+  id                    String          @id @default(cuid())
+  unitCode              String
+  mainPlotNumber        String
+  registrationNumber    String?
+  floor                 Int?
+  areaSqm               Float?
+  status                ApartmentStatus @default(VACANT)
+  usageType             UsageType       @default(RESIDENTIAL)
+  percentageOfApartment Float?
+  percentageOfResidence Float?
+  buildingId            String
+  building              Building        @relation(fields: [buildingId], references: [id])
+  residenceId           String
+  residence             Residence       @relation(fields: [residenceId], references: [id])
+  ownerMemberId         String?
+  owner                 Member?         @relation("Owner", fields: [ownerMemberId], references: [id])
+  tenantMemberId        String?
+  tenant                Member?         @relation("Tenant", fields: [tenantMemberId], references: [id])
+  payments              Payment[]
+  complaints            Complaint[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@map("apartments")
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  amount      Float
+  status      PaymentStatus @default(PENDING)
+  type        PaymentType   @default(CHARGE)
+  dueDate     DateTime
+  paidAt      DateTime?
+  description String?
+  apartmentId String
+  apartment   Apartment     @relation(fields: [apartmentId], references: [id])
+  residenceId String
+  residence   Residence     @relation(fields: [residenceId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@map("payments")
+}
+
+model Complaint {
+  id             String            @id @default(cuid())
+  title          String
+  description    String
+  status         ComplaintStatus   @default(OPEN)
+  priority       ComplaintPriority @default(MEDIUM)
+  authorMemberId String
+  authorMember   Member            @relation(fields: [authorMemberId], references: [id])
+  apartmentId    String?
+  apartment      Apartment?        @relation(fields: [apartmentId], references: [id])
+  residenceId    String
+  residence      Residence         @relation(fields: [residenceId], references: [id])
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@map("complaints")
+}
+
+model Meeting {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  status      MeetingStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  location    String?
+  agenda      String[]
+  residenceId String
+  residence   Residence     @relation(fields: [residenceId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@map("meetings")
+}
+
+model FeedPost {
+  id             String        @id @default(cuid())
+  content        String
+  authorMemberId String
+  authorMember   Member        @relation(fields: [authorMemberId], references: [id])
+  residenceId    String
+  residence      Residence     @relation(fields: [residenceId], references: [id])
+  comments       FeedComment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("feed_posts")
+}
+
+model FeedComment {
+  id             String   @id @default(cuid())
+  content        String
+  authorMemberId String
+  authorMember   Member   @relation(fields: [authorMemberId], references: [id])
+  postId         String
+  post           FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@map("feed_comments")
+}
+
+model Document {
+  id          String    @id @default(cuid())
+  name        String
+  url         String
+  type        String
+  size        Int
+  residenceId String
+  residence   Residence @relation(fields: [residenceId], references: [id])
+  uploadedAt  DateTime  @default(now())
+
+  @@map("documents")
+}
