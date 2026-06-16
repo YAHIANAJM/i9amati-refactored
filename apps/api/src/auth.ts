@@ -4,6 +4,8 @@ import { admin, organization, twoFactor, emailOTP, magicLink } from 'better-auth
 import { prisma } from './prisma/client';
 import { ac, organizationRoles } from '@i9amati/shared';
 export const auth = betterAuth({
+  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: process.env.BETTER_AUTH_URL,
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),

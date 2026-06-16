@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -32,6 +31,8 @@ services:
       - CLOUDINARY_API_KEY=test
       - CLOUDINARY_API_SECRET=test
       - GROQ_API_KEY=test
+      - BETTER_AUTH_SECRET=test-better-auth-secret-key-minimum-32-chars
+      - BETTER_AUTH_URL=http://localhost:4000/api/auth
     ports:
       - "4000:4000"
     depends_on:
