@@ -3,15 +3,9 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
-import { authRouter } from './routes/auth'
-import { residenceRouter } from './routes/residence'
-import { apartmentRouter } from './routes/apartment'
-import { paymentRouter } from './routes/payment'
-import { complaintRouter } from './routes/complaint'
-import { meetingRouter } from './routes/meeting'
-import { feedRouter } from './routes/feed'
-import { documentRouter } from './routes/document'
-import { chatbotRouter } from './routes/chatbot'
+import { toNodeHandler } from 'better-auth/node'
+import { auth } from './auth'
+// Routes will be re-added later
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -24,15 +18,8 @@ app.use(cookieParser())
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }))
 
-app.use('/api/auth', authRouter)
-app.use('/api/residences', residenceRouter)
-app.use('/api/apartments', apartmentRouter)
-app.use('/api/payments', paymentRouter)
-app.use('/api/complaints', complaintRouter)
-app.use('/api/meetings', meetingRouter)
-app.use('/api/feed', feedRouter)
-app.use('/api/documents', documentRouter)
-app.use('/api/chatbot', chatbotRouter)
+app.all('/api/auth/*', toNodeHandler(auth))
+// app.use statements will be re-added later
 
 app.use(errorHandler)
 

@@ -25,7 +25,7 @@
 | 4 | Meeting & Voting | Ayman | ⬜ Not Started | 0% |
 | 5 | Documents | Yahia | 🔄 In Progress | 55% |
 | 6 | Service Tracking | Bader | ⬜ Not Started | 0% |
-| 7 | Feed Management | Bader | ⬜ Not Started | 0% |
+| 7 | Feed Management | Bader | ✅ Done | 100% |
 | 8 | Alerts & Notifications | Bader | ⬜ Not Started | 0% |
 | 9 | Union Members | Ayman | ⬜ Not Started | 0% |
 
@@ -40,7 +40,7 @@
 | 2 | Payments Analytics | Yahia | ⬜ Not Started | 0% |
 | 3 | Accounting Analytics | Yahia + Ayman | ⬜ Not Started | 0% |
 | 4 | Meetings Analytics | Ayman | ⬜ Not Started | 0% |
-| 5 | Feed Analytics | Bader | ⬜ Not Started | 0% |
+| 5 | Feed Analytics | Bader | ✅ Done | 100% |
 | 6 | Alerts Analytics | Bader | ⬜ Not Started | 0% |
 | 7 | Services Analytics | Bader | ⬜ Not Started | 0% |
 | 8 | Documents Analytics | Yahia | ⬜ Not Started | 0% |
@@ -54,7 +54,7 @@
 |--------|-------|------|-------------|-----------|
 | **Yahia** | **8** | 2 | 1 | 5 |
 | **Ayman** | **8** | 1 | 0 | 7 |
-| **Bader** | **7** | 0 | 0 | 7 |
+| **Bader** | **7** | 2 | 0 | 5 |
 
 ---
 

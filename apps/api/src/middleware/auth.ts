@@ -1,33 +1,87 @@
 import { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import { prisma } from '../prisma/client'
+import { auth } from '../auth'
+import { ac } from '@i9amati/shared'
+import { getTenantPrisma } from '../prisma/client'
 
 export interface AuthRequest extends Request {
-  userId?: string
-  userRole?: string
+  userId: string
+  userRole: string
+  session: typeof auth.$Infer.Session.session
+  user: typeof auth.$Infer.Session.user
+  activeOrganizationId?: string
+  tenantPrisma?: ReturnType<typeof getTenantPrisma>
 }
 
-export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token
-  if (!token) return res.status(401).json({ error: 'Unauthorized' })
-
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
+  const authReq = req as unknown as AuthRequest;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
-    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, role: true } })
-    if (!user) return res.status(401).json({ error: 'Unauthorized' })
-    req.userId = user.id
-    req.userRole = user.role
+    const session = await auth.api.getSession({
+      headers: req.headers,
+    })
+
+    if (!session || !session.session) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    authReq.session = session.session
+    authReq.user = session.user
+    authReq.userId = session.user.id
+    authReq.userRole = session.user.role || 'user' // Global app role
+    authReq.activeOrganizationId = session.session.activeOrganizationId || undefined
+    if (authReq.activeOrganizationId) {
+      authReq.tenantPrisma = getTenantPrisma(authReq.activeOrganizationId)
+    }
+    
     next()
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' })
+  } catch (error) {
+    console.error('Auth Middleware Error:', error)
+    return res.status(401).json({ error: 'Unauthorized' })
   }
 }
 
-export function requireRole(...roles: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.userRole || !roles.includes(req.userRole)) {
+/**
+ * requirePermission
+ * Middleware to check if the current active organization session
+ * has the required permission for a given resource and action.
+ */
+export function requirePermission(
+  resource: keyof typeof ac.statements,
+  action: 'create' | 'read' | 'update' | 'delete'
+) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const authReq = req as unknown as AuthRequest;
+    try {
+      if (!authReq.session || !authReq.user) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      const activeOrganizationId = authReq.activeOrganizationId
+      if (!activeOrganizationId) {
+        return res.status(403).json({ error: 'No active organization selected' })
+      }
+
+      const response = await auth.api.hasPermission({
+        headers: req.headers,
+        body: {
+          permissions: {
+            [resource]: [action]
+          }
+        }
+      });
+
+      if (!response || response.success === false) {
+         return res.status(403).json({ error: 'Forbidden: Insufficient organization permissions' })
+      }
+
+
+
+      authReq.activeOrganizationId = activeOrganizationId
+      authReq.tenantPrisma = getTenantPrisma(activeOrganizationId)
+
+      next()
+    } catch (error) {
+      console.error('Permission Check Error:', error)
       return res.status(403).json({ error: 'Forbidden' })
     }
-    next()
   }
 }
