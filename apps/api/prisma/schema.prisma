@@ -7,7 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Better Auth tables ──────────────────────────────────────
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum PlatformRole {
+  SUDO
+  USER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+// ── Better Auth core tables ────────────────────────────────────────────────────
 
 model User {
   id               String       @id
@@ -18,18 +32,20 @@ model User {
   firstName        String?
   lastName         String?
   phone            String?
-  role             String?
+  role             String?      // reserved for BA admin plugin ("admin" value)
+  platformRole     PlatformRole @default(USER)
   banned           Boolean?     @default(false)
   banReason        String?
   banExpires       DateTime?
   twoFactorEnabled Boolean?     @default(false)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  sessions         Session[]
-  accounts         Account[]
-  members          Member[]
-  invitations      Invitation[]
-  twofactors       TwoFactor[]
+
+  sessions        Session[]
+  accounts        Account[]
+  twofactors      TwoFactor[]
+  memberships     OrgMembership[]
+  sentInvitations Invitation[]
 
   @@map("users")
 }
@@ -83,59 +99,6 @@ model Verification {
   @@map("verification")
 }
 
-model Organization {
-  id          String       @id
-  name        String
-  slug        String       @unique
-  logo        String?
-  createdAt   DateTime
-  metadata    String?
-  members     Member[]
-  invitations Invitation[]
-  residences  Residence[]
-
-  @@map("organization")
-}
-
-model Member {
-  id             String       @id
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           String       @default("member")
-  createdAt      DateTime
-
-  // Domain relations
-  syndicResidences Residence[]
-  ownedApartments  Apartment[]   @relation("Owner")
-  rentedApartments Apartment[]   @relation("Tenant")
-  complaints       Complaint[]
-  feedPosts        FeedPost[]
-  feedComments     FeedComment[]
-
-  @@index([organizationId])
-  @@index([userId])
-  @@map("member")
-}
-
-model Invitation {
-  id             String       @id
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  email          String
-  role           String?
-  status         String       @default("pending")
-  expiresAt      DateTime
-  createdAt      DateTime     @default(now())
-  inviterId      String
-  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([email])
-  @@map("invitation")
-}
-
 model TwoFactor {
   id          String   @id
   secret      String
@@ -149,7 +112,55 @@ model TwoFactor {
   @@map("twoFactor")
 }
 
-// ── Domain enums ────────────────────────────────────────────
+// ── Our organization layer ─────────────────────────────────────────────────────
+
+model Organization {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  logo        String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  memberships OrgMembership[]
+  invitations Invitation[]
+  residences  Residence[]
+
+  @@map("organizations")
+}
+
+// answers "can this user access this org's workspace" — no role here
+model OrgMembership {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("org_memberships")
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  email          String
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedById    String
+  invitedBy      User             @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+
+  @@index([email])
+  @@index([organizationId])
+  @@map("invitations")
+}
+
+// ── Domain enums ───────────────────────────────────────────────────────────────
 
 enum ResidenceStatus {
   ACTIVE
@@ -210,7 +221,9 @@ enum MeetingStatus {
   CANCELLED
 }
 
-// ── Domain models ───────────────────────────────────────────
+// ── Domain models ──────────────────────────────────────────────────────────────
+// NOTE: FK fields that pointed to the old BA Member table are now plain String
+// fields until the domain profile redesign is complete.
 
 model Residence {
   id             String          @id @default(cuid())
@@ -223,8 +236,7 @@ model Residence {
   facilities     String[]
   organizationId String
   organization   Organization    @relation(fields: [organizationId], references: [id])
-  syndicMemberId String
-  syndicMember   Member          @relation(fields: [syndicMemberId], references: [id])
+  syndicMemberId String          // → becomes syndicProfileId after domain redesign
   buildings      Building[]
   apartments     Apartment[]
   payments       Payment[]
@@ -239,24 +251,24 @@ model Residence {
 }
 
 model Building {
-  id                  String     @id @default(cuid())
+  id                  String      @id @default(cuid())
   name                String
   address             String?
-  unionType           UnionType  @default(IMMEUBLE)
+  unionType           UnionType   @default(IMMEUBLE)
   image               String?
   propertyPlanNumber  String?
   numberOfFloors      Int?
-  totalUnits          Int        @default(0)
-  hasElevator         Boolean    @default(false)
-  hasGarage           Boolean    @default(false)
-  hasSharedParts      Boolean    @default(false)
+  totalUnits          Int         @default(0)
+  hasElevator         Boolean     @default(false)
+  hasGarage           Boolean     @default(false)
+  hasSharedParts      Boolean     @default(false)
   sharedWithTitleDeed String?
   description         String?
   residenceId         String
-  residence           Residence  @relation(fields: [residenceId], references: [id])
+  residence           Residence   @relation(fields: [residenceId], references: [id])
   apartments          Apartment[]
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
   @@map("buildings")
 }
@@ -276,10 +288,8 @@ model Apartment {
   building              Building        @relation(fields: [buildingId], references: [id])
   residenceId           String
   residence             Residence       @relation(fields: [residenceId], references: [id])
-  ownerMemberId         String?
-  owner                 Member?         @relation("Owner", fields: [ownerMemberId], references: [id])
-  tenantMemberId        String?
-  tenant                Member?         @relation("Tenant", fields: [tenantMemberId], references: [id])
+  ownerMemberId         String?         // → becomes ownerProfileId after domain redesign
+  tenantMemberId        String?         // → becomes tenantProfileId after domain redesign
   payments              Payment[]
   complaints            Complaint[]
   createdAt             DateTime        @default(now())
@@ -311,8 +321,7 @@ model Complaint {
   description    String
   status         ComplaintStatus   @default(OPEN)
   priority       ComplaintPriority @default(MEDIUM)
-  authorMemberId String
-  authorMember   Member            @relation(fields: [authorMemberId], references: [id])
+  authorMemberId String            // → becomes authorProfileId after domain redesign
   apartmentId    String?
   apartment      Apartment?        @relation(fields: [apartmentId], references: [id])
   residenceId    String
@@ -341,8 +350,7 @@ model Meeting {
 model FeedPost {
   id             String        @id @default(cuid())
   content        String
-  authorMemberId String
-  authorMember   Member        @relation(fields: [authorMemberId], references: [id])
+  authorMemberId String        // → becomes authorProfileId after domain redesign
   residenceId    String
   residence      Residence     @relation(fields: [residenceId], references: [id])
   comments       FeedComment[]
@@ -355,8 +363,7 @@ model FeedPost {
 model FeedComment {
   id             String   @id @default(cuid())
   content        String
-  authorMemberId String
-  authorMember   Member   @relation(fields: [authorMemberId], references: [id])
+  authorMemberId String   // → becomes authorProfileId after domain redesign
   postId         String
   post           FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())

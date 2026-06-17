@@ -1,4 +1,4 @@
-export type OrgRole = 'admin' | 'syndic' | 'owner' | 'tenant' | 'staff'
+import { PlatformRole } from '../permissions'
 
 export interface User {
   id: string
@@ -9,7 +9,7 @@ export interface User {
   firstName?: string
   lastName?: string
   phone?: string
-  role?: string
+  platformRole: PlatformRole
   createdAt: string
   updatedAt: string
 }
