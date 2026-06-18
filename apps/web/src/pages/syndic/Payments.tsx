@@ -4,9 +4,9 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import {
   Search, Plus, Download, Check, X, ChevronDown, ChevronUp,
-  Wallet, AlertCircle, FolderOpen, Receipt, Banknote, CreditCard,
+  AlertCircle, Receipt, Banknote, CreditCard,
   ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter,
-  Wrench, Shield, Leaf, Zap, Settings2, HelpCircle, CalendarClock,
+  Wrench, Shield, Leaf, Zap, Settings2, HelpCircle, CalendarClock, Bell,
 } from 'lucide-react'
 import {
   mockFees, mockExpenses, mockProjects,
@@ -104,6 +104,191 @@ function MarkPaidForm({ amount, onConfirm, onCancel }: {
   )
 }
 
+// ─── Fee Invoice Modal ────────────────────────────────────────────────────────
+
+function FeeInvoiceModal({ fee, onClose, onMarkPaid }: {
+  fee: FeeRecord
+  onClose: () => void
+  onMarkPaid: (d: { amount: number; method: string; date: string; note: string }) => void
+}) {
+  const [markingPaid, setMarkingPaid] = useState(false)
+
+  const isPaid    = fee.status === 'PAID'
+  const isOverdue = fee.status === 'OVERDUE'
+
+  const steps = [
+    { label: 'Invoice\nCreated',   done: true },
+    { label: 'Due Date\nSet',      done: true },
+    { label: 'Payment\nReceived',  done: isPaid },
+    { label: 'Confirmed',          done: isPaid },
+  ]
+  const trackW = isPaid ? '100%' : isOverdue ? '38%' : '52%'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Card */}
+      <div className="relative z-10 w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+          <p className="text-sm font-bold text-gray-900">Fee Invoice</p>
+          <button onClick={onClose}
+            className="h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Receipt section */}
+        <div className="px-5 pt-4 pb-2">
+          {/* Printer slot */}
+          <div className="h-5 bg-gray-900 rounded-t-lg flex items-center justify-center gap-1.5">
+            {[...Array(9)].map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-white/20" />)}
+          </div>
+
+          {/* Paper */}
+          <div className="bg-white border border-t-0 border-gray-200 rounded-b-xl shadow-[0_8px_28px_rgba(0,0,0,0.06)]">
+            <div className="px-5 pt-4 pb-3 border-t-2 border-dashed border-gray-200 text-center">
+              <p className="font-mono text-[11px] text-gray-400 tracking-widest">
+                ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+              </p>
+              <p className="font-mono text-sm font-semibold text-gray-800 mt-1">
+                Syndic Fee — {fee.period}
+              </p>
+              <p className="font-mono text-xs text-gray-500 mt-0.5">
+                Unit {fee.unitCode} · {fee.building}
+              </p>
+              <p className="font-mono text-[11px] text-gray-400 tracking-widest mt-1">
+                ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+              </p>
+            </div>
+
+            <div className="px-5 py-3 space-y-2.5">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Fee Amount</span>
+                <span className="font-bold text-gray-900">{fmt(fee.amount)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Due Date</span>
+                <span className="text-gray-700">{fee.dueDate}</span>
+              </div>
+              {fee.paidAt && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Paid On</span>
+                  <span className="text-emerald-600 font-semibold">{fee.paidAt}</span>
+                </div>
+              )}
+              {fee.paymentMethod && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Method</span>
+                  <span className="text-gray-700">{METHOD_LABEL[fee.paymentMethod]}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-dashed border-gray-200 mx-5" />
+
+            <div className="px-5 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                    {fee.ownerName.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{fee.ownerName}</p>
+                    <p className="text-[11px] text-gray-400">Owner · {fee.unitCode}</p>
+                  </div>
+                </div>
+                <StatusPill status={fee.status} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress stepper */}
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-400">Payment Status</p>
+            <p className={cn(
+              'text-sm font-black uppercase tracking-wider',
+              isPaid ? 'text-emerald-600' : isOverdue ? 'text-red-500' : 'text-amber-500'
+            )}>
+              {STATUS_FEE[fee.status].label}
+            </p>
+          </div>
+
+          <div className="relative flex items-center justify-between px-3">
+            {/* Track line */}
+            <div className="absolute left-3 right-3 top-3.5 h-0.5 bg-gray-200 z-0">
+              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: trackW }} />
+            </div>
+
+            {steps.map((step, i) => {
+              const isOverdueStep = isOverdue && i === 2
+              return (
+                <div key={i} className="relative z-10 flex flex-col items-center gap-1.5">
+                  <div className={cn(
+                    'h-7 w-7 rounded-full border-2 flex items-center justify-center transition-colors',
+                    step.done
+                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                      : isOverdueStep
+                      ? 'bg-red-50 border-red-400 text-red-400'
+                      : !isPaid && i === 2
+                      ? 'bg-gray-900 border-gray-900 text-white'
+                      : 'bg-white border-gray-200 text-gray-300'
+                  )}>
+                    {step.done
+                      ? <Check size={12} />
+                      : isOverdueStep
+                      ? <AlertCircle size={11} />
+                      : <span className="text-[10px]">{i + 1}</span>
+                    }
+                  </div>
+                  <p className="text-[9px] text-gray-400 text-center w-[52px] leading-tight whitespace-pre-line">
+                    {step.label}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-5 pb-5 space-y-2.5">
+          {!markingPaid ? (
+            <>
+              <div className={cn('grid gap-2', isPaid ? 'grid-cols-1' : 'grid-cols-2')}>
+                {!isPaid && (
+                  <button className="h-10 rounded-xl bg-gray-900 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gray-800 transition-colors">
+                    <Bell size={13} /> Send Reminder
+                  </button>
+                )}
+                <button className="h-10 rounded-xl border border-gray-200 text-gray-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gray-50 transition-colors">
+                  <Download size={13} /> Download Invoice
+                </button>
+              </div>
+              {!isPaid && (
+                <button onClick={() => setMarkingPaid(true)}
+                  className="w-full h-11 rounded-xl bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors">
+                  <Check size={15} /> Mark as Paid
+                </button>
+              )}
+            </>
+          ) : (
+            <MarkPaidForm
+              amount={fee.amount}
+              onConfirm={d => { onMarkPaid(d); onClose() }}
+              onCancel={() => setMarkingPaid(false)}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Overview Tab — exact Fincan.io layout ────────────────────────────────────
 
 function OverviewTab({ onGoFees, onGoExpenses, onGoProjects, syndicBalance }: {
@@ -118,8 +303,6 @@ function OverviewTab({ onGoFees, onGoExpenses, onGoProjects, syndicBalance }: {
   const expByCategory = (Object.keys(CAT_CONFIG) as ExpenseCategory[])
     .map(cat => ({ cat, total: mockExpenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0) }))
     .filter(x => x.total > 0).sort((a, b) => b.total - a.total).slice(0, 3)
-
-  const maxExp = Math.max(...expByCategory.map(x => x.total))
 
   // mixed recent transactions
   const recentTx = [
@@ -353,10 +536,11 @@ function OverviewTab({ onGoFees, onGoExpenses, onGoProjects, syndicBalance }: {
 // ─── Fees Tab ──────────────────────────────────────────────────────────────────
 
 function FeesTab() {
-  const [fees, setFees]           = useState<FeeRecord[]>(mockFees)
-  const [search, setSearch]       = useState('')
-  const [statusF, setStatusF]     = useState<'ALL'|'PAID'|'PENDING'|'OVERDUE'>('ALL')
-  const [markingId, setMarkingId] = useState<string | null>(null)
+  const [fees, setFees]               = useState<FeeRecord[]>(mockFees)
+  const [search, setSearch]           = useState('')
+  const [statusF, setStatusF]         = useState<'ALL'|'PAID'|'PENDING'|'OVERDUE'>('ALL')
+  const [markingId, setMarkingId]     = useState<string | null>(null)
+  const [selectedFee, setSelectedFee] = useState<FeeRecord | null>(null)
 
   const filtered = fees.filter(f => {
     const ms = statusF === 'ALL' || f.status === statusF
@@ -409,7 +593,7 @@ function FeesTab() {
           <tbody>
             {filtered.map(f => (
               <>
-                <tr key={f.id} className={cn('border-b transition-colors hover:bg-muted/20', markingId === f.id && 'bg-emerald-50/40')}>
+                <tr key={f.id} onClick={() => setSelectedFee(f)} className={cn('border-b transition-colors hover:bg-muted/20 cursor-pointer', markingId === f.id && 'bg-emerald-50/40')}>
                   <td className="px-4 py-3"><span className="inline-flex items-center justify-center h-7 min-w-[52px] px-2 rounded-md bg-primary/10 text-primary text-xs font-bold">{f.unitCode}</span></td>
                   <td className="px-4 py-3 text-sm font-medium">{f.ownerName}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{f.building}</td>
@@ -422,7 +606,7 @@ function FeesTab() {
                     {f.status !== 'PAID' && (
                       <Button size="sm" variant="outline"
                         className={cn('h-7 gap-1 text-xs', markingId === f.id ? 'text-muted-foreground' : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50')}
-                        onClick={() => setMarkingId(markingId === f.id ? null : f.id)}>
+                        onClick={e => { e.stopPropagation(); setMarkingId(markingId === f.id ? null : f.id) }}>
                         {markingId === f.id ? 'Cancel' : <><Check size={11} /> Mark Paid</>}
                       </Button>
                     )}
@@ -446,6 +630,14 @@ function FeesTab() {
         )}
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} record(s)</p>
+
+      {selectedFee && (
+        <FeeInvoiceModal
+          fee={selectedFee}
+          onClose={() => setSelectedFee(null)}
+          onMarkPaid={d => markPaid(selectedFee.id, d)}
+        />
+      )}
     </div>
   )
 }
