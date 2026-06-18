@@ -11,6 +11,7 @@ export const authClient = createAuthClient({
         lastName:     { type: 'string', required: false },
         phone:        { type: 'string', required: false },
         platformRole: { type: 'string', required: false },
+        verifiedAt:   { type: 'string', required: false },
       },
     }),
     twoFactorClient(),

@@ -19,11 +19,13 @@ export const auth = betterAuth({
       lastName:     { type: 'string', required: false, defaultValue: '' },
       phone:        { type: 'string', required: false },
       platformRole: { type: 'string', required: false, defaultValue: 'USER' },
+      verifiedAt:   { type: 'date',   required: false },
     },
   },
   session: {
     additionalFields: {
       activeOrganizationId: { type: 'string', required: false },
+      profileId:            { type: 'string', required: false },
     },
   },
   plugins: [

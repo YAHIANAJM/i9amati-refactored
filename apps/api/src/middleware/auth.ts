@@ -5,6 +5,7 @@ import { PlatformRole } from '@i9amati/shared'
 export interface AuthRequest extends Request {
   userId: string
   platformRole: PlatformRole
+  profileId?: string
   activeOrganizationId?: string
   session: typeof auth.$Infer.Session.session
   user: typeof auth.$Infer.Session.user
@@ -23,6 +24,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     authReq.user                 = session.user
     authReq.userId               = session.user.id
     authReq.platformRole         = (session.user.platformRole as PlatformRole) ?? PlatformRole.USER
+    authReq.profileId            = session.session.profileId ?? undefined
     authReq.activeOrganizationId = session.session.activeOrganizationId ?? undefined
 
     next()
@@ -32,4 +34,4 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 }
 
-// requireResidenceRole will be added here once ResidenceProfile is in the schema
+// requireResidenceRole will be added here once route handlers are wired up

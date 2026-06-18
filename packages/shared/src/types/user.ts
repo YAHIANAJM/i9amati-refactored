@@ -5,6 +5,7 @@ export interface User {
   name: string
   email: string
   emailVerified: boolean
+  verifiedAt?: string
   image?: string
   firstName?: string
   lastName?: string
@@ -15,5 +16,6 @@ export interface User {
 }
 
 export interface SessionUser extends User {
+  profileId?: string
   activeOrganizationId?: string
 }
