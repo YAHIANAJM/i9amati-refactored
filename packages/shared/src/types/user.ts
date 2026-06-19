@@ -1,18 +1,21 @@
-export type UserRole = 'SYNDIC' | 'OWNER' | 'TENANT' | 'STAFF' | 'ADMIN'
+import { PlatformRole } from '../permissions'
 
 export interface User {
   id: string
+  name: string
   email: string
-  firstName: string
-  lastName: string
+  emailVerified: boolean
+  verifiedAt?: string
+  image?: string
+  firstName?: string
+  lastName?: string
   phone?: string
-  avatar?: string
-  role: UserRole
-  residenceId?: string
+  platformRole: PlatformRole
   createdAt: string
   updatedAt: string
 }
 
-export interface AuthUser extends User {
-  token: string
+export interface SessionUser extends User {
+  profileId?: string
+  activeOrganizationId?: string
 }

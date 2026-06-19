@@ -1,33 +1,70 @@
 import { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import { prisma } from '../prisma/client'
+import type { Kysely } from 'kysely'
+import { auth } from '../auth'
+import { db } from '../db/db'
+import type { Database } from '../db/types'
+import { PlatformRole } from '@i9amati/shared'
+
+// TenantDB is a Kysely instance scoped to the org's schema via withSchema().
+// All unqualified table names (residences, apartments, …) will resolve to
+// "<orgSlug>"."<table>" automatically. Explicitly qualified names like
+// 'public.profiles' remain untouched.
+export type TenantDB = Kysely<Database>
 
 export interface AuthRequest extends Request {
-  userId?: string
-  userRole?: string
+  userId: string
+  platformRole: PlatformRole
+  profileId: string
+  activeOrganizationId: string
+  orgSlug: string
+  tenantDb: TenantDB
+  session: typeof auth.$Infer.Session.session
+  user: typeof auth.$Infer.Session.user
 }
 
-export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token
-  if (!token) return res.status(401).json({ error: 'Unauthorized' })
-
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
+  const authReq = req as unknown as AuthRequest
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
-    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, role: true } })
-    if (!user) return res.status(401).json({ error: 'Unauthorized' })
-    req.userId = user.id
-    req.userRole = user.role
+    const session = await auth.api.getSession({ headers: req.headers as unknown as HeadersInit })
+
+    if (!session?.session) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const profileId            = session.session.profileId
+    const activeOrganizationId = session.session.activeOrganizationId
+
+    if (!profileId || !activeOrganizationId) {
+      return res.status(401).json({ error: 'No active organization in session' })
+    }
+
+    const org = await db
+      .selectFrom('public.organizations')
+      .select('slug')
+      .where('id', '=', activeOrganizationId)
+      .executeTakeFirst()
+
+    if (!org) {
+      return res.status(401).json({ error: 'Organization not found' })
+    }
+
+    authReq.session              = session.session
+    authReq.user                 = session.user
+    authReq.userId               = session.user.id
+    authReq.platformRole         = (session.user.platformRole as PlatformRole) ?? PlatformRole.USER
+    authReq.profileId            = profileId
+    authReq.activeOrganizationId = activeOrganizationId
+    authReq.orgSlug              = org.slug
+    // withSchema returns a new Kysely instance — zero overhead, same pool.
+    authReq.tenantDb             = db.withSchema(org.slug)
+
     next()
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' })
+  } catch (error) {
+    console.error('Auth error:', error)
+    return res.status(401).json({ error: 'Unauthorized' })
   }
 }
 
-export function requireRole(...roles: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.userRole || !roles.includes(req.userRole)) {
-      return res.status(403).json({ error: 'Forbidden' })
-    }
-    next()
-  }
+export function requirePermission(_resource: string, _action: string) {
+  return (_req: Request, _res: Response, next: NextFunction) => next()
 }
