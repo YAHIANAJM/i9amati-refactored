@@ -1,12 +1,23 @@
 import { Request, Response, NextFunction } from 'express'
+import type { Kysely } from 'kysely'
 import { auth } from '../auth'
+import { db } from '../db/db'
+import type { Database } from '../db/types'
 import { PlatformRole } from '@i9amati/shared'
+
+// TenantDB is a Kysely instance scoped to the org's schema via withSchema().
+// All unqualified table names (residences, apartments, …) will resolve to
+// "<orgSlug>"."<table>" automatically. Explicitly qualified names like
+// 'public.profiles' remain untouched.
+export type TenantDB = Kysely<Database>
 
 export interface AuthRequest extends Request {
   userId: string
   platformRole: PlatformRole
-  profileId?: string
-  activeOrganizationId?: string
+  profileId: string
+  activeOrganizationId: string
+  orgSlug: string
+  tenantDb: TenantDB
   session: typeof auth.$Infer.Session.session
   user: typeof auth.$Infer.Session.user
 }
@@ -14,18 +25,38 @@ export interface AuthRequest extends Request {
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
   const authReq = req as unknown as AuthRequest
   try {
-    const session = await auth.api.getSession({ headers: req.headers })
+    const session = await auth.api.getSession({ headers: req.headers as unknown as HeadersInit })
 
     if (!session?.session) {
       return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const profileId            = session.session.profileId
+    const activeOrganizationId = session.session.activeOrganizationId
+
+    if (!profileId || !activeOrganizationId) {
+      return res.status(401).json({ error: 'No active organization in session' })
+    }
+
+    const org = await db
+      .selectFrom('public.organizations')
+      .select('slug')
+      .where('id', '=', activeOrganizationId)
+      .executeTakeFirst()
+
+    if (!org) {
+      return res.status(401).json({ error: 'Organization not found' })
     }
 
     authReq.session              = session.session
     authReq.user                 = session.user
     authReq.userId               = session.user.id
     authReq.platformRole         = (session.user.platformRole as PlatformRole) ?? PlatformRole.USER
-    authReq.profileId            = session.session.profileId ?? undefined
-    authReq.activeOrganizationId = session.session.activeOrganizationId ?? undefined
+    authReq.profileId            = profileId
+    authReq.activeOrganizationId = activeOrganizationId
+    authReq.orgSlug              = org.slug
+    // withSchema returns a new Kysely instance — zero overhead, same pool.
+    authReq.tenantDb             = db.withSchema(org.slug)
 
     next()
   } catch (error) {
@@ -34,4 +65,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 }
 
-// requireResidenceRole will be added here once route handlers are wired up
+export function requirePermission(_resource: string, _action: string) {
+  return (_req: Request, _res: Response, next: NextFunction) => next()
+}

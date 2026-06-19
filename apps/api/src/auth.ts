@@ -1,33 +1,40 @@
 import { betterAuth } from 'better-auth'
-import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { admin, twoFactor, emailOTP, magicLink } from 'better-auth/plugins'
-import { prisma } from './prisma/client'
+import { db } from './db/db'
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',') ?? [],
-  database: prismaAdapter(prisma, {
-    provider: 'postgresql',
-  }),
+
+  // Pass the Kysely instance directly — Better Auth uses it with its built-in
+  // Kysely adapter, which handles migrations via the BA CLI.
+  database: {
+    db,
+    type: 'postgres',
+  },
+
   emailAndPassword: {
     enabled: true,
   },
+
   user: {
     additionalFields: {
-      firstName:    { type: 'string', required: false, defaultValue: '' },
-      lastName:     { type: 'string', required: false, defaultValue: '' },
-      phone:        { type: 'string', required: false },
-      platformRole: { type: 'string', required: false, defaultValue: 'USER' },
-      verifiedAt:   { type: 'date',   required: false },
+      firstName:    { type: 'string',  required: false, defaultValue: '' },
+      lastName:     { type: 'string',  required: false, defaultValue: '' },
+      phone:        { type: 'string',  required: false },
+      platformRole: { type: 'string',  required: false, defaultValue: 'USER' },
+      verifiedAt:   { type: 'date',    required: false },
     },
   },
+
   session: {
     additionalFields: {
       activeOrganizationId: { type: 'string', required: false },
       profileId:            { type: 'string', required: false },
     },
   },
+
   plugins: [
     admin(),
     twoFactor(),

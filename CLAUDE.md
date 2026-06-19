@@ -10,10 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 npm workspaces monorepo orchestrated by Turbo:
 
-- `apps/api` - Express + Prisma + PostgreSQL REST API (port 4000)
-- `apps/web` - React + Vite SPA (port 5173)
-- `apps/mobile` - Expo / React Native
-- `packages/shared` - TypeScript types and RBAC access-control config shared across all apps (imported as `@i9amati/shared`)
+- `apps/api` — Express + Prisma + PostgreSQL REST API (port 4000)
+- `apps/web` — React + Vite SPA (port 5173)
+- `apps/mobile` — Expo / React Native
+- `packages/shared` — TypeScript types and role enums shared across all apps (imported as `@i9amati/shared`)
 
 ## Commands
 
@@ -50,21 +50,21 @@ Local PostgreSQL (Docker): `docker compose up -d postgres` — credentials: user
 ## API Architecture
 
 `apps/api/src/index.ts` mounts handlers on Express:
-- `/api/auth/*` — Better Auth handler via `toNodeHandler(auth)` — sign-in, sign-up, session, organization, 2FA, magic link, OTP
-- `/api/residences` — residence CRUD (active)
-- `/api/apartments` — apartment CRUD (active)
+- `/api/auth/*` — Better Auth handler via `toNodeHandler(auth)` — sign-in, sign-up, session, 2FA, magic link, OTP
+- `/api/residences` — residence CRUD
+- `/api/apartments` — apartment CRUD
 - `/health` — liveness probe
 
-**Auth** (`src/auth.ts`): `betterAuth()` instance with plugins: `organization`, `admin`, `twoFactor`, `emailOTP`, `magicLink`. The organization plugin uses `ac` and `organizationRoles` from `@i9amati/shared`. User model has additional fields: `firstName`, `lastName`, `phone`.
+**Auth** (`src/auth.ts`): `betterAuth()` instance with plugins: `admin`, `twoFactor`, `emailOTP`, `magicLink`. User model has additional fields: `firstName`, `lastName`, `phone`, `platformRole`. Session has `activeOrganizationId` and `profileId`.
 
 **Middleware** (`src/middleware/`):
-- `auth.ts` — exports `authenticate` (validates Better Auth session, attaches `userId`, `userRole`, `activeOrganizationId` to `AuthRequest`) and `requirePermission(resource, action)` (calls `auth.api.hasPermission`). All domain routes use `router.use(authenticate)` then per-route `requirePermission`.
-- `errorHandler.ts` — global error handler, `AppError(status, message)` for known errors.
+- `auth.ts` — exports `authenticate` (validates Better Auth session, attaches `userId`, `platformRole`, `profileId`, `activeOrganizationId`, `session`, `user` to `AuthRequest`). `requirePermission` is defined here but not yet implemented — routes import it but permission enforcement is pending.
+- `errorHandler.ts` — global error handler, `AppError(statusCode, message)` for known errors.
 
 **Route pattern** for new domain routes:
 ```ts
 router.use(authenticate)
-router.get('/', requirePermission('resource', 'read'), async (req: Request, res, next) => {
+router.get('/', async (req: Request, res, next) => {
   const { activeOrganizationId } = req as AuthRequest
   // always filter by activeOrganizationId for tenant isolation
 })
@@ -74,27 +74,35 @@ router.get('/', requirePermission('resource', 'read'), async (req: Request, res,
 
 Single unified `apps/api/prisma/schema.prisma` — one Prisma client (`@prisma/client`).
 
-**Better Auth tables**: `User`, `Session`, `Account`, `Verification`, `Organization`, `Member`, `Invitation`, `TwoFactor`.
+**Better Auth tables**: `User`, `Session`, `Account`, `Verification`, `TwoFactor`.
 
-**Domain models**: `Residence`, `Building`, `Apartment`, `Payment`, `Complaint`, `Meeting`, `FeedPost`, `FeedComment`, `Document`.
+**Organization layer**: `Organization`, `Profile` (user's identity within an org), `Invitation`.
 
-Core entity graph: `Organization → Residence → Building → Apartment → Payment/Complaint`. `Member` (BA org membership) is the actor: a member can be a syndic of residences and owner/tenant of apartments.
+**Domain models**: `ResidenceComplex`, `Residence`, `Building`, `Apartment`, `SharedFacility`, `ResidenceProfile`, `Payment`, `Complaint`, `Meeting`, `FeedPost`, `FeedComment`, `Document`.
 
-**Tenant isolation**: row-level. Every `Residence` carries an `organizationId`. All domain queries filter via `where: { organizationId: activeOrganizationId }` or `where: { residence: { organizationId: activeOrganizationId } }` — no schema-per-org provisioning needed.
+Core entity graph:
+```
+Organization → Residence → Building → Apartment → Payment/Complaint
+                       ↓
+              ResidenceProfile (Profile × Residence × ProfileRole)
+```
 
-## Permissions (RBAC)
+**`Profile`** (not `Member`) is the actor: `User → Profile → ResidenceProfile` where `ResidenceProfile` links a profile to a specific residence with a `ProfileRole` (SYNDIC/OWNER/TENANT/STAFF). A profile can hold multiple roles in the same residence (e.g. SYNDIC + OWNER) but not two of the same role.
 
-Defined in `packages/shared/src/permissions.ts` using Better Auth's `createAccessControl`. Resources: `residence`, `apartment`, `payment`, `complaint`, `meeting`, `feed_post`, `document`.
+**Tenant isolation**: row-level. Every `Residence` carries an `organizationId`. All domain queries filter via `where: { organizationId: activeOrganizationId }` or via a nested residence join — no schema-per-org provisioning.
 
-| Role | Capabilities |
-|------|-------------|
-| `admin` | Full CRUD on all resources |
-| `syndic` | All except `residence:create/delete` |
-| `owner` | Read most; create/update payments, complaints, feed_posts |
-| `tenant` | Same as owner |
-| `staff` | Read most; update complaints only |
+## Roles & Permissions
 
-Import as `import { ac, organizationRoles } from '@i9amati/shared'` — used identically on API (`src/auth.ts`) and web (`src/lib/auth-client.ts`).
+`packages/shared/src/permissions.ts` exports two enums used across all apps:
+
+```ts
+enum PlatformRole { SUDO, USER }         // user.platformRole — platform-level
+enum ProfileRole { SYNDIC, OWNER, TENANT, STAFF }  // ResidenceProfile.role — per-residence
+```
+
+Import as `import { PlatformRole, ProfileRole } from '@i9amati/shared'`.
+
+Note: a Better Auth `organization` plugin with `createAccessControl` RBAC was planned but has not been implemented yet. Permission enforcement via `requirePermission` middleware is in progress.
 
 ## Chatbot Architecture (LangGraph + Groq + RAG)
 
@@ -125,7 +133,7 @@ START → sanitize → safetyCheck → (conditional)
 
 **UI stack**: shadcn-style components (Radix UI primitives + `class-variance-authority`) in `components/ui/`. Tailwind CSS + Framer Motion for layout/animation. Recharts for charts.
 
-**Auth client** (`src/lib/auth-client.ts`): `createAuthClient()` from `better-auth/react` with `organizationClient`, `twoFactorClient`, `magicLinkClient`, and `inferAdditionalFields` plugins. Points to `VITE_API_URL`.
+**Auth client** (`src/lib/auth-client.ts`): `createAuthClient()` from `better-auth/react` with `twoFactorClient`, `magicLinkClient`, and `inferAdditionalFields` plugins. Points to `VITE_API_URL`.
 
 ## Design System
 
@@ -134,24 +142,23 @@ START → sanitize → safetyCheck → (conditional)
 - Sidebar: dark navy `hsl(222 47% 11%)`
 - Status colors: emerald = paid/occupied, amber = pending/warning, red = overdue/urgent, slate = inactive/vacant
 - Icons: Lucide React, stroke only, 16px default
-- Avatars fallback: DiceBear `avataaars` style by gender
+- Avatars fallback: DiceBear `avataaars` style by gender (`seed=male` / `seed=female`)
 - Animations: Framer Motion, always check `prefers-reduced-motion`
-- RTL support is planned; the UI is English-only during the current build phase
+- RTL support is planned; UI is English-only during current build phase
 
 ## Environment Variables
 
 API — `.env` in `apps/api/`:
 ```
-DATABASE_URL=              # PostgreSQL connection string
-BETTER_AUTH_SECRET=        # Secret for Better Auth session signing (min 32 chars)
-BETTER_AUTH_URL=           # Better Auth base URL (e.g. http://localhost:4000/api/auth)
-BETTER_AUTH_TRUSTED_ORIGINS=  # Comma-separated allowed origins (e.g. http://localhost:5173)
-GROQ_API_KEY=              # Groq API key for the chatbot
-CLOUDINARY_CLOUD_NAME=     # Cloudinary for file uploads
+DATABASE_URL=                   # PostgreSQL connection string
+BETTER_AUTH_SECRET=             # Secret for Better Auth session signing (min 32 chars)
+BETTER_AUTH_URL=                # Better Auth base URL (e.g. http://localhost:4000/api/auth)
+BETTER_AUTH_TRUSTED_ORIGINS=    # Comma-separated allowed origins (e.g. http://localhost:5173)
+GROQ_API_KEY=                   # Groq API key for the chatbot
+CLOUDINARY_CLOUD_NAME=          # Cloudinary for file uploads
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
-PORT=                      # API port (default: 4000)
-JWT_SECRET=                # Legacy JWT secret (unused with Better Auth)
+PORT=                           # API port (default: 4000)
 ```
 
 Web — `.env` in `apps/web/`:

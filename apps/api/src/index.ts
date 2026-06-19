@@ -8,6 +8,7 @@ import { auth } from './auth'
 import residencesRouter from './routes/residences'
 import apartmentsRouter from './routes/apartments'
 import { errorHandler } from './middleware/errorHandler'
+import { db } from './db/db'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -26,8 +27,17 @@ app.use('/api/apartments', apartmentsRouter)
 
 app.use(errorHandler)
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`)
 })
+
+async function shutdown() {
+  server.close()
+  await db.destroy()
+  process.exit(0)
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
 
 export default app

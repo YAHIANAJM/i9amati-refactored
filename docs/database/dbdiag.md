@@ -113,7 +113,30 @@ Enum DocAccessLevel {
   EDIT
   ADMIN
 }
+Enum NotificationType {
+  PAYMENT
+  COMPLAINT
+  MEETING
+  DOCUMENT
+  MEMBER
+  FEED
+  SERVICE
+}
 
+Enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+Enum NotificationEventType {
+  CREATED    // notification first generated
+  DELIVERED  // sent to client (push / email / in-app)
+  READ       // profile opened or dismissed it
+  SNOOZED    // profile deferred it
+  EXPIRED    // passed relevance window without being read
+}
 // ── PUBLIC SCHEMA ─────────────────────────────────────────────────────────────
 // Tables in this section live in the shared public schema.
 // public → public FKs: enforced natively by Postgres.
@@ -330,6 +353,8 @@ Table public._shared_facility_links {
   }
 }
 
+
+
 // ── TENANT SCHEMA ─────────────────────────────────────────────────────────────
 // Tables in this section live inside each org's isolated schema.
 // tenant → tenant FKs: enforced natively by Postgres.
@@ -359,7 +384,7 @@ Table tenant.buildings {
   hasElevator boolean   [default: false]
   description varchar
   residenceId varchar   [not null, ref: > tenant.residences.id]
-  quotePart   float     [note: 'this building''s fractional share of residence-level charges (0–1)']
+  quotePart   float     [note: 'this buildings fractional share of residence-level charges (0–1)']
   createdAt   timestamp [default: `now()`]
   updatedAt   timestamp
 }
@@ -372,7 +397,7 @@ Table tenant.apartments {
   areaSqm        float
   status         ApartmentStatus [default: 'VACANT']
   usageType      UsageType       [default: 'RESIDENTIAL']
-  quotePart      float           [note: 'this apartment''s fractional share of building-level charges (0–1)']
+  quotePart      float           [note: 'this apartments fractional share of building-level charges (0–1)']
   buildingId     varchar         [not null, ref: > tenant.buildings.id]
   ownerProfileId varchar         [ref: > public.profiles.id, note: 'tenant → public; enforced by Postgres']
   shareholders   jsonb           [default: '[]', note: 'reference data only: other shareholders (name, CIN, etc.) — not actual platform accounts']
@@ -497,7 +522,6 @@ Table tenant.documents {
   name        varchar         [not null]
   path        varchar         [note: 'null for folders; required for files']
   size        integer         [note: 'bytes; null for folders']
-  residenceId varchar         [not null, ref: > tenant.residences.id]
   uploadedBy  varchar         [not null, ref: > public.profiles.id, note: 'tenant → public; enforced by Postgres']
   uploadedAt  timestamp       [default: `now()`]
   updatedAt   timestamp
@@ -509,7 +533,74 @@ Table tenant.documents {
 
 Table tenant.document_access {
   id          varchar        [pk]
-  docId       varchar        [not null, ref: > tenant.documents.id]
-  apartmentId varchar        [not null, ref: > tenant.apartments.id]
-  accessLevel DocAccessLevel [not null]
+  docId       varchar        [not null, ref: > tenant.documents.id, note: 'delete: cascade']
+
+  // Exactly one non-null (CHECK constraint)
+  profileId   varchar        [ref: > public.profiles.id]
+  residenceId varchar        [ref: > tenant.residences.id]
+  buildingId  varchar        [ref: > tenant.buildings.id]
+  apartmentId varchar        [ref: > tenant.apartments.id]
+  contractId  varchar        [ref: > tenant.service_contracts.id]
+
+  accessLevel DocAccessLevel [not null, default: 'VIEW']
+
+  Note: '''
+  CONSTRAINT chk_single_target CHECK (
+    (profileId   IS NOT NULL)::int +
+    (residenceId IS NOT NULL)::int +
+    (buildingId  IS NOT NULL)::int +
+    (apartmentId IS NOT NULL)::int +
+    (contractId  IS NOT NULL)::int = 1
+  )
+  '''
+
+  indexes {
+    docId
+    profileId
+    residenceId
+    buildingId
+    apartmentId
+    contractId
+  }
+}
+
+Table tenant.services{
+  id   varchar   [pk]
+  name   varchar 
+  slug   varchar   [unique]
+  contactInfo json
+}
+
+Table tenant.service_schedules{
+  serviceId  varchar  [ref: > tenant.services.id]
+  schedule   varchar   [note: 'cron job syntax ! parsed by teh app']
+}
+Table tenant.service_check_in_out{
+  id varchar [pk]
+  serviceId varchar [ref: >tenant.services.id]
+  checkInAt timestamp
+  checkOutAt timestamp
+}
+
+Table tenant.service_contracts{
+  id varchar [pk]
+  serviceId varchar [ref : > tenant.services.id]
+  name varchar
+  description varchar
+}
+
+Table tenant.notifications {
+  id        varchar              [pk]
+  type      NotificationType     [not null]
+  priority  NotificationPriority [not null, default: 'MEDIUM']
+  profileId varchar              [not null, ref: > public.profiles.id, note: 'tenant → public; enforced by Postgres']
+  context   json                 [not null, note: 'shape is discriminated by type — see docs']
+  events    json                 [not null, default: '[]', note: 'append-only log: [{ event, at, channel? }]']
+  createdAt timestamp            [default: `now()`]
+  expiresAt timestamp            [note: 'null = never expires; swept by background job']
+
+  indexes {
+    profileId
+    (profileId, type)
+  }
 }
