@@ -11,13 +11,13 @@ import { formatCurrency, getInitials, cn } from '@/lib/utils'
 type StatusFilter = 'ALL' | 'OCCUPIED' | 'VACANT' | 'MAINTENANCE'
 
 const statusConfig = {
-  OCCUPIED:    { label: 'Occupé',    variant: 'success'   as const },
-  VACANT:      { label: 'Vacant',    variant: 'secondary' as const },
-  MAINTENANCE: { label: 'En travaux',variant: 'warning'   as const },
+  OCCUPIED: { label: 'Occupé', variant: 'success' as const },
+  VACANT: { label: 'Vacant', variant: 'secondary' as const },
+  MAINTENANCE: { label: 'En travaux', variant: 'warning' as const },
 }
 
 // Auto-avatar URLs by gender
-const MALE_AVATAR   = 'https://api.dicebear.com/7.x/avataaars/svg?seed=male&backgroundColor=b6e3f4'
+const MALE_AVATAR = 'https://api.dicebear.com/7.x/avataaars/svg?seed=male&backgroundColor=b6e3f4'
 const FEMALE_AVATAR = 'https://api.dicebear.com/7.x/avataaars/svg?seed=female&backgroundColor=ffd5dc'
 
 export function Apartments() {
@@ -35,9 +35,9 @@ export function Apartments() {
   })
 
   const counts = {
-    ALL:         mockApartments.length,
-    OCCUPIED:    mockApartments.filter(a => a.status === 'OCCUPIED').length,
-    VACANT:      mockApartments.filter(a => a.status === 'VACANT').length,
+    ALL: mockApartments.length,
+    OCCUPIED: mockApartments.filter(a => a.status === 'OCCUPIED').length,
+    VACANT: mockApartments.filter(a => a.status === 'VACANT').length,
     MAINTENANCE: mockApartments.filter(a => a.status === 'MAINTENANCE').length,
   }
 
@@ -123,10 +123,10 @@ export function Apartments() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {apt.floor != null ? `Étage ${apt.floor}` : '—'}
+                      {apt.floor != null ? `Étage ${apt.floor}` : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {apt.areaSqm != null ? `${apt.areaSqm} m²` : '—'}
+                      {apt.areaSqm != null ? `${apt.areaSqm} m²` : '-'}
                     </td>
                     <td className="px-4 py-3">
                       {ownerName ? (
@@ -138,11 +138,11 @@ export function Apartments() {
                           <p className="text-xs font-medium">{ownerName}</p>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {apt.percentageOfApartment != null ? `${apt.percentageOfApartment}%` : '—'}
+                      {apt.percentageOfApartment != null ? `${apt.percentageOfApartment}%` : '-'}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusConfig[apt.status].variant}>

@@ -3,41 +3,41 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
-import { authRouter } from './routes/auth'
-import { residenceRouter } from './routes/residence'
-import { apartmentRouter } from './routes/apartment'
-import { paymentRouter } from './routes/payment'
-import { complaintRouter } from './routes/complaint'
-import { meetingRouter } from './routes/meeting'
-import { feedRouter } from './routes/feed'
-import { documentRouter } from './routes/document'
-import { chatbotRouter } from './routes/chatbot'
+import { toNodeHandler } from 'better-auth/node'
+import { auth } from './auth'
+import residencesRouter from './routes/residences'
+import apartmentsRouter from './routes/apartments'
 import { errorHandler } from './middleware/errorHandler'
+import { db } from './db/db'
 
 const app = express()
 const PORT = process.env.PORT || 4000
 
 app.use(helmet())
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }))
+app.use(cors({ origin: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(','), credentials: true }))
 app.use(express.json())
 app.use(cookieParser())
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }))
 
-app.use('/api/auth', authRouter)
-app.use('/api/residences', residenceRouter)
-app.use('/api/apartments', apartmentRouter)
-app.use('/api/payments', paymentRouter)
-app.use('/api/complaints', complaintRouter)
-app.use('/api/meetings', meetingRouter)
-app.use('/api/feed', feedRouter)
-app.use('/api/documents', documentRouter)
-app.use('/api/chatbot', chatbotRouter)
+app.all('/api/auth/*', toNodeHandler(auth))
+
+app.use('/api/residences', residencesRouter)
+app.use('/api/apartments', apartmentsRouter)
 
 app.use(errorHandler)
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`)
 })
+
+async function shutdown() {
+  server.close()
+  await db.destroy()
+  process.exit(0)
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
 
 export default app

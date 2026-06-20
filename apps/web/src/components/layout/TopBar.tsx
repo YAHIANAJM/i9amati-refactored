@@ -5,9 +5,10 @@ interface TopBarProps {
   title: React.ReactNode
   subtitle?: React.ReactNode
   actions?: React.ReactNode
+  hideSearch?: boolean
 }
 
-export function TopBar({ title, subtitle, actions }: TopBarProps) {
+export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
       <div>
@@ -16,14 +17,16 @@ export function TopBar({ title, subtitle, actions }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative hidden md:flex items-center">
-          <Search size={14} className="absolute left-3 text-muted-foreground pointer-events-none" />
-          <input
-            placeholder="Search..."
-            className="h-8 w-56 rounded-md border bg-secondary pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          <kbd className="absolute right-2 text-[10px] text-muted-foreground hidden lg:block">⌘K</kbd>
-        </div>
+        {!hideSearch && (
+          <div className="relative hidden md:flex items-center">
+            <Search size={14} className="absolute left-3 text-muted-foreground pointer-events-none" />
+            <input
+              placeholder="Search..."
+              className="h-8 w-56 rounded-md border bg-secondary pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <kbd className="absolute right-2 text-[10px] text-muted-foreground hidden lg:block">⌘K</kbd>
+          </div>
+        )}
 
         <Button variant="ghost" size="icon" className="relative">
           <Bell size={16} />

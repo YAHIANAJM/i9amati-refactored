@@ -1,4 +1,4 @@
-// Input sanitization — first line of defense against injection attacks
+// Input sanitization - first line of defense against injection attacks
 
 export interface SanitizedResult {
   clean: string

@@ -1,6 +1,23 @@
 import type React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
+import { authClient }     from '@/lib/auth-client'
+
+import { Login }          from '@/pages/auth/Login'
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = authClient.useSession()
+
+  if (isPending) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
+  }
+
+  if (!session) {
+    return <Navigate to="/auth/login" replace />
+  }
+
+  return <>{children}</>
+}
 
 // ── Dashboard analytics pages ──
 import { Dashboard }      from '@/pages/syndic/Dashboard'
@@ -29,7 +46,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/syndic" replace />} />
-      <Route path="/syndic" element={<SyndicLayout />}>
+      <Route path="/auth/login" element={<Login />} />
+      <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
 
         {/* ── DASHBOARDS section ── */}
         <Route index                      element={<Dashboard />} />

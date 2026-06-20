@@ -10,7 +10,7 @@ export function SyndicLayout() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#d8dce3] p-4 gap-3">
 
-      {/* Full-width header — white card */}
+      {/* Full-width header - white card */}
       <Header />
 
       {/* Sidebar + content row */}

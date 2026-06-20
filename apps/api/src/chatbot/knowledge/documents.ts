@@ -12,19 +12,19 @@ export const IQAMATI_STORY: DocumentSource = {
   id: 'iqamati_platform',
   title: 'IQAMATI Platform Overview',
   content: `
-IQAMATI — The Human Story
+IQAMATI - The Human Story
 
-"إقامتي" — My Residence in Arabic
+"إقامتي" - My Residence in Arabic
 
 What is IQAMATI?
 
-IQAMATI is a digital platform built specifically for managing apartment buildings in Morocco. The name comes from the Arabic word إقامتي — meaning "my residence" — and that name says everything: this tool exists to make the place you call home run better, cleaner, and more fairly.
+IQAMATI is a digital platform built specifically for managing apartment buildings in Morocco. The name comes from the Arabic word إقامتي - meaning "my residence" - and that name says everything: this tool exists to make the place you call home run better, cleaner, and more fairly.
 
-It was created by GSDF CLAIR (Gestion · Syndic · Développement Digital · Futur Clair) to bring Moroccan building management into the digital age — replacing the chaos of spreadsheets, paper receipts, and endless phone calls with one unified platform, available on both web and mobile.
+It was created by GSDF CLAIR (Gestion · Syndic · Développement Digital · Futur Clair) to bring Moroccan building management into the digital age - replacing the chaos of spreadsheets, paper receipts, and endless phone calls with one unified platform, available on both web and mobile.
 
 The Problem It Solves
 
-When you live in an apartment building in Morocco, someone has to take responsibility for keeping it running. That person — or company — is called the Syndic.
+When you live in an apartment building in Morocco, someone has to take responsibility for keeping it running. That person - or company - is called the Syndic.
 
 The syndic's job includes:
 - Collecting monthly or annual maintenance fees from every owner
@@ -36,7 +36,7 @@ The syndic's job includes:
 
 In practice, this is almost always done through a mess of WhatsApp groups, handwritten receipts, physical folders, and memory. Payments get lost. Owners dispute what they owe. Documents go missing. Meetings become arguments because no one has proper records.
 
-IQAMATI replaces all of that — bringing structure, transparency, and legal compliance to a process that has needed it for decades.
+IQAMATI replaces all of that - bringing structure, transparency, and legal compliance to a process that has needed it for decades.
 
 Why It Matters in the Moroccan Context
 
@@ -46,20 +46,20 @@ Morocco has a specific legal framework governing apartment buildings and co-owne
 - Official procès-verbaux (meeting minutes) signed and archived
 - Compliance with Moroccan fiscal and administrative regulations
 
-Most syndics — especially independent ones managing multiple buildings — cannot realistically meet all these requirements manually. IQAMATI makes legal compliance the default, not an afterthought.
+Most syndics - especially independent ones managing multiple buildings - cannot realistically meet all these requirements manually. IQAMATI makes legal compliance the default, not an afterthought.
 
 It also addresses a social reality: in many Moroccan buildings, trust between the syndic and owners breaks down because there is no transparency. Owners don't know where their money went. The syndic has no easy way to prove they did their job. IQAMATI creates a shared, verifiable record that both sides can trust.
 
 Who Uses IQAMATI?
 
-IQAMATI is built for everyone involved in a building — each with their own dedicated view and permissions.
+IQAMATI is built for everyone involved in a building - each with their own dedicated view and permissions.
 
 1. The Syndic (Building Manager)
 The primary user. The person who runs everything.
 
-The syndic — whether an individual or a management company — gets the full dashboard. They can see every building they manage, every payment, every complaint, every document, and every scheduled meeting. They generate official reports, assign tasks, and have a bird's-eye view of their entire portfolio.
+The syndic - whether an individual or a management company - gets the full dashboard. They can see every building they manage, every payment, every complaint, every document, and every scheduled meeting. They generate official reports, assign tasks, and have a bird's-eye view of their entire portfolio.
 
-Think of the syndic as the CEO of the building — IQAMATI is their operating system.
+Think of the syndic as the CEO of the building - IQAMATI is their operating system.
 
 2. Property Owners (Propriétaires)
 The residents and co-owners of the building.
@@ -71,17 +71,17 @@ Owners get their own portal where they can:
 - Participate in votes during official meetings
 - Download their ownership documents
 
-No more calling the syndic to ask "did you receive my payment?" — it's all there, in real time.
+No more calling the syndic to ask "did you receive my payment?" - it's all there, in real time.
 
 3. Supervisors
 The oversight layer.
 
-Supervisors have an administrative view across multiple syndics or buildings — used by management companies or holding structures to monitor performance, agent activity, and financial health without being involved in day-to-day operations.
+Supervisors have an administrative view across multiple syndics or buildings - used by management companies or holding structures to monitor performance, agent activity, and financial health without being involved in day-to-day operations.
 
 4. Contracted Service Companies
-Cleaning, maintenance, gardening, elevator technicians — anyone hired to service the building.
+Cleaning, maintenance, gardening, elevator technicians - anyone hired to service the building.
 
-Each service company gets their own dedicated app view — completely separate from the syndic's space. They can:
+Each service company gets their own dedicated app view - completely separate from the syndic's space. They can:
 - See their work schedule and assigned tasks
 - Log completed jobs with notes and photos
 - Submit service reports
@@ -102,9 +102,9 @@ The syndic sees the full historical record across all buildings. Security sees o
 
 The Bottom Line
 
-IQAMATI is what happens when you take the chaos of managing an apartment building in Morocco — the fees, the complaints, the meetings, the paperwork, the visitors — and replace it with one clean, legal, multilingual platform that works for everyone involved.
+IQAMATI is what happens when you take the chaos of managing an apartment building in Morocco - the fees, the complaints, the meetings, the paperwork, the visitors - and replace it with one clean, legal, multilingual platform that works for everyone involved.
 
-From collecting fees to running a legally valid general assembly to tracking who fixed the elevator and who delivered a package at 3pm on a Tuesday — everything a syndic needs, in one place, on their phone or computer.
+From collecting fees to running a legally valid general assembly to tracking who fixed the elevator and who delivered a package at 3pm on a Tuesday - everything a syndic needs, in one place, on their phone or computer.
 
 Built for Morocco. Built for the people who keep buildings running.
 
@@ -139,9 +139,9 @@ export const MOROCCAN_LAW: DocumentSource = {
   id: 'moroccan_copropriete_law',
   title: 'Moroccan Co-ownership Law (Loi 18-00 & 106-12)',
   content: `
-Moroccan Co-ownership Law — Loi n° 18-00 relative au statut de la copropriété des immeubles bâtis, as modified by Loi n° 106-12.
+Moroccan Co-ownership Law - Loi n° 18-00 relative au statut de la copropriété des immeubles bâtis, as modified by Loi n° 106-12.
 
-Chapitre premier — Dispositions générales
+Chapitre premier - Dispositions générales
 
 Article premier: Les dispositions de la présente loi s'appliquent à la propriété des immeubles bâtis divisés par appartements ou étages ou locaux et dont la propriété appartenant à plusieurs personnes est répartie par lots comprenant chacun une partie privative et une quote-part des parties communes. Elles sont applicables également aux ensembles immobiliers bâtis constitués d'immeubles, villas ou locaux, contigus ou séparés, répartis en parties privatives et parties communes appartenant dans l'indivision à l'ensemble des copropriétaires. Les présentes dispositions s'appliquent aux immeubles immatriculés ou en cours d'immatriculation ou non immatriculés.
 
@@ -191,9 +191,9 @@ Le règlement de copropriété est signé par le propriétaire initial ou les co
 
 Article 11: Le règlement de copropriété doit faire l'objet d'un dépôt et d'un enregistrement au registre foncier auprès de la conservation foncière du lieu de situation de l'immeuble. Le vendeur doit mettre à la disposition de l'acquéreur une copie du règlement de copropriété.
 
-Chapitre II — De l'administration et de la gestion de la copropriété
+Chapitre II - De l'administration et de la gestion de la copropriété
 
-Section première — Le syndicat des copropriétaires
+Section première - Le syndicat des copropriétaires
 
 Article 13: Tous les copropriétaires des immeubles visés à l'article premier de la présente loi, se trouvent de plein droit groupés dans un syndicat doté de la personnalité morale et de l'autonomie financière, à compter de la date de l'inscription de la première cession concernant ces immeubles. Le syndicat a pour objet la conservation, l'entretien et l'administration des parties communes et, le cas échéant, la fourniture de services collectifs aux copropriétaires en relation avec la gestion de la copropriété. Le syndicat a droit, faute de conciliation, d'ester en justice même contre l'un des copropriétaires de manière individuelle ou collective avec les copropriétaires lésés. Le syndicat est administré par une assemblée générale et géré par un syndic et son adjoint.
 
@@ -204,7 +204,7 @@ Article 14 bis: Les ressources du syndicat se composent, notamment:
 - des sommes provenant de la cession ou la location de l'un des biens du syndicat, le cas échéant
 Le syndicat a droit d'acquérir des fractions divises sans que celles-ci perdent leur caractère privatif.
 
-Section 2 — L'assemblée générale
+Section 2 - L'assemblée générale
 
 Article 15: L'assemblée générale procède à la gestion de l'immeuble en copropriété conformément à la loi et au règlement de copropriété et prend des décisions dont l'exécution est confiée à un syndic ou à son adjoint.
 
@@ -261,7 +261,7 @@ Article 25 bis: Le président du tribunal de première instance prononce l'injon
 - Le certificat de propriété prouvant la quote-part du propriétaire débiteur
 - Une attestation justifiant la mise en demeure du propriétaire
 
-Section 3 — Le syndic et son adjoint
+Section 3 - Le syndic et son adjoint
 
 Article 26: Le syndic est chargé notamment:
 - d'exécuter les dispositions du règlement de copropriété
@@ -312,7 +312,7 @@ Article 43: Les créances du syndicat relatives aux charges communes à l'encont
 
 Article 45: En cas de destruction totale de l'immeuble, la décision de reconstruction est prise à l'unanimité des copropriétaires. En cas de destruction partielle, la décision est prise à la majorité des trois quarts des voix.
 
-Chapitre V bis — Les procédures de traitement des difficultés de gestion de la copropriété
+Chapitre V bis - Les procédures de traitement des difficultés de gestion de la copropriété
 
 Article 59 bis: Lorsque le syndicat des copropriétaires est incapable de s'acquitter des dettes exigibles ou de conserver la copropriété, le président du tribunal de première instance, statuant en référé, peut désigner un administrateur provisoire à la demande du syndic ou de 10% de l'ensemble des copropriétaires.
 
@@ -324,7 +324,7 @@ Article 59 undecies: Le tribunal de première instance du lieu de la copropriét
 
 Article 59 duodecies: Les recours contre les décisions de l'assemblée générale doivent être introduits dans un délai de deux mois à compter de la date de leur notification.
 
-Dispositions finales — Article 4 de la Loi 106-12: Les copropriétaires des immeubles bâtis avant l'entrée en vigueur de la présente loi sont tenus d'adapter le règlement de copropriété à ses dispositions. A défaut d'adaptation, les clauses en contradiction avec les dispositions de la présente loi sont réputées nulles.
+Dispositions finales - Article 4 de la Loi 106-12: Les copropriétaires des immeubles bâtis avant l'entrée en vigueur de la présente loi sont tenus d'adapter le règlement de copropriété à ses dispositions. A défaut d'adaptation, les clauses en contradiction avec les dispositions de la présente loi sont réputées nulles.
 `
 }
 

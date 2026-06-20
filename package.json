@@ -2,11 +2,13 @@
   "name": "i9amati",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@11.13.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "dev": "docker compose up -d postgres && turbo run dev",
     "dev:web": "npm --workspace apps/web run dev",
     "dev:api": "npm --workspace apps/api run dev",
     "dev:mobile": "npm --workspace apps/mobile run start",
@@ -15,5 +17,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
   }
 }

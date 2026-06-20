@@ -5,15 +5,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import {
   ChevronRight, ChevronLeft, Plus, MapPin, Building2, Home,
   Users, ChevronDown, ChevronUp, Eye, Pencil,
   ArrowUpDown, Shield, Car, Waves, Dumbbell, Zap, Trees,
-  ArrowRight, Hash, Phone, CreditCard,
+  ArrowRight, Hash, Phone, CreditCard, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Building3DViewer } from '@/pages/syndic/tools/Building3DViewer'
 import { mockResidences } from '@/data/mock/residences'
 import { mockBuildings } from '@/data/mock/buildings'
 import { mockApartments, getApartmentsByBuilding } from '@/data/mock/apartments'
@@ -25,30 +24,60 @@ import type { Building } from '@i9amati/shared'
 /* ── constants ──────────────────────────────────────────────── */
 
 const DEFAULT_IMG = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&q=80'
-const MALE_AVATAR   = 'https://api.dicebear.com/7.x/avataaars/svg?seed=male&backgroundColor=b6e3f4'
+const MALE_AVATAR = 'https://api.dicebear.com/7.x/avataaars/svg?seed=male&backgroundColor=b6e3f4'
 const FEMALE_AVATAR = 'https://api.dicebear.com/7.x/avataaars/svg?seed=female&backgroundColor=ffd5dc'
+
+/* 20 curated Unsplash apartment interior photos - one per residence, stable URLs */
+const FLOOR_PLAN_PHOTOS = [
+  'photo-1522708323590-d24dbb6b0267',
+  'photo-1560448204-e02f11c3d0e2',
+  'photo-1502005097973-6a7082348e28',
+  'photo-1484154218962-a197022b5858',
+  'photo-1493809842364-78817add7ffb',
+  'photo-1556909114-f6e7ad7d3136',
+  'photo-1512917774080-9991f1c4c750',
+  'photo-1505691938895-1758d7feb511',
+  'photo-1554995207-c18c203602cb',
+  'photo-1565182999561-18d7dc61c393',
+  'photo-1540518614846-7eded433c457',
+  'photo-1571508601891-ca5e7a713859',
+  'photo-1600585154340-be6161a56a0c',
+  'photo-1600210492493-0946911123ea',
+  'photo-1600607688969-a5bfcd646154',
+  'photo-1618221195710-dd6b41faaea6',
+  'photo-1631679706909-1844bbd07221',
+  'photo-1617806118233-18e1de247200',
+  'photo-1598928506311-c55ded91a20c',
+  'photo-1583847268964-b28dc8f51f92',
+]
+
+function getFloorPlanImage(residenceId: string) {
+  const hash = residenceId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  const photoId = FLOOR_PLAN_PHOTOS[hash % FLOOR_PLAN_PHOTOS.length]
+  return `https://images.unsplash.com/${photoId}?w=700&h=420&fit=crop&q=80`
+}
 
 
 const FACILITY_ICONS: Record<string, LucideIcon> = {
-  'Elevator':  ArrowUpDown,
-  'Security':  Shield,
-  'Parking':   Car,
-  'Pool':      Waves,
-  'Gym':       Dumbbell,
+  'Elevator': ArrowUpDown,
+  'Security': Shield,
+  'Parking': Car,
+  'Pool': Waves,
+  'Gym': Dumbbell,
   'Generator': Zap,
-  'Garden':    Trees,
+  'Garden': Trees,
 }
 
 const residenceStatus = {
-  ACTIVE:      { label: 'Actif',   variant: 'success'   as const },
-  MAINTENANCE: { label: 'Travaux', variant: 'warning'   as const },
-  INACTIVE:    { label: 'Inactif', variant: 'secondary' as const },
+  ACTIVE: { label: 'Actif', variant: 'success' as const },
+  MAINTENANCE: { label: 'Travaux', variant: 'warning' as const },
+  INACTIVE: { label: 'Inactif', variant: 'secondary' as const },
 }
 
 const aptStatus = {
-  OCCUPIED:    { label: 'Occupé',    variant: 'success'   as const },
-  VACANT:      { label: 'Vacant',    variant: 'secondary' as const },
-  MAINTENANCE: { label: 'Travaux',   variant: 'warning'   as const },
+  OCCUPIED: { label: 'Occupé', variant: 'success' as const },
+  VACANT: { label: 'Vacant', variant: 'secondary' as const },
+  MAINTENANCE: { label: 'Travaux', variant: 'warning' as const },
 }
 
 /* ── header stat item ────────────────────────────────────────── */
@@ -72,7 +101,7 @@ function ownerAvatar(gender: 'MALE' | 'FEMALE', profileImage?: string) {
 
 function AvatarStack({ owners }: { owners: { id: string; firstName: string; lastName: string; gender: 'MALE' | 'FEMALE'; profileImage?: string }[] }) {
   const visible = owners.slice(0, MAX_VISIBLE)
-  const extra   = owners.length - MAX_VISIBLE
+  const extra = owners.length - MAX_VISIBLE
 
   if (owners.length === 0) {
     return (
@@ -155,6 +184,185 @@ function FacilityPill({ name }: { name: string }) {
   )
 }
 
+/* ── AddMenu — simple 3-step hierarchy ── */
+function AddMenu({
+  onGoResidences,
+  onGoBuildings,
+  onGoApartments,
+}: {
+  onGoResidences: () => void
+  onGoBuildings:  () => void
+  onGoApartments: () => void
+}) {
+  return (
+    <div className="w-56 py-1.5">
+      <button onClick={onGoResidences} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors">
+        <span className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
+        <span className="text-sm font-medium">Résidence</span>
+        <ArrowRight size={12} className="ml-auto text-muted-foreground/40" />
+      </button>
+      <button onClick={onGoBuildings} className="w-full flex items-center gap-3 px-4 py-2.5 pl-8 text-left hover:bg-muted/50 transition-colors">
+        <span className="h-2 w-2 rounded-full bg-violet-400 shrink-0" />
+        <span className="text-sm font-medium">Bâtiment</span>
+        <ArrowRight size={12} className="ml-auto text-muted-foreground/40" />
+      </button>
+      <button onClick={onGoApartments} className="w-full flex items-center gap-3 px-4 py-2.5 pl-12 text-left hover:bg-muted/50 transition-colors">
+        <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+        <span className="text-sm font-medium">Appartement</span>
+        <ArrowRight size={12} className="ml-auto text-muted-foreground/40" />
+      </button>
+    </div>
+  )
+}
+
+/* ── NavBar — shared inner navigation for deep modal levels ── */
+function NavBar({
+  onBack, crumbs, onManage, onClose,
+}: {
+  onBack: () => void
+  crumbs: { label: string; onClick?: () => void }[]
+  onManage: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="flex items-center gap-0 h-11 border-b bg-muted/20 shrink-0">
+      {/* Back button */}
+      <button
+        onClick={onBack}
+        className="group flex items-center gap-2 h-full px-4 border-r border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
+      >
+        <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+        <span className="text-xs font-medium">Back</span>
+      </button>
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 px-4 flex-1 min-w-0 overflow-hidden">
+        {crumbs.map((c, i) => (
+          <span key={i} className="flex items-center gap-1 min-w-0">
+            {i > 0 && <span className="text-muted-foreground/30 text-sm shrink-0">/</span>}
+            {c.onClick ? (
+              <button
+                onClick={c.onClick}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate max-w-[140px]"
+              >
+                {c.label}
+              </button>
+            ) : (
+              <span className="text-xs font-semibold text-foreground truncate max-w-[160px]">{c.label}</span>
+            )}
+          </span>
+        ))}
+      </nav>
+
+      {/* Manage + Close */}
+      <div className="flex items-center gap-1.5 pr-3 shrink-0">
+        <button
+          onClick={onManage}
+          className="flex items-center gap-1.5 h-7 px-3.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
+        >
+          Manage <ArrowRight size={12} />
+        </button>
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center h-7 w-7 rounded-lg border border-border/60 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        >
+          <X size={13} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ── StickyTickets - tabs that stick to the right edge of the modal ── */
+function StickyTickets({
+  buildings,
+  currentBuildingId,
+  buildingApts,
+  currentAptId,
+  onSelectBuilding,
+  onSelectApt,
+}: {
+  buildings: { id: string; name: string }[]
+  currentBuildingId: string
+  buildingApts: { id: string; unitCode: string; status: 'OCCUPIED' | 'VACANT' | 'MAINTENANCE' }[]
+  currentAptId?: string
+  onSelectBuilding: (id: string) => void
+  onSelectApt: (id: string) => void
+}) {
+  const statusDot: Record<string, string> = {
+    OCCUPIED: 'bg-emerald-500',
+    VACANT: 'bg-slate-300',
+    MAINTENANCE: 'bg-amber-400',
+  }
+
+  return (
+    <div
+      className="fixed flex flex-col items-start gap-2 pointer-events-none"
+      style={{
+        left: 'calc(50vw + min(46vw, 40rem))',
+        top: 'calc(6vh + 2.75rem)',
+        zIndex: 60,
+      }}
+    >
+
+      {/* Buildings — one tab each */}
+      <div className="flex flex-col items-start gap-1">
+        {buildings.map(b => {
+          const isActive = b.id === currentBuildingId
+          return (
+            <button
+              key={b.id}
+              onClick={() => onSelectBuilding(b.id)}
+              title={b.name}
+              className={cn(
+                'pointer-events-auto flex items-center gap-1.5 h-7 px-3 rounded-r-lg text-[11px] font-semibold transition-all shadow-md',
+                isActive
+                  ? 'bg-slate-800 text-white shadow-slate-900/30'
+                  : 'bg-white/90 border border-border text-slate-500 hover:text-slate-800 hover:bg-white',
+              )}
+            >
+              {isActive && <span className="h-1.5 w-1.5 rounded-full bg-white/60 shrink-0" />}
+              <span className="truncate max-w-[80px]">{b.name}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Apartments — single unified card */}
+      {currentAptId && buildingApts.length > 0 && (
+        <div className="pointer-events-auto rounded-r-xl bg-white/95 border border-border shadow-xl overflow-hidden" style={{ minWidth: 110 }}>
+          {/* Card title */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 border-b border-slate-700">
+            <Home size={10} className="text-slate-300 shrink-0" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-300">Apartments</span>
+          </div>
+          {/* Apt rows */}
+          <div className="flex flex-col divide-y divide-border/50">
+            {buildingApts.map(apt => {
+              const isActive = apt.id === currentAptId
+              return (
+                <button
+                  key={apt.id}
+                  onClick={() => onSelectApt(apt.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition-colors text-left w-full',
+                    isActive
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                  )}
+                >
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', isActive ? 'bg-white/70' : statusDot[apt.status])} />
+                  <span>{apt.unitCode}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ══════════════════════════════════════════════════════════════
    RESIDENCE OVERVIEW MODAL
 ══════════════════════════════════════════════════════════════ */
@@ -178,29 +386,29 @@ function ResidenceModal({
 
   if (!residence) return null
 
-  const buildings  = mockBuildings.filter(b => b.residenceId === residence.id)
+  const buildings = mockBuildings.filter(b => b.residenceId === residence.id)
   const apartments = mockApartments.filter(a => a.residenceId === residence.id)
-  const occupied   = apartments.filter(a => a.status === 'OCCUPIED').length
-  const vacant     = apartments.filter(a => a.status === 'VACANT').length
+  const occupied = apartments.filter(a => a.status === 'OCCUPIED').length
+  const vacant = apartments.filter(a => a.status === 'VACANT').length
   const isStandalone = buildings.length === 1 && buildings[0]?.unionType === 'IMMEUBLE'
 
   const activeBuilding = nav.level !== 'overview'
     ? buildings.find(b => b.id === nav.buildingId) ?? null
     : null
   const buildingApts = activeBuilding ? getApartmentsByBuilding(activeBuilding.id) : []
-  const activeApt    = nav.level === 'apartment'
+  const activeApt = nav.level === 'apartment'
     ? buildingApts.find(a => a.id === nav.aptId) ?? null
     : null
-  const aptOwners    = activeApt ? getOwnersByApartment(activeApt.id) : []
+  const aptOwners = activeApt ? getOwnersByApartment(activeApt.id) : []
 
   const isOverview = nav.level === 'overview'
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent className="w-[92vw] max-w-7xl h-[88vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="w-[92vw] max-w-7xl h-[88vh] overflow-hidden flex flex-col p-0" showClose={false}>
         <DialogTitle className="sr-only">{residence.name}</DialogTitle>
 
-        {/* ══ BODY — switches layout based on nav level ══════════ */}
+        {/* ══ BODY - switches layout based on nav level ══════════ */}
         <AnimatePresence mode="wait" initial={false}>
 
           {/* ── OVERVIEW: 2-col (left overview + right 3D) ──────── */}
@@ -210,11 +418,11 @@ function ResidenceModal({
               transition={{ duration: 0.15 }}
               className="flex-1 overflow-hidden grid grid-cols-2 divide-x divide-border"
             >
-              {/* LEFT — residence overview */}
+              {/* LEFT - residence overview */}
               <div className="flex flex-col overflow-hidden">
 
                 {/* ── Hero image ── */}
-                <div className="relative h-52 shrink-0 overflow-hidden">
+                <div className="relative h-72 shrink-0 overflow-hidden">
                   <img
                     src={residence.image ?? DEFAULT_IMG}
                     alt={residence.name}
@@ -261,7 +469,7 @@ function ResidenceModal({
                     </p>
                   </div>
 
-                  {/* Manage button — top-right of hero acts as primary action */}
+                  {/* Manage button - top-right of hero acts as primary action */}
                   <button
                     onClick={() => { handleClose(); onManage(residence) }}
                     className="absolute top-4 right-4 hidden"
@@ -271,10 +479,10 @@ function ResidenceModal({
                 {/* ── Stats row ── */}
                 <div className="flex shrink-0 border-b">
                   {[
-                    { label: 'Units',    value: apartments.length, color: 'text-violet-600'  },
-                    { label: 'Occupied', value: occupied,          color: 'text-emerald-600' },
-                    { label: 'Vacant',   value: vacant,            color: 'text-slate-400'   },
-                    { label: 'Owners',   value: mockOwners.filter(o => apartments.some(a => a.id === o.apartmentId)).length, color: 'text-blue-600' },
+                    { label: 'Units', value: apartments.length, color: 'text-violet-600' },
+                    { label: 'Occupied', value: occupied, color: 'text-emerald-600' },
+                    { label: 'Vacant', value: vacant, color: 'text-slate-400' },
+                    { label: 'Owners', value: mockOwners.filter(o => apartments.some(a => a.id === o.apartmentId)).length, color: 'text-blue-600' },
                   ].map((s, i) => (
                     <div key={s.label} className={cn(
                       'flex-1 flex flex-col items-center py-3',
@@ -288,21 +496,18 @@ function ResidenceModal({
 
                 {/* ── Buildings list ── */}
                 <div className="flex-1 overflow-y-auto">
-                  <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                  <div className="flex items-center px-5 pt-4 pb-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
                       Buildings
                     </p>
-                    <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 px-2">
-                      <Plus size={10} /> Add
-                    </Button>
                   </div>
 
                   <div className="px-4 pb-4 space-y-2.5">
                     {buildings.map((b, idx) => {
-                      const bApts     = getApartmentsByBuilding(b.id)
+                      const bApts = getApartmentsByBuilding(b.id)
                       const bOccupied = bApts.filter(a => a.status === 'OCCUPIED').length
-                      const bVacant   = bApts.filter(a => a.status === 'VACANT').length
-                      const pct       = bApts.length > 0 ? Math.round((bOccupied / bApts.length) * 100) : 0
+                      const bVacant = bApts.filter(a => a.status === 'VACANT').length
+                      const pct = bApts.length > 0 ? Math.round((bOccupied / bApts.length) * 100) : 0
                       const BADGE_COLORS = [
                         'bg-blue-100 text-blue-700',
                         'bg-violet-100 text-violet-700',
@@ -357,8 +562,8 @@ function ResidenceModal({
                           {/* Row 3: amenity chips */}
                           {(b.hasElevator || b.hasGarage || b.hasSharedParts) && (
                             <div className="flex items-center gap-1 mt-2.5">
-                              {b.hasElevator    && <span className="text-[9px] bg-blue-50   text-blue-600   px-2 py-0.5 rounded-full font-medium border border-blue-100">Elevator</span>}
-                              {b.hasGarage      && <span className="text-[9px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium border border-violet-100">Parking</span>}
+                              {b.hasElevator && <span className="text-[9px] bg-blue-50   text-blue-600   px-2 py-0.5 rounded-full font-medium border border-blue-100">Elevator</span>}
+                              {b.hasGarage && <span className="text-[9px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium border border-violet-100">Parking</span>}
                               {b.hasSharedParts && <span className="text-[9px] bg-slate-50  text-slate-500  px-2 py-0.5 rounded-full font-medium border border-slate-200">Shared</span>}
                             </div>
                           )}
@@ -376,24 +581,30 @@ function ResidenceModal({
                 </div>
               </div>
 
-              {/* RIGHT — 3D viewer (full bleed, no header) */}
-              <div className="overflow-hidden bg-[#F0F2F5]">
-                {buildings.length > 0 ? (() => {
-                  const b = buildings[0]
-                  const aptsPerSide = Math.max(1, Math.min(5, Math.round((b.totalUnits ?? 6) / ((b.numberOfFloors ?? 3) * 2))))
-                  return (
-                    <Building3DViewer
-                      viewOnly showControls
-                      label={residence.name}
-                      initialCfg={{ floors: b.numberOfFloors ?? 3, apts: aptsPerSide }}
-                    />
-                  )
-                })() : (
-                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground/20 select-none">
-                    <Building2 size={40} strokeWidth={1} />
-                    <p className="text-xs mt-2">No buildings</p>
-                  </div>
-                )}
+              {/* RIGHT - coming soon */}
+              <div className="relative flex flex-col items-center justify-center gap-3 bg-muted/30 select-none">
+                {/* close + manage row */}
+                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  <button
+                    onClick={() => { handleClose(); onManage(residence) }}
+                    className="flex items-center gap-1.5 h-7 px-3.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Manage <ArrowRight size={12} />
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="flex items-center justify-center h-7 w-7 rounded-lg border border-border/60 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+                  <Building2 size={26} className="text-muted-foreground/40" strokeWidth={1.5} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-muted-foreground/50">Coming Soon</p>
+                  <p className="text-xs text-muted-foreground/35 mt-1">3D building view</p>
+                </div>
               </div>
             </motion.div>
           )}
@@ -403,147 +614,311 @@ function ResidenceModal({
             <motion.div key="building"
               initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
-              className="flex-1 overflow-hidden flex flex-col"
+              className="flex-1 overflow-hidden flex flex-col relative"
             >
-              {/* inner nav bar */}
-              <div className="flex items-center gap-2 px-5 py-2.5 border-b shrink-0">
-                <button
-                  onClick={() => setNav({ level: 'overview' })}
-                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                >
-                  <ChevronLeft size={12} /> Back
-                </button>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <button onClick={() => setNav({ level: 'overview' })} className="hover:text-foreground transition-colors">
-                    {residence.name}
-                  </button>
-                  <ChevronRight size={11} className="text-muted-foreground/30" />
-                  <span className="font-semibold text-foreground">{activeBuilding.name}</span>
-                </div>
-                <Button size="sm" className="gap-1 text-xs h-7 px-3 ml-auto"
-                  onClick={() => { handleClose(); onManage(residence) }}>
-                  Manage <ArrowRight size={12} />
-                </Button>
-              </div>
+              {/* ── inner nav ── */}
+              <NavBar
+                onBack={() => setNav({ level: 'overview' })}
+                crumbs={[
+                  { label: residence.name, onClick: () => setNav({ level: 'overview' }) },
+                  { label: activeBuilding.name },
+                ]}
+                onManage={() => { handleClose(); onManage(residence) }}
+                onClose={handleClose}
+              />
 
-              {/* two-col body */}
+              {/* body */}
               <div className="flex-1 overflow-hidden grid grid-cols-2 divide-x divide-border">
-              {/* LEFT — building info */}
-              <div className="flex flex-col overflow-y-auto">
-                <div className="px-5 py-3 border-b shrink-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Building Info</p>
-                </div>
-                <div className="p-5 space-y-4">
-                  {/* Key metrics */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'Floors',      value: activeBuilding.numberOfFloors ?? '—', color: 'text-blue-600'   },
-                      { label: 'Total Units', value: activeBuilding.totalUnits ?? '—',    color: 'text-violet-600' },
-                      { label: 'Apartments',  value: buildingApts.length,                 color: 'text-emerald-600'},
-                    ].map(s => (
-                      <div key={s.label} className="flex flex-col items-center py-3 rounded-xl bg-muted/40">
-                        <span className={`text-xl font-bold tabular-nums leading-none ${s.color}`}>{s.value}</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">{s.label}</span>
-                      </div>
-                    ))}
+                {/* LEFT - building info */}
+                <div className="flex flex-col overflow-y-auto">
+
+                  {/* Mini hero */}
+                  <div className="relative h-36 shrink-0 overflow-hidden">
+                    <img
+                      src={activeBuilding.image ?? residence.image ?? DEFAULT_IMG}
+                      alt={activeBuilding.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+                      <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.15em] mb-0.5">
+                        {activeBuilding.unionType === 'IMMEUBLE' ? 'Standalone Building' : 'Part of Complex'}
+                      </p>
+                      <h3 className="text-lg font-extrabold text-white leading-tight">{activeBuilding.name}</h3>
+                    </div>
                   </div>
 
-                  {/* Details grid */}
-                  <div className="rounded-xl border border-border/60 p-4 grid grid-cols-2 gap-x-6 gap-y-3">
-                    {[
-                      { label: 'Union Type',  value: activeBuilding.unionType },
-                      { label: 'Plan Number', value: activeBuilding.propertyPlanNumber },
-                      { label: 'Address',     value: activeBuilding.address },
-                      { label: 'Created',     value: new Date(activeBuilding.createdAt).toLocaleDateString('en-GB') },
-                    ].map(r => (
-                      <div key={r.label}>
-                        <p className="text-[10px] text-muted-foreground">{r.label}</p>
-                        <p className="text-xs font-semibold mt-0.5 truncate">{r.value ?? '—'}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="p-5 space-y-5">
 
-                  {/* Amenities */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Amenities</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {activeBuilding.hasElevator    && <span className="text-[11px] bg-blue-50   text-blue-700   px-2.5 py-1 rounded-full font-medium">Elevator</span>}
-                      {activeBuilding.hasGarage      && <span className="text-[11px] bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full font-medium">Parking</span>}
-                      {activeBuilding.hasSharedParts && <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-medium">Shared Parts</span>}
-                      {!activeBuilding.hasElevator && !activeBuilding.hasGarage && !activeBuilding.hasSharedParts && (
-                        <span className="text-xs text-muted-foreground/40">None listed</span>
+                    {/* Key metrics */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Floors', value: activeBuilding.numberOfFloors ?? '-', color: 'text-blue-600' },
+                        { label: 'Total Units', value: activeBuilding.totalUnits ?? '-', color: 'text-violet-600' },
+                        { label: 'Apartments', value: buildingApts.length, color: 'text-emerald-600' },
+                      ].map(s => (
+                        <div key={s.label} className="flex flex-col items-center py-3.5 rounded-xl bg-muted/40">
+                          <span className={`text-2xl font-extrabold tabular-nums leading-none ${s.color}`}>{s.value}</span>
+                          <span className="text-[10px] text-muted-foreground mt-1.5">{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Occupancy breakdown */}
+                    {(() => {
+                      const occ = buildingApts.filter(a => a.status === 'OCCUPIED').length
+                      const vac = buildingApts.filter(a => a.status === 'VACANT').length
+                      const mnt = buildingApts.filter(a => a.status === 'MAINTENANCE').length
+                      const tot = buildingApts.length || 1
+                      const pct = Math.round((occ / tot) * 100)
+                      return (
+                        <div className="rounded-xl border border-border/60 p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Occupancy</p>
+                            <span className="text-xs font-bold text-emerald-600">{pct}%</span>
+                          </div>
+                          <div className="h-2 rounded-full overflow-hidden flex gap-0.5">
+                            <div className="bg-emerald-500 rounded-full transition-all" style={{ width: `${(occ / tot) * 100}%` }} />
+                            <div className="bg-amber-400 rounded-full transition-all" style={{ width: `${(mnt / tot) * 100}%` }} />
+                            <div className="bg-slate-200 rounded-full transition-all flex-1" />
+                          </div>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />Occupied <strong className="text-foreground">{occ}</strong></span>
+                            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />Maintenance <strong className="text-foreground">{mnt}</strong></span>
+                            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-300 shrink-0" />Vacant <strong className="text-foreground">{vac}</strong></span>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Details */}
+                    <div className="rounded-xl border border-border/60 divide-y divide-border/50">
+                      {[
+                        { label: 'Plan Number', value: activeBuilding.propertyPlanNumber },
+                        { label: 'Address', value: activeBuilding.address },
+                        { label: 'Shared Deed', value: activeBuilding.sharedWithTitleDeed },
+                        { label: 'Created', value: new Date(activeBuilding.createdAt).toLocaleDateString('en-GB') },
+                        { label: 'Last Updated', value: new Date(activeBuilding.updatedAt).toLocaleDateString('en-GB') },
+                      ].filter(r => r.value != null && r.value !== '').map(r => (
+                        <div key={r.label} className="flex items-center justify-between px-4 py-3">
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold truncate max-w-[55%] text-right">{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Amenities + Shared Parts */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Amenities</p>
+                        {/* Shared parts status - right side, scalable for future building ref */}
+                        {activeBuilding.hasSharedParts ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-teal-500 shrink-0" />
+                            <span className="text-[10px] font-semibold text-teal-700">Shared Parts</span>
+                            {activeBuilding.sharedWithTitleDeed && (
+                              <span className="text-[10px] font-mono text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded-md">
+                                {activeBuilding.sharedWithTitleDeed}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 shrink-0" />
+                            <span className="text-[10px] text-muted-foreground/50">Independent</span>
+                          </div>
+                        )}
+                      </div>
+                      {(activeBuilding.hasElevator || activeBuilding.hasGarage) ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {activeBuilding.hasElevator && <span className="text-[11px] bg-blue-50   text-blue-700   px-3 py-1.5 rounded-xl font-medium border border-blue-100">Elevator</span>}
+                          {activeBuilding.hasGarage && <span className="text-[11px] bg-violet-50 text-violet-700 px-3 py-1.5 rounded-xl font-medium border border-violet-100">Parking</span>}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/40 italic">No amenities listed</span>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* RIGHT — apartments in this building */}
-              <div className="flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                    Apartments
-                    <span className="ml-1.5 normal-case tracking-normal font-normal text-muted-foreground/60">
-                      ({buildingApts.length})
-                    </span>
-                  </p>
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2.5">
-                    <Plus size={11} /> Add
-                  </Button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                  {buildingApts.map(apt => {
-                    const owners = getOwnersByApartment(apt.id)
-                    return (
-                      <button
-                        key={apt.id}
-                        onClick={() => setNav({ level: 'apartment', buildingId: activeBuilding.id, aptId: apt.id })}
-                        className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border/60 bg-card hover:border-primary/40 hover:bg-primary/[0.03] transition-all text-left group"
-                      >
-                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                          {apt.floor ?? '—'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-semibold">{apt.unitCode}</span>
-                            <Badge variant={aptStatus[apt.status].variant} className="text-[9px] px-1.5 py-0">
-                              {aptStatus[apt.status].label}
-                            </Badge>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {apt.areaSqm ? `${apt.areaSqm} m²` : '—'}
-                            {apt.percentageOfApartment ? ` · ${apt.percentageOfApartment}%` : ''}
-                          </p>
-                        </div>
-                        {owners.length > 0 && (
-                          <div className="flex -space-x-1.5 shrink-0">
-                            {owners.slice(0, 3).map(o => (
-                              <img key={o.id} src={ownerAvatar(o.gender, o.profileImage)}
-                                className="h-6 w-6 rounded-full border-2 border-white object-cover" alt="" />
-                            ))}
-                            {owners.length > 3 && (
-                              <div className="h-6 w-6 rounded-full border-2 border-white bg-muted flex items-center justify-center">
-                                <span className="text-[9px] font-semibold text-muted-foreground">+{owners.length - 3}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {owners.length === 0 && (
-                          <span className="text-[10px] text-muted-foreground/40 shrink-0">No owner</span>
-                        )}
-                        <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
-                      </button>
-                    )
-                  })}
-                  {buildingApts.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/30">
-                      <Home size={32} strokeWidth={1} />
-                      <p className="text-xs mt-2">No apartments yet</p>
+                {/* RIGHT - apartments in this building */}
+                <div className="flex flex-col overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Apartments</p>
+                      <span className="h-5 min-w-5 px-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center tabular-nums">
+                        {buildingApts.length}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </div>
-              </div>{/* end two-col body */}
+                    <div className="flex items-center gap-2">
+                      {/* quick status pills */}
+                      {(() => {
+                        const occ = buildingApts.filter(a => a.status === 'OCCUPIED').length
+                        const vac = buildingApts.filter(a => a.status === 'VACANT').length
+                        const mnt = buildingApts.filter(a => a.status === 'MAINTENANCE').length
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            {occ > 0 && <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">{occ} occ.</span>}
+                            {vac > 0 && <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">{vac} vac.</span>}
+                            {mnt > 0 && <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">{mnt} mnt.</span>}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* List - grouped by floor */}
+                  <div className="flex-1 overflow-y-auto">
+                    {buildingApts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground/30">
+                        <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+                          <Home size={26} strokeWidth={1.5} />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">No apartments yet</p>
+                          <p className="text-xs mt-0.5">Add the first unit to this building</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground/40">Click Manage to add apartments</p>
+                      </div>
+                    ) : (
+                      <div className="p-4 space-y-4">
+                        {(() => {
+                          // group by floor, nulls at end
+                          const byFloor = new Map<number | null, typeof buildingApts>()
+                          buildingApts.forEach(apt => {
+                            const f = apt.floor ?? null
+                            if (!byFloor.has(f)) byFloor.set(f, [])
+                            byFloor.get(f)!.push(apt)
+                          })
+                          const sorted = [...byFloor.entries()].sort(([a], [b]) => {
+                            if (a === null) return 1
+                            if (b === null) return -1
+                            return a - b
+                          })
+                          return sorted.map(([floor, apts]) => (
+                            <div key={floor ?? 'no-floor'}>
+                              {/* Floor label */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="h-5 w-5 rounded-md bg-muted border border-border/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
+                                  {floor ?? '?'}
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                                  Floor {floor ?? '-'}
+                                </span>
+                                <div className="flex-1 h-px bg-border/40" />
+                                <span className="text-[10px] text-muted-foreground/40">{apts.length} unit{apts.length !== 1 ? 's' : ''}</span>
+                              </div>
+
+                              {/* Apartment cards */}
+                              <div className="space-y-1.5 pl-1">
+                                {apts.map(apt => {
+                                  const owners = getOwnersByApartment(apt.id)
+                                  const statusColors = {
+                                    OCCUPIED: { bar: 'bg-emerald-500', dot: 'bg-emerald-500', ring: 'border-emerald-200 hover:border-emerald-400' },
+                                    VACANT: { bar: 'bg-slate-300', dot: 'bg-slate-400', ring: 'border-border/60 hover:border-slate-400' },
+                                    MAINTENANCE: { bar: 'bg-amber-400', dot: 'bg-amber-400', ring: 'border-amber-200 hover:border-amber-400' },
+                                  }
+                                  const sc = statusColors[apt.status]
+                                  return (
+                                    <button
+                                      key={apt.id}
+                                      onClick={() => setNav({ level: 'apartment', buildingId: activeBuilding.id, aptId: apt.id })}
+                                      className={cn(
+                                        'w-full text-left rounded-xl border bg-card transition-all group overflow-hidden',
+                                        sc.ring,
+                                      )}
+                                    >
+                                      {/* status bar top */}
+                                      <div className={cn('h-0.5 w-full', sc.bar)} />
+
+                                      {/* ── TOP: apartment info ── */}
+                                      <div className="px-3.5 pt-3 pb-2.5">
+                                        {/* unit code + status */}
+                                        <div className="flex items-center justify-between mb-2.5">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-extrabold tracking-tight">{apt.unitCode}</span>
+                                            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', sc.dot)} />
+                                            <span className="text-[11px] font-medium text-muted-foreground">{aptStatus[apt.status].label}</span>
+                                          </div>
+                                          <Badge variant={aptStatus[apt.status].variant} className="text-[9px] px-1.5 py-0">
+                                            {apt.usageType === 'RESIDENTIAL' ? 'Residential' : apt.usageType === 'COMMERCIAL' ? 'Commercial' : 'Mixed'}
+                                          </Badge>
+                                        </div>
+
+                                        {/* info grid */}
+                                        <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+                                          <div className="flex flex-col bg-muted/40 rounded-lg px-2.5 py-2">
+                                            <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wide leading-none mb-0.5">Area</span>
+                                            <span className="text-xs font-bold text-foreground">{apt.areaSqm ? `${apt.areaSqm} m²` : '-'}</span>
+                                          </div>
+                                          <div className="flex flex-col bg-muted/40 rounded-lg px-2.5 py-2">
+                                            <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wide leading-none mb-0.5">Floor</span>
+                                            <span className="text-xs font-bold text-foreground">{apt.floor ?? '-'}</span>
+                                          </div>
+                                          <div className="flex flex-col bg-muted/40 rounded-lg px-2.5 py-2">
+                                            <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wide leading-none mb-0.5">Share</span>
+                                            <span className="text-xs font-bold text-foreground">{apt.percentageOfApartment != null ? `${apt.percentageOfApartment}%` : '-'}</span>
+                                          </div>
+                                        </div>
+
+                                        {/* plot + residence share */}
+                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                          <span className="font-mono">{apt.mainPlotNumber}</span>
+                                          {apt.percentageOfResidence != null && (
+                                            <span className="text-muted-foreground/60">Residence {apt.percentageOfResidence}%</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* ── FOOTER: owners + navigate ── */}
+                                      <div className="flex items-center justify-between px-3.5 py-2 border-t border-border/40 bg-muted/20">
+                                        {owners.length > 0 ? (
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            <div className="flex -space-x-1.5 shrink-0">
+                                              {owners.slice(0, 3).map(o => (
+                                                <img key={o.id} src={ownerAvatar(o.gender, o.profileImage)}
+                                                  style={{ height: 20, width: 20 }}
+                                                  className="rounded-full border-2 border-white object-cover" alt="" />
+                                              ))}
+                                              {owners.length > 3 && (
+                                                <div style={{ height: 20, width: 20 }} className="rounded-full border-2 border-white bg-muted flex items-center justify-center">
+                                                  <span className="text-[8px] font-semibold text-muted-foreground">+{owners.length - 3}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground truncate">
+                                              {owners.map(o => o.firstName).join(', ')}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span className="text-[10px] text-muted-foreground/40 italic">No owner assigned</span>
+                                        )}
+                                        <div className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/10 group-hover:bg-primary transition-colors shrink-0 ml-2">
+                                          <ChevronRight size={12} className="text-primary group-hover:text-white transition-colors" />
+                                        </div>
+                                      </div>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>{/* end RIGHT col */}
+              </div>{/* end body */}
+
+              {/* Sticky tickets - outside the modal right edge */}
+              <StickyTickets
+                buildings={buildings}
+                currentBuildingId={activeBuilding.id}
+                buildingApts={buildingApts}
+                onSelectBuilding={id => setNav({ level: 'building', buildingId: id })}
+                onSelectApt={() => { }}
+              />
             </motion.div>
           )}
 
@@ -552,140 +927,185 @@ function ResidenceModal({
             <motion.div key="apartment"
               initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
-              className="flex-1 overflow-hidden flex flex-col"
+              className="flex-1 overflow-hidden flex flex-col relative"
             >
-              {/* inner nav bar */}
-              <div className="flex items-center gap-2 px-5 py-2.5 border-b shrink-0">
-                <button
-                  onClick={() => setNav({ level: 'building', buildingId: nav.buildingId })}
-                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                >
-                  <ChevronLeft size={12} /> Back
-                </button>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <button onClick={() => setNav({ level: 'overview' })} className="hover:text-foreground transition-colors">
-                    {residence.name}
-                  </button>
-                  <ChevronRight size={11} className="text-muted-foreground/30" />
-                  <button onClick={() => setNav({ level: 'building', buildingId: nav.buildingId })} className="hover:text-foreground transition-colors">
-                    {activeBuilding?.name}
-                  </button>
-                  <ChevronRight size={11} className="text-muted-foreground/30" />
-                  <span className="font-semibold text-foreground">{activeApt.unitCode}</span>
-                </div>
-                <Button size="sm" className="gap-1 text-xs h-7 px-3 ml-auto"
-                  onClick={() => { handleClose(); onManage(residence) }}>
-                  Manage <ArrowRight size={12} />
-                </Button>
-              </div>
+              {/* ── inner nav ── */}
+              <NavBar
+                onBack={() => setNav({ level: 'building', buildingId: nav.buildingId })}
+                crumbs={[
+                  { label: residence.name, onClick: () => setNav({ level: 'overview' }) },
+                  { label: activeBuilding?.name ?? '…', onClick: () => setNav({ level: 'building', buildingId: nav.buildingId }) },
+                  { label: activeApt.unitCode },
+                ]}
+                onManage={() => { handleClose(); onManage(residence) }}
+                onClose={handleClose}
+              />
 
-              {/* two-col body */}
+              {/* body */}
               <div className="flex-1 overflow-hidden grid grid-cols-2 divide-x divide-border">
-              {/* LEFT — apartment info */}
-              <div className="flex flex-col overflow-y-auto">
-                <div className="px-5 py-3 border-b shrink-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Apartment Info</p>
-                </div>
-                <div className="p-5 space-y-4">
-                  {/* Identity row */}
-                  <div className="flex items-center gap-3 p-4 rounded-xl border border-border/60">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-base font-bold text-primary shrink-0">
-                      {activeApt.floor ?? '—'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-base font-bold">{activeApt.unitCode}</span>
-                        <Badge variant={aptStatus[activeApt.status].variant}>
-                          {aptStatus[activeApt.status].label}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{activeBuilding?.name}</p>
+
+                {/* LEFT - apartment info + floor plan image */}
+                <div className="flex flex-col overflow-y-auto">
+
+                  {/* Floor plan image */}
+                  <div className="relative shrink-0 overflow-hidden bg-muted/30" style={{ height: 220 }}>
+                    <img
+                      src={getFloorPlanImage(residence.id)}
+                      alt="Floor plan"
+                      className="w-full h-full object-cover"
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    />
+                    {/* subtle overlay just for the bottom label */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                    <div className="absolute bottom-3 left-4 flex items-center gap-2">
+                      <span className="text-white text-xs font-semibold drop-shadow">Floor plan · {activeApt.unitCode}</span>
+                      <Badge variant={aptStatus[activeApt.status].variant} className="text-[9px]">
+                        {aptStatus[activeApt.status].label}
+                      </Badge>
                     </div>
                   </div>
 
-                  {/* Details grid */}
-                  <div className="rounded-xl border border-border/60 p-4 grid grid-cols-2 gap-x-6 gap-y-3">
-                    {[
-                      { label: 'Floor',       value: activeApt.floor },
-                      { label: 'Area',        value: activeApt.areaSqm ? `${activeApt.areaSqm} m²` : undefined },
-                      { label: 'Share %',     value: activeApt.percentageOfApartment ? `${activeApt.percentageOfApartment}%` : undefined },
-                      { label: 'Usage',       value: activeApt.usageType },
-                      { label: 'Main plot',      value: activeApt.mainPlotNumber },
-                      { label: 'Residence %',   value: activeApt.percentageOfResidence ? `${activeApt.percentageOfResidence}%` : undefined },
-                    ].map(r => (
-                      <div key={r.label}>
-                        <p className="text-[10px] text-muted-foreground">{r.label}</p>
-                        <p className="text-xs font-semibold mt-0.5">{r.value ?? '—'}</p>
+                  {/* Info */}
+                  <div className="p-5 space-y-4">
+                    {/* Identity */}
+                    <div className="flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-extrabold text-primary shrink-0">
+                        {activeApt.floor ?? '-'}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT — owners */}
-              <div className="flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                    Owners
-                    <span className="ml-1.5 normal-case tracking-normal font-normal text-muted-foreground/60">
-                      ({aptOwners.length})
-                    </span>
-                  </p>
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2.5">
-                    <Plus size={11} /> Add owner
-                  </Button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                  {aptOwners.length > 0 ? aptOwners.map(o => (
-                    <div key={o.id} className="flex items-start gap-3 p-4 rounded-xl border border-border/60 bg-card">
-                      <img src={ownerAvatar(o.gender, o.profileImage)}
-                        className="h-11 w-11 rounded-full border-2 border-white object-cover shrink-0" alt="" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <span className="text-sm font-semibold">{o.firstName} {o.lastName}</span>
-                          {o.isRepresentative && (
-                            <Badge variant="info" className="text-[9px] px-1.5 py-0 shrink-0">Rep</Badge>
-                          )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-extrabold">{activeApt.unitCode}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <p className="text-xs text-muted-foreground">{activeBuilding?.name} · {residence.name}</p>
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Floor', value: activeApt.floor ?? '-', color: 'text-blue-600' },
+                        { label: 'Area', value: activeApt.areaSqm ? `${activeApt.areaSqm}m²` : '-', color: 'text-violet-600' },
+                        { label: 'Usage', value: activeApt.usageType === 'RESIDENTIAL' ? 'Res.' : activeApt.usageType === 'COMMERCIAL' ? 'Com.' : 'Mix', color: 'text-emerald-600' },
+                      ].map(s => (
+                        <div key={s.label} className="flex flex-col items-center py-3 rounded-xl bg-muted/40">
+                          <span className={`text-lg font-extrabold tabular-nums leading-none ${s.color}`}>{s.value}</span>
+                          <span className="text-[10px] text-muted-foreground mt-1">{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Details list */}
+                    <div className="rounded-xl border border-border/60 divide-y divide-border/50">
+                      {[
+                        { label: 'Main Plot', value: activeApt.mainPlotNumber },
+                        { label: 'Bldg Share', value: activeApt.percentageOfApartment != null ? `${activeApt.percentageOfApartment}%` : undefined },
+                        { label: 'Res. Share', value: activeApt.percentageOfResidence != null ? `${activeApt.percentageOfResidence}%` : undefined },
+                        { label: 'Created', value: new Date(activeApt.createdAt).toLocaleDateString('en-GB') },
+                      ].filter(r => r.value != null).map(r => (
+                        <div key={r.label} className="flex items-center justify-between px-4 py-2.5">
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-semibold font-mono">{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+              {/* RIGHT — owners (view only) */}
+              <div className="flex flex-col overflow-hidden">
+                {/* Apartment title header */}
+                <div className="px-5 py-3.5 border-b shrink-0 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Home size={13} className="text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold leading-none">{activeApt.unitCode}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Apartment · {activeBuilding?.name}</p>
+                      </div>
+                    </div>
+                    <Badge variant={aptStatus[activeApt.status].variant} className="text-[10px]">
+                      {aptStatus[activeApt.status].label}
+                    </Badge>
+                  </div>
+                </div>
+                {/* Owners sub-header */}
+                <div className="flex items-center gap-2 px-5 py-2.5 border-b shrink-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Owners</p>
+                  <span className="h-5 min-w-5 px-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
+                    {aptOwners.length}
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {aptOwners.length > 0 ? aptOwners.map(o => (
+                    <div key={o.id} className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                      {/* Owner header */}
+                      <div className="flex items-center gap-3 p-4">
+                        <img
+                          src={ownerAvatar(o.gender, o.profileImage)}
+                          className="h-12 w-12 rounded-full border-2 border-white object-cover shrink-0 shadow-sm"
+                          alt=""
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-bold">{o.firstName} {o.lastName}</span>
+                            {o.isRepresentative && (
+                              <Badge variant="info" className="text-[9px] px-1.5 py-0 shrink-0">Rep</Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 capitalize">
+                            {o.gender === 'MALE' ? 'Male' : 'Female'} owner
+                          </p>
+                        </div>
+                      </div>
+
+                        {/* Details */}
+                        <div className="border-t border-border/40 divide-y divide-border/30">
                           {o.phone && (
-                            <div className="flex items-center gap-1.5">
-                              <Phone size={10} className="text-muted-foreground shrink-0" />
-                              <span className="text-xs text-muted-foreground truncate">{o.phone}</span>
+                            <div className="flex items-center gap-2.5 px-4 py-2.5">
+                              <Phone size={11} className="text-muted-foreground shrink-0" />
+                              <span className="text-xs text-muted-foreground">{o.phone}</span>
                             </div>
                           )}
                           {o.nationalId && (
-                            <div className="flex items-center gap-1.5">
-                              <CreditCard size={10} className="text-muted-foreground shrink-0" />
-                              <span className="text-xs text-muted-foreground font-mono">{o.nationalId}</span>
+                            <div className="flex items-center gap-2.5 px-4 py-2.5">
+                              <CreditCard size={11} className="text-muted-foreground shrink-0" />
+                              <span className="text-xs font-mono text-muted-foreground">{o.nationalId}</span>
                             </div>
                           )}
                           {activeApt.percentageOfApartment != null && (
-                            <div className="flex items-center gap-1.5">
-                              <Hash size={10} className="text-muted-foreground shrink-0" />
-                              <span className="text-xs text-muted-foreground">{activeApt.percentageOfApartment}% share</span>
+                            <div className="flex items-center gap-2.5 px-4 py-2.5">
+                              <Hash size={11} className="text-muted-foreground shrink-0" />
+                              <span className="text-xs text-muted-foreground">{activeApt.percentageOfApartment}% building share</span>
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-1 shrink-0">
-                        <button className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                          <Eye size={13} />
-                        </button>
-                        <button className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                          <Pencil size={13} />
-                        </button>
+                    )) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground/30 py-16">
+                        <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+                          <Users size={26} strokeWidth={1.5} />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold">No owners yet</p>
+                          <p className="text-xs mt-0.5">Click Manage to assign an owner</p>
+                        </div>
                       </div>
-                    </div>
-                  )) : (
-                    <button className="w-full flex items-center justify-center gap-1.5 py-10 rounded-xl border border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors text-muted-foreground hover:text-primary">
-                      <Plus size={13} />
-                      <span className="text-xs">Add first owner</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-              </div>{/* end two-col body */}
+                    )}
+                  </div>
+                </div>{/* end RIGHT col */}
+              </div>{/* end body */}
+
+              {/* Sticky tickets - outside the modal right edge */}
+              <StickyTickets
+                buildings={buildings}
+                currentBuildingId={nav.buildingId}
+                buildingApts={buildingApts}
+                currentAptId={activeApt.id}
+                onSelectBuilding={id => setNav({ level: 'building', buildingId: id })}
+                onSelectApt={id => setNav({ level: 'apartment', buildingId: nav.buildingId, aptId: id })}
+              />
             </motion.div>
           )}
 
@@ -704,19 +1124,24 @@ type View = 'residences' | 'buildings' | 'apartments'
 ══════════════════════════════════════════════════════════════ */
 
 export function Association() {
-  const [view,               setView]               = useState<View>('residences')
-  const [selectedResidence,  setSelectedResidence]  = useState<Residence | null>(null)
-  const [selectedBuilding,   setSelectedBuilding]   = useState<Building  | null>(null)
-  const [expandedApt,        setExpandedApt]        = useState<string | null>(null)
-  const [modalResidence,     setModalResidence]     = useState<Residence | null>(null)
+  const [view, setView] = useState<View>('residences')
+  const [selectedResidence, setSelectedResidence] = useState<Residence | null>(null)
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null)
+  const [expandedApt, setExpandedApt] = useState<string | null>(null)
+  const [modalResidence, setModalResidence] = useState<Residence | null>(null)
 
   /* ── navigation helpers ── */
   const drillToBuildings = (r: Residence) => { setSelectedResidence(r); setSelectedBuilding(null); setView('buildings') }
-  const openModal  = (r: Residence) => setModalResidence(r)
+  const openModal = (r: Residence) => setModalResidence(r)
   const closeModal = () => setModalResidence(null)
-  const drillToApartments = (b: Building) => { setSelectedBuilding(b); setExpandedApt(null); setView('apartments') }
+  const drillToApartments = (b: Building) => {
+    const firstApt = getApartmentsByBuilding(b.id)[0]
+    setSelectedBuilding(b)
+    setExpandedApt(firstApt?.id ?? null)
+    setView('apartments')
+  }
   const goBack = () => {
-    if (view === 'apartments') { setView('buildings'); setExpandedApt(null) }
+    if (view === 'apartments') { setView('buildings'); setSelectedBuilding(null); setExpandedApt(null) }
     else if (view === 'buildings') { setView('residences'); setSelectedResidence(null) }
   }
 
@@ -750,7 +1175,7 @@ export function Association() {
   )
 
   /* ── header subtitle ── */
-  const totalUnits    = mockApartments.length
+  const totalUnits = mockApartments.length
   const totalOccupied = mockApartments.filter(a => a.status === 'OCCUPIED').length
 
   const dot = <span className="text-muted-foreground/30 text-xs mx-0.5">·</span>
@@ -781,8 +1206,8 @@ export function Association() {
       )
     }
     if (view === 'apartments' && selectedBuilding) {
-      const apts  = getApartmentsByBuilding(selectedBuilding.id)
-      const occ   = apts.filter(a => a.status === 'OCCUPIED').length
+      const apts = getApartmentsByBuilding(selectedBuilding.id)
+      const occ = apts.filter(a => a.status === 'OCCUPIED').length
       return (
         <div className="flex items-center flex-row gap-1 mt-0.5">
           <StatItem value={apts.length} label="Apartments" color="text-violet-600" />
@@ -796,17 +1221,18 @@ export function Association() {
     return null
   }
 
-  /* ── top actions ── */
-  const Actions = () => (
-    <Button size="sm" className="gap-1.5 text-xs">
-      <Plus size={13} />
-      {view === 'residences' ? 'Ajouter résidence' : view === 'buildings' ? 'Ajouter bâtiment' : 'Ajouter appartement'}
-    </Button>
-  )
+  const menuLabel = view === 'residences' ? 'Ajouter résidence'
+                  : view === 'buildings'  ? 'Ajouter bâtiment'
+                  : 'Ajouter appartement'
 
   return (
     <div className="flex flex-col min-h-full">
-      <TopBar title="Owners' Association" subtitle={<HeaderSubtitle />} actions={<Actions />} />
+      <TopBar title="Owners' Association" subtitle={<HeaderSubtitle />} actions={
+        <Button size="sm" className="gap-1.5 text-xs">
+          <Plus size={13} />
+          {menuLabel}
+        </Button>
+      } />
 
       {/* Residence overview modal */}
       <ResidenceModal
@@ -832,11 +1258,11 @@ export function Association() {
         {view === 'residences' && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {mockResidences.map(r => {
-              const buildings  = mockBuildings.filter(b => b.residenceId === r.id)
+              const buildings = mockBuildings.filter(b => b.residenceId === r.id)
               const apartments = mockApartments.filter(a => a.residenceId === r.id)
-              const occupied   = apartments.filter(a => a.status === 'OCCUPIED').length
+              const occupied = apartments.filter(a => a.status === 'OCCUPIED').length
               const isStandalone = buildings.length === 1 && buildings[0]?.unionType === 'IMMEUBLE'
-              const resOwners  = mockOwners.filter(o => apartments.some(a => a.id === o.apartmentId))
+              const resOwners = mockOwners.filter(o => apartments.some(a => a.id === o.apartmentId))
 
               return (
                 <Card key={r.id} className="hover:shadow-md transition-shadow overflow-hidden cursor-pointer group" onClick={() => openModal(r)}>
@@ -865,9 +1291,9 @@ export function Association() {
                     {/* Stats */}
                     <div className="grid grid-cols-3 gap-2 mb-2">
                       {[
-                        { value: buildings.length,  label: 'Buildings', Icon: Building2 },
-                        { value: apartments.length, label: 'Units',     Icon: Home      },
-                        { value: occupied,          label: 'Occupied',  Icon: Users     },
+                        { value: buildings.length, label: 'Buildings', Icon: Building2 },
+                        { value: apartments.length, label: 'Units', Icon: Home },
+                        { value: occupied, label: 'Occupied', Icon: Users },
                       ].map(s => (
                         <div key={s.label} className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg bg-muted/40">
                           <s.Icon size={14} strokeWidth={1.5} className="text-foreground" />
@@ -891,10 +1317,11 @@ export function Association() {
                           </span>
                         )}
                         <button
-                          onClick={e => { e.stopPropagation(); openModal(r) }}
-                          className="ml-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-primary hover:bg-primary/90 transition-colors"
+                          onClick={e => { e.stopPropagation(); drillToBuildings(r) }}
+                          className="ml-1.5 flex items-center gap-1.5 h-7 px-3 rounded-lg bg-primary hover:bg-primary/90 transition-colors"
                         >
-                          <ChevronRight size={13} className="text-white" strokeWidth={2.5} />
+                          <span className="text-white text-xs font-medium">Manage</span>
+                          <ArrowRight size={12} className="text-white" strokeWidth={2.5} />
                         </button>
                       </div>
                     </div>
@@ -920,8 +1347,8 @@ export function Association() {
               .filter(b => b.residenceId === selectedResidence.id)
               .map(b => {
                 const apartments = getApartmentsByBuilding(b.id)
-                const occupied   = apartments.filter(a => a.status === 'OCCUPIED').length
-                const bldOwners  = mockOwners.filter(o => apartments.some(a => a.id === o.apartmentId))
+                const occupied = apartments.filter(a => a.status === 'OCCUPIED').length
+                const bldOwners = mockOwners.filter(o => apartments.some(a => a.id === o.apartmentId))
 
                 return (
                   <Card key={b.id} className="hover:shadow-md transition-shadow overflow-hidden cursor-pointer group" onClick={() => drillToApartments(b)}>
@@ -943,9 +1370,9 @@ export function Association() {
                       </p>
                       <div className="grid grid-cols-3 gap-2 mb-3">
                         {[
-                          { value: b.numberOfFloors ?? '—', label: 'Étages' },
-                          { value: apartments.length,        label: 'Unités' },
-                          { value: occupied,                 label: 'Occupés' },
+                          { value: b.numberOfFloors ?? '-', label: 'Étages' },
+                          { value: apartments.length, label: 'Unités' },
+                          { value: occupied, label: 'Occupés' },
                         ].map(s => (
                           <div key={s.label} className="text-center p-1.5 rounded-lg bg-muted/50">
                             <p className="text-sm font-bold">{s.value}</p>
@@ -955,10 +1382,19 @@ export function Association() {
                       </div>
                       <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground mb-3">
                         {b.hasElevator && <span className="bg-muted px-1.5 py-0.5 rounded">Elevator</span>}
-                        {b.hasGarage   && <span className="bg-muted px-1.5 py-0.5 rounded">Garage</span>}
+                        {b.hasGarage && <span className="bg-muted px-1.5 py-0.5 rounded">Garage</span>}
                         {b.propertyPlanNumber && <span className="bg-muted px-1.5 py-0.5 rounded font-mono">{b.propertyPlanNumber}</span>}
                       </div>
-                      <AvatarStack owners={bldOwners} />
+                      <div className="flex items-center justify-between">
+                        <AvatarStack owners={bldOwners} />
+                        <button
+                          onClick={e => { e.stopPropagation(); drillToApartments(b) }}
+                          className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-dashed border-primary/40 text-primary hover:bg-primary hover:text-white hover:border-primary transition-all text-xs font-medium"
+                        >
+                          <Plus size={12} />
+                          Add Owner
+                        </button>
+                      </div>
                     </CardContent>
                   </Card>
                 )
@@ -986,11 +1422,11 @@ export function Association() {
               </thead>
               <tbody>
                 {getApartmentsByBuilding(selectedBuilding.id).map((apt, i) => {
-                  const owners    = getOwnersByApartment(apt.id)
-                  const rep       = owners.find(o => o.isRepresentative)
-                  const repName   = rep ? `${rep.firstName} ${rep.lastName}` : null
+                  const owners = getOwnersByApartment(apt.id)
+                  const rep = owners.find(o => o.isRepresentative)
+                  const repName = rep ? `${rep.firstName} ${rep.lastName}` : null
                   const repAvatar = rep?.profileImage ?? (rep?.gender === 'FEMALE' ? FEMALE_AVATAR : MALE_AVATAR)
-                  const isOpen    = expandedApt === apt.id
+                  const isOpen = expandedApt === apt.id
 
                   return (
                     <>
@@ -1015,12 +1451,12 @@ export function Association() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{apt.floor ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm">{apt.areaSqm ? `${apt.areaSqm} m²` : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{apt.floor ?? '-'}</td>
+                        <td className="px-4 py-3 text-sm">{apt.areaSqm ? `${apt.areaSqm} m²` : '-'}</td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
                           {apt.usageType === 'RESIDENTIAL' ? 'Résidentiel' : apt.usageType === 'COMMERCIAL' ? 'Commercial' : 'Mixte'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{apt.percentageOfApartment ?? '—'}%</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{apt.percentageOfApartment ?? '-'}%</td>
                         <td className="px-4 py-3">
                           <Badge variant={aptStatus[apt.status].variant}>{aptStatus[apt.status].label}</Badge>
                         </td>
@@ -1038,7 +1474,7 @@ export function Association() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
+                            <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -1054,11 +1490,11 @@ export function Association() {
                           <td colSpan={8} className="px-6 py-4">
                             <div className="space-y-2">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                                Propriétaires — {apt.unitCode}
+                                Propriétaires - {apt.unitCode}
                               </p>
                               <div className="flex flex-wrap gap-3">
                                 {owners.map(o => {
-                                  const name   = `${o.firstName} ${o.lastName}`
+                                  const name = `${o.firstName} ${o.lastName}`
                                   const avatar = o.profileImage ?? (o.gender === 'FEMALE' ? FEMALE_AVATAR : MALE_AVATAR)
                                   return (
                                     <div key={o.id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border shadow-sm min-w-[220px]">
@@ -1073,7 +1509,7 @@ export function Association() {
                                             <Badge variant="info" className="text-[9px] px-1 py-0">ممثل</Badge>
                                           )}
                                         </div>
-                                        <p className="text-[11px] text-muted-foreground">{o.phone ?? '—'}</p>
+                                        <p className="text-[11px] text-muted-foreground">{o.phone ?? '-'}</p>
                                         <p className="text-[10px] text-muted-foreground font-mono">{o.nationalId}</p>
                                       </div>
                                       <div className="flex gap-1">

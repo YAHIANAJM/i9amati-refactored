@@ -9,7 +9,7 @@ export function Profile() {
   return (
     <div className="flex flex-col min-h-full">
       <TopBar title="Profile" subtitle="Vos informations personnelles"
-        actions={<Button size="sm" variant="outline" className="gap-1.5 text-xs"><Edit size={13}/>Modifier</Button>}
+        actions={<Button size="sm" variant="outline" className="gap-1.5 text-xs"><Edit size={13} />Modifier</Button>}
       />
       <div className="flex-1 p-6 max-w-2xl animate-fade-in space-y-5">
         <Card>
@@ -24,9 +24,9 @@ export function Profile() {
               </div>
               <p className="text-sm text-muted-foreground mb-3">auth.union_agent · Membre depuis Jan 2023</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                <span className="flex items-center gap-1.5 text-muted-foreground"><Mail size={13}/>syndic@i9amati.ma</span>
-                <span className="flex items-center gap-1.5 text-muted-foreground"><Phone size={13}/>+212 6 61 00 11 22</span>
-                <span className="flex items-center gap-1.5 text-muted-foreground"><Building2 size={13}/>3 résidences</span>
+                <span className="flex items-center gap-1.5 text-muted-foreground"><Mail size={13} />syndic@i9amati.ma</span>
+                <span className="flex items-center gap-1.5 text-muted-foreground"><Phone size={13} />+212 6 61 00 11 22</span>
+                <span className="flex items-center gap-1.5 text-muted-foreground"><Building2 size={13} />3 résidences</span>
               </div>
             </div>
           </CardContent>
@@ -35,9 +35,9 @@ export function Profile() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Résidences gérées</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {['Résidence Al Nour — Casablanca', 'Résidence Atlas — Rabat', 'Résidence Marina — Agadir'].map(r => (
+            {['Résidence Al Nour - Casablanca', 'Résidence Atlas - Rabat', 'Résidence Marina - Agadir'].map(r => (
               <div key={r} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40">
-                <div className="h-2 w-2 rounded-full bg-emerald-500"/>
+                <div className="h-2 w-2 rounded-full bg-emerald-500" />
                 <span className="text-sm">{r}</span>
               </div>
             ))}
