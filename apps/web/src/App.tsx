@@ -18,6 +18,7 @@ import { AccountingDash } from '@/pages/syndic/dashboards/AccountingDash'
 import { FeedDash }       from '@/pages/syndic/dashboards/FeedDash'
 import { ServicesDash }   from '@/pages/syndic/dashboards/ServicesDash'
 import { UnionDash }      from '@/pages/syndic/dashboards/UnionDash'
+import { ChatbotDash }    from '@/pages/syndic/dashboards/ChatbotDash'
 
 // ── Functional pages ──
 import { Association }    from '@/pages/syndic/Association'
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="dash/feed"           element={<FeedDash />} />
         <Route path="dash/services"       element={<ServicesDash />} />
         <Route path="dash/union"          element={<UnionDash />} />
+        <Route path="dash/chatbot"        element={<ChatbotDash />} />
 
         {/* ── GENERAL ── */}
         <Route path="profile"             element={<Profile />} />
