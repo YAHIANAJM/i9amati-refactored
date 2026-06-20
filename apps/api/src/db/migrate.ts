@@ -6,29 +6,57 @@
  */
 import 'dotenv/config'
 import * as path from 'path'
-import { Kysely, PostgresDialect } from 'kysely'
-import { Migrator, FileMigrationProvider } from 'kysely/migration'
+import { pathToFileURL } from 'url'
+import { Kysely, PostgresDialect, type Migration, type MigrationProvider } from 'kysely'
+import { Migrator } from 'kysely/migration'
 import { Pool } from 'pg'
 import { promises as fs } from 'fs'
+
+// FileMigrationProvider uses import() internally which needs file:// URLs on Windows.
+// This custom provider converts paths explicitly.
+function makeProvider(migrationFolder: string): MigrationProvider {
+  return {
+    async getMigrations(): Promise<Record<string, Migration>> {
+      const migrations: Record<string, Migration> = {}
+      const files = (await fs.readdir(migrationFolder))
+        .filter(f => f.endsWith('.ts') || f.endsWith('.js'))
+        .sort()
+      for (const file of files) {
+        const fileUrl = pathToFileURL(path.join(migrationFolder, file)).href
+        const mod = await import(fileUrl)
+        migrations[file.replace(/\.(ts|js)$/, '')] = mod
+      }
+      return migrations
+    },
+  }
+}
 
 async function migrate(target: 'public' | 'tenant', orgSlug?: string) {
   const schemaName = target === 'public' ? 'public' : orgSlug!
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+
+  // Raw SQL in tenant migrations (ALTER TABLE …) ignores withSchema.
+  // Setting search_path on every connection makes unqualified table refs
+  // resolve to the tenant schema automatically.
+  if (target === 'tenant') {
+    pool.on('connect', client => {
+      client.query(`SET search_path TO "${schemaName}", public`)
+    })
+  }
+
   const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
 
   if (target === 'tenant') {
     await db.schema.createSchema(schemaName).ifNotExists().execute()
   }
 
-  // Kysely's FileMigrationProvider needs a db scoped to the right schema
   const scopedDb = target === 'tenant' ? db.withSchema(schemaName) : db
-
-  const migrationFolder = path.join(__dirname, '../../migrations', target)
+  const migrationFolder = path.resolve(__dirname, '../../migrations', target)
 
   const migrator = new Migrator({
     db: scopedDb as Kysely<any>,
-    provider: new FileMigrationProvider({ fs, path, migrationFolder }),
+    provider: makeProvider(migrationFolder),
     migrationTableSchema: schemaName,
   })
 

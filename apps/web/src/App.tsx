@@ -1,21 +1,11 @@
 import type React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
-import { authClient }     from '@/lib/auth-client'
 
 import { Login }          from '@/pages/auth/Login'
 
+// TODO: re-enable when backend + DB are ready
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = authClient.useSession()
-
-  if (isPending) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>
-  }
-
-  if (!session) {
-    return <Navigate to="/auth/login" replace />
-  }
-
   return <>{children}</>
 }
 
@@ -41,6 +31,7 @@ import { Alerts }         from '@/pages/syndic/Alerts'
 import { UnionMembers }   from '@/pages/syndic/UnionMembers'
 import { Profile }        from '@/pages/syndic/Profile'
 import { Residences }     from '@/pages/syndic/Residences'
+import { Chat }           from '@/pages/syndic/Chat'
 
 export default function App() {
   return (
@@ -80,6 +71,7 @@ export default function App() {
         {/* ── Settings ── */}
         <Route path="settings"            element={<Profile />} />
         <Route path="residences"          element={<Residences />} />
+        <Route path="chat"                element={<Chat />} />
       </Route>
     </Routes>
   )

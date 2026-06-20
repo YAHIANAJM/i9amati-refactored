@@ -3,10 +3,9 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Home, CreditCard, FileText, CalendarCheck,
   BarChart3, Rss, Wrench, Bell, Users, User, Settings, LogOut,
-  ChevronLeft, ChevronRight, ChevronDown, PieChart, TrendingUp,
+  ChevronLeft, ChevronRight, ChevronDown, PieChart, TrendingUp, Bot,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 /* ─── Section definitions ────────────────────────────────── */
 
@@ -54,6 +53,7 @@ const sections = [
       { label: 'Feed Management', icon: Rss, to: '/syndic/feed' },
       { label: 'Service Tracking', icon: Wrench, to: '/syndic/services' },
       { label: 'Alerts & Notifications', icon: Bell, to: '/syndic/alerts' },
+      { label: 'I9amati Chat', icon: Bot, to: '/syndic/chat' },
     ],
   },
   {

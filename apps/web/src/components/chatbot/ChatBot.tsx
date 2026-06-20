@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MessageSquare, Scale, HelpCircle } from 'lucide-react'
+import { X, MessageSquare, Scale, HelpCircle, Bot, Maximize2 } from 'lucide-react'
 import { ChatMessage, type Message } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { TypingIndicator } from './TypingIndicator'
@@ -22,6 +23,7 @@ const SUGGESTED_CHOICES = [
 ]
 
 export function ChatBot() {
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [isLoading, setIsLoading] = useState(false)
@@ -64,19 +66,28 @@ export function ChatBot() {
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button — white circle with dark glow shadow + floating animation */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 flex items-center justify-center transition-all group cursor-pointer"
+            className="fixed bottom-6 right-6 z-50 cursor-pointer"
+            style={{ filter: 'drop-shadow(0 16px 24px rgba(0,0,0,0.35)) drop-shadow(0 6px 10px rgba(0,0,0,0.22))' }}
           >
-            <img src="/chatbot.png" alt="IQAMATI Chatbot" className="h-32 w-32 object-contain drop-shadow-2xl group-hover:scale-105 group-active:scale-95 transition-transform duration-300" />
+            {/* Inner element carries the float animation so it doesn't fight AnimatePresence */}
+            <motion.span
+              animate={{ y: [0, -7, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex items-center justify-center w-14 h-14 rounded-full bg-white"
+              style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.8)' }}
+            >
+              <Bot size={26} className="text-slate-800" strokeWidth={1.8} />
+            </motion.span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -98,32 +109,41 @@ export function ChatBot() {
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: '100%', opacity: 0, scale: 0.98 }}
               transition={{ type: 'spring', damping: 28, stiffness: 250 }}
-              className="fixed top-4 bottom-4 right-4 z-50 flex flex-col w-[420px] rounded-[2rem] bg-[#f8fafc]/95 backdrop-blur-3xl border border-white shadow-2xl shadow-slate-400/30 overflow-hidden"
+              className="fixed bottom-4 right-4 z-50 flex flex-col w-[340px] h-[520px] rounded-[2rem] bg-[#f8fafc]/95 backdrop-blur-3xl border border-white shadow-2xl shadow-slate-400/30 overflow-hidden"
             >
-              {/* Premium Header */}
-              <div className="flex items-center justify-between px-6 py-5 bg-white/60 border-b border-white shrink-0">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center justify-center">
-                    <img src="/chatbot.png" alt="Bot" className="h-14 w-14 object-contain drop-shadow-md" />
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3.5 bg-white/60 border-b border-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-900">
+                    <Bot size={17} className="text-white" strokeWidth={1.8} />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-800 tracking-tight">IQAMATI Copilot</h3>
+                    <h3 className="text-sm font-bold text-slate-800 tracking-tight leading-tight">IQAMATI Copilot</h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                      <span className="text-xs font-medium text-slate-500">Always here to help</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                      <span className="text-[11px] font-medium text-slate-500">Always here to help</span>
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => { setIsOpen(false); navigate('/syndic/chat') }}
+                    title="Open full chat"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    <Maximize2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
               </div>
 
               {/* Messages Area */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
                 {messages.map(msg => (
                   <ChatMessage key={msg.id} message={msg} />
                 ))}
@@ -154,7 +174,7 @@ export function ChatBot() {
               </div>
 
               {/* Input Area */}
-              <div className="p-4 bg-white/80 border-t border-white shrink-0">
+              <div className="p-3 bg-white/80 border-t border-white shrink-0">
                 <ChatInput onSend={sendMessage} disabled={isLoading} />
               </div>
             </motion.div>

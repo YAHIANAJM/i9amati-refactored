@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: i9amati
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
     healthcheck:
