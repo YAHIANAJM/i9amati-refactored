@@ -6,21 +6,29 @@ import { Eye, EyeOff } from 'lucide-react'
 
 const TEAL = '#2B8C80'
 
-export function Login() {
+export function Register() {
   const navigate = useNavigate()
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [showPw, setShowPw]     = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState<string | null>(null)
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' })
+  const [showPw, setShowPw]           = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState<string | null>(null)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(prev => ({ ...prev, [field]: e.target.value }))
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return }
     setLoading(true)
     setError(null)
     try {
-      const { error } = await authClient.signIn.email({ email, password })
-      if (error) setError(error.message || 'Échec de la connexion')
+      const { error } = await authClient.signUp.email({
+        email: form.email,
+        password: form.password,
+        name: `${form.firstName} ${form.lastName}`,
+      })
+      if (error) setError(error.message || "Échec de l'inscription")
       else navigate('/syndic')
     } catch (err: any) {
       setError(err.message || 'Une erreur inattendue est survenue')
@@ -28,6 +36,10 @@ export function Login() {
       setLoading(false)
     }
   }
+
+  const inputClass = 'w-full h-11 rounded-xl border border-gray-200 px-4 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition'
+  const focusTeal  = (e: React.FocusEvent<HTMLInputElement>) => (e.currentTarget.style.borderColor = TEAL)
+  const blurGray   = (e: React.FocusEvent<HTMLInputElement>) => (e.currentTarget.style.borderColor = '#E5E7EB')
 
   return (
     <motion.div
@@ -39,17 +51,29 @@ export function Login() {
         boxShadow: '0 24px 80px rgba(0,0,0,0.40)',
         border: '3px solid rgb(255,255,255)',
       }}
-      initial={{ opacity: 0, x: -60 }}
+      initial={{ opacity: 0, x: 60 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -60 }}
+      exit={{ opacity: 0, x: 60 }}
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
     >
 
-      {/* ── LEFT — white form panel ── */}
-      <div
-        className="flex flex-col justify-between bg-white px-10 py-9"
-        style={{ width: '44%', minWidth: 340 }}
-      >
+      {/* ── LEFT — transparent, video bleeds through ── */}
+      <div className="relative flex-1">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute top-6 left-6 z-10 flex items-center gap-6">
+          {['My Buildings', 'Finance', 'Documents', 'Meetings'].map(item => (
+            <span key={item} className="text-white text-sm font-medium cursor-pointer hover:opacity-80 transition-opacity" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+              {item}
+            </span>
+          ))}
+        </div>
+        <div className="absolute bottom-6 right-6 z-10">
+          <p className="text-white/40 text-xs tracking-widest uppercase font-medium">إقامتي · IQAMATI</p>
+        </div>
+      </div>
+
+      {/* ── RIGHT — white form panel ── */}
+      <div className="flex flex-col justify-between bg-white px-10 py-9" style={{ width: '44%', minWidth: 340 }}>
         <div>
           <p style={{ fontFamily: 'Amiri, Georgia, serif', fontSize: 72, lineHeight: 1, color: TEAL, direction: 'rtl', marginBottom: 2 }}>
             إقامتي
@@ -57,44 +81,41 @@ export function Login() {
           <p style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#B84A2A', letterSpacing: '0.06em', fontStyle: 'italic', marginBottom: 4 }}>
             IQAMATI
           </p>
-          <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 28 }}>
-            IQAMATI – The Human Story
+          <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 22 }}>
+            Créez votre espace syndic
           </p>
 
-          <form onSubmit={handleLogin} className="space-y-3">
+          <form onSubmit={handleRegister} className="space-y-3">
             {error && (
               <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{error}</div>
             )}
 
-            <input
-              type="email" required autoComplete="email" placeholder="Email or Phone ID"
-              value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full h-11 rounded-xl border border-gray-200 px-4 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition"
-              onFocus={e => (e.currentTarget.style.borderColor = TEAL)}
-              onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')}
-            />
+            <div className="flex gap-2">
+              <input type="text" required placeholder="Prénom" value={form.firstName} onChange={set('firstName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+              <input type="text" required placeholder="Nom" value={form.lastName} onChange={set('lastName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+            </div>
+
+            <input type="email" required autoComplete="email" placeholder="Email or Phone ID" value={form.email} onChange={set('email')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
 
             <div className="relative">
-              <input
-                type={showPw ? 'text' : 'password'} required autoComplete="current-password" placeholder="Password"
-                value={password} onChange={e => setPassword(e.target.value)}
-                className="w-full h-11 rounded-xl border border-gray-200 px-4 pr-20 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition"
-                onFocus={e => (e.currentTarget.style.borderColor = TEAL)}
-                onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <Link to="/auth/forgot" tabIndex={-1} className="text-xs font-semibold" style={{ color: TEAL }}>Forgot?</Link>
-                <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                  {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
+              <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" placeholder="Password" value={form.password} onChange={set('password')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
+              <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+
+            <div className="relative">
+              <input type={showConfirm ? 'text' : 'password'} required autoComplete="new-password" placeholder="Confirmer le mot de passe" value={form.confirmPassword} onChange={set('confirmPassword')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
+              <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
             </div>
 
             <button type="submit" disabled={loading}
               className="w-full h-12 rounded-full text-white font-semibold text-sm tracking-wide transition-opacity disabled:opacity-70"
               style={{ background: TEAL }}
             >
-              {loading ? 'Connexion...' : 'Log in / دخول'}
+              {loading ? 'Création...' : 'Créer un compte / إنشاء حساب'}
             </button>
           </form>
         </div>
@@ -111,24 +132,9 @@ export function Login() {
             <SocialBtn><AppleIcon /></SocialBtn>
           </div>
           <p className="mt-5 text-center text-xs text-gray-400">
-            Première connexion ?{' '}
-            <Link to="/auth/register" style={{ color: TEAL }} className="font-semibold hover:underline">Créer un compte</Link>
+            Déjà un compte ?{' '}
+            <Link to="/auth/login" style={{ color: TEAL }} className="font-semibold hover:underline">Se connecter</Link>
           </p>
-        </div>
-      </div>
-
-      {/* ── RIGHT — transparent, video bleeds through ── */}
-      <div className="relative flex-1">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute top-6 right-6 z-10 flex items-center gap-6">
-          {['My Buildings', 'Finance', 'Documents', 'Meetings'].map(item => (
-            <span key={item} className="text-white text-sm font-medium cursor-pointer hover:opacity-80 transition-opacity" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
-              {item}
-            </span>
-          ))}
-        </div>
-        <div className="absolute bottom-6 left-6 z-10">
-          <p className="text-white/40 text-xs tracking-widest uppercase font-medium">إقامتي · IQAMATI</p>
         </div>
       </div>
 

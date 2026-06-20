@@ -9,8 +9,8 @@
 
 | Section | Owner | Status | Progress |
 |---------|-------|--------|----------|
-| Home Page | Ayman | 🔄 In Progress | — |
-| Login / Registration | Ayman | 🔄 In Progress | — |
+| Home Page | Ayman | ⬜ Not Started | 0% |
+| Login / Registration | Ayman | ✅ Done | 100% |
 | Chatbot | Ayman | ✅ Done | 100% |
 
 ---
@@ -53,7 +53,7 @@
 | Member | Total | Done | In Progress | Remaining |
 |--------|-------|------|-------------|-----------|
 | **Yahia** | **8** | 2 | 1 | 5 |
-| **Ayman** | **8** | 1 | 0 | 7 |
+| **Ayman** | **8** | 2 | 0 | 6 |
 | **Bader** | **7** | 2 | 0 | 5 |
 
 ---
