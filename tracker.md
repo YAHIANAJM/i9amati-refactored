@@ -17,6 +17,7 @@
 
 ## ⚙️ Management Sections
 
+
 | # | Section | Owner | Status | Progress |
 |---|---------|-------|--------|----------|
 | 1 | Owners' Association | Yahia | ✅ Done | 100% |
