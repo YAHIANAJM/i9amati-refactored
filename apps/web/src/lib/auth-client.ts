@@ -2,8 +2,11 @@ import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient, magicLinkClient, inferAdditionalFields } from 'better-auth/client/plugins'
 import { PlatformRole } from '@i9amati/shared'
 
+const defaultAuthBaseUrl =
+  typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
+
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || '/',
+  baseURL: import.meta.env.VITE_API_URL || defaultAuthBaseUrl,
   plugins: [
     inferAdditionalFields({
       user: {
