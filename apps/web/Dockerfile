@@ -20,6 +20,10 @@ RUN npm install --workspaces --include-workspace-root
 # Copy the rest of the monorepo source code
 COPY . .
 
+# Build shared package first so workspace consumers resolve compiled JS.
+WORKDIR /app/packages/shared
+RUN npm run build
+
 # Build the web app
 WORKDIR /app/apps/web
 RUN npm run build
