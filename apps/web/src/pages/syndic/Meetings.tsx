@@ -10,6 +10,7 @@ import {
   Plus, MapPin, Users, Clock, ChevronDown, X, Trash2,
   CheckCircle2, XCircle, Activity, Play, FileText,
   Printer, UserCheck, UserX, AlertTriangle, Scale, Loader2,
+  Send, Building2, Home, Mail,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Meeting, AgendaItem } from '@/data/mock/meetings'
@@ -69,7 +70,6 @@ function useMeetingMutations() {
   const castVote = useMutation({
     mutationFn: ({ meetingId, itemId, type }: { meetingId: string; itemId: string; type: 'pour' | 'contre' | 'abstention' }) =>
       api.post(`/api/meetings/${meetingId}/agenda/${itemId}/cast`, { type }),
-    // Optimistic: increment the count locally so the UI is instant
     onMutate: async ({ meetingId, itemId, type }) => {
       await qc.cancelQueries({ queryKey: ['meetings'] })
       const prev = qc.getQueryData<Meeting[]>(['meetings'])
@@ -94,12 +94,16 @@ function useMeetingMutations() {
       api.post(`/api/meetings/${meetingId}/agenda/${itemId}/president`, { result }),
     onSuccess: refetch,
   })
+  const sendConvocation = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/meetings/${id}/send-convocation`),
+    onSuccess:  refetch,
+  })
   const createMeeting = useMutation({
     mutationFn: (body: object) => api.post('/api/meetings', body),
     onSuccess: refetch,
   })
 
-  return { startMeeting, closeMeeting, togglePresence, openVote, castVote, closeVote, presidentDecide, createMeeting }
+  return { startMeeting, closeMeeting, togglePresence, openVote, castVote, closeVote, presidentDecide, sendConvocation, createMeeting }
 }
 
 // ─── VoteBar ──────────────────────────────────────────────────────────────────
@@ -209,9 +213,10 @@ type DetailPanelProps = {
   meeting: Meeting
   mutations: ReturnType<typeof useMeetingMutations>
   onShowPV: (id: string) => void
+  onSendConvocation: (id: string) => void
 }
 
-function DetailPanel({ meeting: m, mutations, onShowPV }: DetailPanelProps) {
+function DetailPanel({ meeting: m, mutations, onShowPV, onSendConvocation }: DetailPanelProps) {
   const present        = m.attendeeList.filter(a => a.present).length
   const required       = quorumRequired(m.totalEligible)
   const quorumReached  = present >= required
@@ -254,7 +259,7 @@ function DetailPanel({ meeting: m, mutations, onShowPV }: DetailPanelProps) {
           {m.status === 'IN_PROGRESS' && !quorumOk && (
             <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
               <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-red-800">Quorum non atteint — marquez les présences avant d'ouvrir les votes. Si insuffisant, une 2ème convocation sera nécessaire.</p>
+              <p className="text-[11px] text-red-800">Quorum non atteint — marquez les présences avant d'ouvrir les votes.</p>
             </div>
           )}
         </div>
@@ -288,7 +293,7 @@ function DetailPanel({ meeting: m, mutations, onShowPV }: DetailPanelProps) {
           </div>
         )}
 
-        {/* Agenda + attendees (non IN_PROGRESS: two-column layout) */}
+        {/* Agenda + attendees */}
         <div className={m.status === 'IN_PROGRESS' ? '' : 'grid grid-cols-[1fr_200px] gap-4'}>
           <div className="space-y-2 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Ordre du jour</p>
@@ -338,31 +343,107 @@ function DetailPanel({ meeting: m, mutations, onShowPV }: DetailPanelProps) {
         </div>
 
         {/* Footer actions */}
-        {(m.status === 'SCHEDULED' || (m.status === 'IN_PROGRESS' && allDone) || m.status === 'COMPLETED') && (
-          <div className="flex gap-2 pt-1 border-t">
-            {m.status === 'SCHEDULED' && (
+        <div className="flex gap-2 pt-1 border-t flex-wrap">
+          {m.status === 'SCHEDULED' && (
+            <>
+              {!m.convocationSentAt ? (
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onSendConvocation(m.id)}>
+                  <Send size={11} /> Envoyer convocation
+                </Button>
+              ) : (
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 h-8">
+                  <Mail size={11} /> Convocation envoyée
+                </span>
+              )}
               <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                 disabled={mutations.startMeeting.isPending}
                 onClick={() => mutations.startMeeting.mutate(m.id)}>
-                {mutations.startMeeting.isPending ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />} Démarrer la réunion
+                {mutations.startMeeting.isPending ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />} Démarrer
               </Button>
-            )}
-            {m.status === 'IN_PROGRESS' && allDone && (
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-slate-800 hover:bg-slate-900 text-white"
-                disabled={mutations.closeMeeting.isPending}
-                onClick={() => mutations.closeMeeting.mutate(m.id)}>
-                {mutations.closeMeeting.isPending && <Loader2 size={11} className="animate-spin" />} Clôturer la réunion
-              </Button>
-            )}
-            {m.status === 'COMPLETED' && (
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onShowPV(m.id)}>
-                <FileText size={11} /> Générer le PV
-              </Button>
-            )}
-          </div>
-        )}
+            </>
+          )}
+          {m.status === 'IN_PROGRESS' && allDone && (
+            <Button size="sm" className="h-8 text-xs gap-1.5 bg-slate-800 hover:bg-slate-900 text-white"
+              disabled={mutations.closeMeeting.isPending}
+              onClick={() => mutations.closeMeeting.mutate(m.id)}>
+              {mutations.closeMeeting.isPending && <Loader2 size={11} className="animate-spin" />} Clôturer la réunion
+            </Button>
+          )}
+          {m.status === 'COMPLETED' && (
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onShowPV(m.id)}>
+              <FileText size={11} /> Générer le PV
+            </Button>
+          )}
+        </div>
       </div>
     </div>
+  )
+}
+
+// ─── ConvocationModal ─────────────────────────────────────────────────────────
+
+function ConvocationModal({ meeting: m, onClose, onConfirm, loading }: {
+  meeting: Meeting; onClose: () => void; onConfirm: () => void; loading: boolean
+}) {
+  const date = new Date(m.scheduledAt)
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-md" showClose={false}>
+        <div className="px-6 pt-6 pb-5">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <DialogTitle className="text-sm font-bold flex items-center gap-2">
+                <Send size={14} className="text-primary" /> Envoyer la convocation
+              </DialogTitle>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Un email de convocation sera envoyé à tous les membres listés ci-dessous.
+              </p>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 shrink-0"><X size={14} /></button>
+          </div>
+
+          {/* Meeting summary */}
+          <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 mb-4 text-xs space-y-1">
+            <p className="font-bold text-foreground">{m.title}</p>
+            <p className="text-muted-foreground">{typeLabel[m.type]} · {m.convocationNumber}ème convocation</p>
+            <p className="text-muted-foreground">
+              {date.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              {' à '}{date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            {m.location && <p className="text-muted-foreground flex items-center gap-1"><MapPin size={9} /> {m.location}</p>}
+          </div>
+
+          {/* Recipients */}
+          <div className="space-y-1.5 mb-5">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+              {m.attendeeList.length} destinataire{m.attendeeList.length > 1 ? 's' : ''}
+            </p>
+            <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+              {m.attendeeList.map(att => (
+                <div key={att.id} className="flex items-center gap-2.5 py-1.5 px-3 rounded-lg bg-slate-50 border text-xs">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] shrink-0">
+                    {att.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-[11px]">{att.name}</p>
+                    <p className="text-muted-foreground text-[10px]">{att.apartment}</p>
+                  </div>
+                  <Mail size={11} className="text-muted-foreground/50 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-3 border-t">
+            <Button variant="ghost" className="flex-1 text-sm" onClick={onClose}>Annuler</Button>
+            <Button className="flex-1 text-sm gap-1.5" disabled={loading} onClick={onConfirm}>
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+              Confirmer l'envoi
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -377,63 +458,69 @@ function PVModal({ meeting: m, onClose }: { meeting: Meeting; onClose: () => voi
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" showClose={false}>
-        <div className="flex items-center gap-2 px-6 pt-6 pb-2">
-          <DialogTitle className="flex items-center gap-2 text-sm font-bold">
-            <FileText size={15} /> Procès-Verbal de Réunion
-          </DialogTitle>
-        </div>
-        <div className="px-6 pb-2 space-y-5 text-sm">
-          <div className="rounded-lg bg-slate-50 border p-3.5 text-xs space-y-1.5">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <div><span className="text-muted-foreground">Titre : </span><span className="font-semibold">{m.title}</span></div>
-              <div><span className="text-muted-foreground">Type : </span><span className="font-semibold">{typeLabel[m.type]}</span></div>
-              <div><span className="text-muted-foreground">Date : </span><span className="font-semibold">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span></div>
-              <div><span className="text-muted-foreground">Heure : </span><span className="font-semibold">{date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span></div>
-              <div><span className="text-muted-foreground">Convocation : </span><span className="font-semibold">{m.convocationNumber}ème</span></div>
-              {m.location && <div><span className="text-muted-foreground">Lieu : </span><span className="font-semibold">{m.location}</span></div>}
+
+        {/* .pv-print-area: @media print makes only this section visible */}
+        <div className="pv-print-area">
+          <div className="flex items-center gap-2 px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <FileText size={15} /> Procès-Verbal de Réunion
+            </DialogTitle>
+          </div>
+          <div className="px-6 pb-6 space-y-5 text-sm">
+            <div className="rounded-lg bg-slate-50 border p-3.5 text-xs space-y-1.5">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <div><span className="text-muted-foreground">Titre : </span><span className="font-semibold">{m.title}</span></div>
+                <div><span className="text-muted-foreground">Type : </span><span className="font-semibold">{typeLabel[m.type]}</span></div>
+                <div><span className="text-muted-foreground">Date : </span><span className="font-semibold">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span></div>
+                <div><span className="text-muted-foreground">Heure : </span><span className="font-semibold">{date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span></div>
+                <div><span className="text-muted-foreground">Convocation : </span><span className="font-semibold">{m.convocationNumber}ème</span></div>
+                {m.location && <div><span className="text-muted-foreground">Lieu : </span><span className="font-semibold">{m.location}</span></div>}
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1.5">Quorum</p>
-            {m.convocationNumber === 2
-              ? <p className="text-xs">{present} présents sur {m.totalEligible} — <span className="font-bold text-blue-600">2ème convocation : quorum non requis</span></p>
-              : <p className="text-xs">{present} présents sur {m.totalEligible} (requis : {required}) — Quorum <span className={`font-bold ${quorum ? 'text-emerald-600' : 'text-red-600'}`}>{quorum ? 'atteint ✓' : 'non atteint ✗'}</span></p>
-            }
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">Résolutions votées</p>
-            <div className="space-y-2.5">
-              {m.agenda.map((item, i) => {
-                const total = item.pour + item.contre + item.abstention
-                const pct   = (v: number) => total > 0 ? Math.round((v / total) * 100) : 0
-                return (
-                  <div key={item.id} className="rounded-lg border p-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div><span className="text-[10px] font-bold text-muted-foreground">Résolution {i + 1} — </span><span className="text-xs font-semibold">{item.title}</span></div>
-                      {item.result && <Badge variant={item.result === 'ADOPTED' ? 'success' : 'destructive'} className="text-[10px] shrink-0">{item.result === 'ADOPTED' ? 'Adopté' : 'Rejeté'}</Badge>}
-                    </div>
-                    {item.voteStatus === 'CLOSED' && (
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="text-center py-1.5 rounded bg-emerald-50 border border-emerald-100"><p className="font-bold text-emerald-700">{item.pour}</p><p className="text-[10px] text-muted-foreground">Pour ({pct(item.pour)}%)</p></div>
-                        <div className="text-center py-1.5 rounded bg-red-50 border border-red-100"><p className="font-bold text-red-700">{item.contre}</p><p className="text-[10px] text-muted-foreground">Contre ({pct(item.contre)}%)</p></div>
-                        <div className="text-center py-1.5 rounded bg-slate-50 border"><p className="font-bold text-slate-700">{item.abstention}</p><p className="text-[10px] text-muted-foreground">Abstention ({pct(item.abstention)}%)</p></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1.5">Quorum</p>
+              {m.convocationNumber === 2
+                ? <p className="text-xs">{present} présents sur {m.totalEligible} — <span className="font-bold text-blue-600">2ème convocation : quorum non requis</span></p>
+                : <p className="text-xs">{present} présents sur {m.totalEligible} (requis : {required}) — Quorum <span className={`font-bold ${quorum ? 'text-emerald-600' : 'text-red-600'}`}>{quorum ? 'atteint ✓' : 'non atteint ✗'}</span></p>
+              }
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">Résolutions votées</p>
+              <div className="space-y-2.5">
+                {m.agenda.map((item, i) => {
+                  const total = item.pour + item.contre + item.abstention
+                  const pct   = (v: number) => total > 0 ? Math.round((v / total) * 100) : 0
+                  return (
+                    <div key={item.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div><span className="text-[10px] font-bold text-muted-foreground">Résolution {i + 1} — </span><span className="text-xs font-semibold">{item.title}</span></div>
+                        {item.result && <Badge variant={item.result === 'ADOPTED' ? 'success' : 'destructive'} className="text-[10px] shrink-0">{item.result === 'ADOPTED' ? 'Adopté' : 'Rejeté'}</Badge>}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+                      {item.voteStatus === 'CLOSED' && (
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="text-center py-1.5 rounded bg-emerald-50 border border-emerald-100"><p className="font-bold text-emerald-700">{item.pour}</p><p className="text-[10px] text-muted-foreground">Pour ({pct(item.pour)}%)</p></div>
+                          <div className="text-center py-1.5 rounded bg-red-50 border border-red-100"><p className="font-bold text-red-700">{item.contre}</p><p className="text-[10px] text-muted-foreground">Contre ({pct(item.contre)}%)</p></div>
+                          <div className="text-center py-1.5 rounded bg-slate-50 border"><p className="font-bold text-slate-700">{item.abstention}</p><p className="text-[10px] text-muted-foreground">Abstention ({pct(item.abstention)}%)</p></div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-          <div className="pt-2 border-t">
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Signatures</p>
-            <div className="grid grid-cols-2 gap-8">
-              {['Le Syndic', 'Le Président du Conseil'].map(role => (
-                <div key={role} className="text-center"><div className="h-14 border-b border-dashed mb-2" /><p className="text-[11px] text-muted-foreground">{role}</p></div>
-              ))}
+            <div className="pt-2 border-t">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-8">Signatures</p>
+              <div className="grid grid-cols-2 gap-12">
+                {['Le Syndic', 'Le Président du Conseil'].map(role => (
+                  <div key={role} className="text-center"><div className="h-16 border-b border-dashed mb-2" /><p className="text-[11px] text-muted-foreground">{role}</p></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-2 border-t px-6 pb-5">
+
+        {/* Hidden when printing */}
+        <div className="pv-no-print flex justify-end gap-2 pt-2 border-t px-6 pb-5">
           <Button variant="ghost" size="sm" className="text-xs" onClick={onClose}>Fermer</Button>
           <Button size="sm" className="text-xs gap-1.5" onClick={() => window.print()}><Printer size={12} /> Imprimer</Button>
         </div>
@@ -444,26 +531,46 @@ function PVModal({ meeting: m, onClose }: { meeting: Meeting; onClose: () => voi
 
 // ─── CreateMeetingDrawer ──────────────────────────────────────────────────────
 
+type Residence = { id: string; name: string; city?: string }
+type Building  = { id: string; name: string }
+
 type DraftMeeting = {
   title: string; type: Meeting['type']; convocationNumber: 1 | 2
   date: string; time: string; location: string
+  residenceId: string; buildingId: string
   items: Array<{ id: string; title: string; description: string }>
 }
 
 const emptyDraft = (): DraftMeeting => ({
   title: '', type: 'GLOBAL', convocationNumber: 1,
   date: '', time: '', location: '',
+  residenceId: '', buildingId: '',
   items: [{ id: makeId(), title: '', description: '' }],
 })
 
-function CreateMeetingDrawer({ onClose, onSubmit, loading }: { onClose: () => void; onSubmit: (d: DraftMeeting) => void; loading: boolean }) {
+function CreateMeetingDrawer({ onClose, onSubmit, loading }: {
+  onClose: () => void; onSubmit: (d: DraftMeeting) => void; loading: boolean
+}) {
   const [draft, setDraft] = useState<DraftMeeting>(emptyDraft)
+
+  const { data: residences = [] } = useQuery<Residence[]>({
+    queryKey: ['residences'],
+    queryFn:  () => api.get('/api/residences'),
+  })
+
+  const { data: residenceDetail } = useQuery<{ buildings: Building[] }>({
+    queryKey:  ['residence', draft.residenceId],
+    queryFn:   () => api.get(`/api/residences/${draft.residenceId}`),
+    enabled:   !!draft.residenceId,
+  })
+  const buildings = residenceDetail?.buildings ?? []
+
   const addItem    = () => setDraft(d => ({ ...d, items: [...d.items, { id: makeId(), title: '', description: '' }] }))
   const removeItem = (id: string) => setDraft(d => ({ ...d, items: d.items.filter(it => it.id !== id) }))
   const setItem    = (id: string, key: 'title' | 'description', val: string) =>
     setDraft(d => ({ ...d, items: d.items.map(it => it.id === id ? { ...it, [key]: val } : it) }))
-  const valid      = draft.title.trim() && draft.date && draft.items.every(it => it.title.trim())
-  const inputCls   = 'w-full h-9 px-3 rounded-lg border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 transition'
+  const valid    = draft.title.trim() && draft.date && draft.items.every(it => it.title.trim())
+  const inputCls = 'w-full h-9 px-3 rounded-lg border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 transition'
 
   return (
     <>
@@ -476,10 +583,12 @@ function CreateMeetingDrawer({ onClose, onSubmit, loading }: { onClose: () => vo
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"><X size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Titre *</label>
             <input className={inputCls} placeholder="Ex: Assemblée Générale Ordinaire 2025" value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
           </div>
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Type</label>
             <select className={inputCls} value={draft.type} onChange={e => setDraft(d => ({ ...d, type: e.target.value as Meeting['type'] }))}>
@@ -488,26 +597,60 @@ function CreateMeetingDrawer({ onClose, onSubmit, loading }: { onClose: () => vo
               <option value="NORMAL">Réunion de Conseil</option>
             </select>
           </div>
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Convocation</label>
             <div className="flex gap-2">
               {([1, 2] as const).map(n => (
                 <button key={n} onClick={() => setDraft(d => ({ ...d, convocationNumber: n }))}
                   className={`flex-1 h-9 rounded-lg border text-sm font-semibold transition-all ${draft.convocationNumber === n ? 'bg-primary text-white border-primary' : 'bg-white text-foreground hover:bg-muted'}`}>
-                  {n}ère convocation
+                  {n}ème convocation
                 </button>
               ))}
             </div>
             {draft.convocationNumber === 2 && <p className="text-[10px] text-blue-600">Quorum non requis — délibère valablement quel que soit le nombre de présents (Loi 18-00 art. 30).</p>}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Date *</label><input type="date" className={inputCls} value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Heure</label><input type="time" className={inputCls} value={draft.time} onChange={e => setDraft(d => ({ ...d, time: e.target.value }))} /></div>
           </div>
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Lieu</label>
             <input className={inputCls} placeholder="Salle de réunion, en ligne..." value={draft.location} onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} />
           </div>
+
+          {/* Residence + building */}
+          <div className="space-y-3 rounded-xl border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Portée de la réunion</p>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1.5"><Home size={10} /> Résidence</label>
+              <select className={inputCls} value={draft.residenceId}
+                onChange={e => setDraft(d => ({ ...d, residenceId: e.target.value, buildingId: '' }))}>
+                <option value="">— Sans résidence spécifique —</option>
+                {residences.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}{r.city ? ` · ${r.city}` : ''}</option>
+                ))}
+              </select>
+            </div>
+            {draft.residenceId && buildings.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1.5"><Building2 size={10} /> Bâtiment (optionnel)</label>
+                <select className={inputCls} value={draft.buildingId}
+                  onChange={e => setDraft(d => ({ ...d, buildingId: e.target.value }))}>
+                  <option value="">— Toute la résidence —</option>
+                  {buildings.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {draft.residenceId && buildings.length === 0 && (
+              <p className="text-[10px] text-muted-foreground italic">Aucun bâtiment enregistré pour cette résidence.</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Ordre du jour *</label>
@@ -541,7 +684,8 @@ function CreateMeetingDrawer({ onClose, onSubmit, loading }: { onClose: () => vo
 export function Meetings() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [pvId, setPvId]             = useState<string | null>(null)
+  const [pvId,       setPvId]       = useState<string | null>(null)
+  const [convoId,    setConvoId]    = useState<string | null>(null)
 
   const { data: meetings = [], isLoading, error } = useMeetings()
   const mutations = useMeetingMutations()
@@ -554,11 +698,19 @@ export function Meetings() {
       scheduledAt:       `${draft.date}T${draft.time || '10:00'}:00`,
       location:          draft.location || undefined,
       totalEligible:     8,
+      residenceId:       draft.residenceId || undefined,
+      buildingId:        draft.buildingId  || undefined,
       agenda:            draft.items.map(it => ({ title: it.title, description: it.description || undefined })),
     }, { onSuccess: () => setDrawerOpen(false) })
   }
 
-  const pvMeeting = pvId ? meetings.find(m => m.id === pvId) ?? null : null
+  const handleConfirmConvocation = () => {
+    if (!convoId) return
+    mutations.sendConvocation.mutate(convoId, { onSuccess: () => setConvoId(null) })
+  }
+
+  const pvMeeting    = pvId    ? meetings.find(m => m.id === pvId)    ?? null : null
+  const convoMeeting = convoId ? meetings.find(m => m.id === convoId) ?? null : null
 
   if (isLoading) {
     return (
@@ -620,6 +772,11 @@ export function Meetings() {
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
                       <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{typeLabel[m.type]}</span>
                       {m.convocationNumber === 2 && <span className="text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">2ème convocation</span>}
+                      {m.convocationSentAt && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <Mail size={9} /> Convocation envoyée
+                        </span>
+                      )}
                     </div>
                     {m.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{m.description}</p>}
                     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
@@ -629,7 +786,6 @@ export function Meetings() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0 items-center">
-                    {m.status === 'SCHEDULED' && <Button size="sm" variant="outline" className="text-xs h-8">Envoyer convocation</Button>}
                     {m.status === 'IN_PROGRESS' && (
                       <span className="flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-md px-2.5 h-8">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />En cours
@@ -648,7 +804,7 @@ export function Meetings() {
                       initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
                       className="overflow-hidden border-t">
-                      <DetailPanel meeting={m} mutations={mutations} onShowPV={setPvId} />
+                      <DetailPanel meeting={m} mutations={mutations} onShowPV={setPvId} onSendConvocation={setConvoId} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -664,7 +820,15 @@ export function Meetings() {
         )}
       </AnimatePresence>
 
-      {pvMeeting && <PVModal meeting={pvMeeting} onClose={() => setPvId(null)} />}
+      {pvMeeting    && <PVModal meeting={pvMeeting} onClose={() => setPvId(null)} />}
+      {convoMeeting && (
+        <ConvocationModal
+          meeting={convoMeeting}
+          onClose={() => setConvoId(null)}
+          onConfirm={handleConfirmConvocation}
+          loading={mutations.sendConvocation.isPending}
+        />
+      )}
     </div>
   )
 }

@@ -14,6 +14,11 @@ import { db } from './db/db'
 const app = express()
 const PORT = process.env.PORT || 4000
 
+// Trust nginx reverse proxy so req.ip / secure cookies work correctly
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1)
+}
+
 app.use(helmet())
 app.use(cors({ origin: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(','), credentials: true }))
 app.use(express.json())

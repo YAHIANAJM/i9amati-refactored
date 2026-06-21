@@ -7,7 +7,7 @@ This document outlines the recent infrastructure changes, how to run the applica
 We transitioned the project into a proper monorepo setup and integrated a robust authentication and database system:
 
 - **Turborepo Integration**: We added `turbo` to manage our monorepo workspaces (`apps/api`, `apps/web`, `apps/mobile`, and `packages/shared`). This allows us to run both the frontend and backend concurrently with a single command.
-- **Docker Compose for Database**: We created a `docker-compose.yml` file at the root to spin up a local PostgreSQL instance (`postgres:15-alpine`) for development and testing. We also added Dockerfiles for the `api` and `web` apps for future containerized deployments.
+- **Docker Compose for Database**: We created a `docker-compose.yml` file at the root to spin up a local PostgreSQL instance (`postgres:15-alpine`) for development and testing. Production now uses `docker-compose.prod.yml` to run the API and PostgreSQL in Docker containers behind host Nginx.
 - **Better Auth Configuration**: We explicitly configured the Better Auth client and server with the required environment variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `BETTER_AUTH_TRUSTED_ORIGINS`). 
 - **Database Seeding**: We created a robust seed script (`apps/api/src/prisma/seed.ts`) that programmatically uses Better Auth to hash passwords and link accounts, creating an initial **Syndic** user, a Syndic Organization, and a Residence.
 
@@ -27,6 +27,14 @@ npm run dev
 **What happens under the hood:**
 1. `docker compose up -d postgres` runs to ensure your database is up.
 2. `turbo run dev` executes, which simultaneously starts your Vite frontend and your API backend on your local machine.
+
+### Production Deployment
+
+On the VPS, use Docker Compose instead of PM2:
+
+1. Configure `apps/api/.env.production` with your secrets.
+2. Run `API_DOMAIN=srv1765015.hstgr.cloud CERTBOT_EMAIL=you@example.com bash deploy/setup.sh` once to install Docker, Nginx, and Certbot.
+3. Run `bash deploy/deploy.sh` for each release to pull code, rebuild the API image, run migrations, and restart the stack.
 
 ### Database Management
 

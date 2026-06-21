@@ -228,6 +228,8 @@ export interface MeetingTable {
   location: string | null
   total_eligible: number
   residence_id: string | null
+  building_id: string | null
+  convocation_sent_at: Timestamp | null
   created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
   updated_at: Timestamp
 }

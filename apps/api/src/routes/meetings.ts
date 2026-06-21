@@ -10,17 +10,19 @@ router.use(authenticate)
 
 function fmtMeeting(m: any, agenda: any[], attendees: any[]) {
   return {
-    id:                m.id,
-    title:             m.title,
-    description:       m.description ?? undefined,
-    type:              m.type,
-    status:            m.status,
-    convocationNumber: m.convocation_number as 1 | 2,
-    scheduledAt:       m.scheduled_at,
-    location:          m.location ?? undefined,
-    residenceId:       m.residence_id ?? '',
-    createdAt:         m.created_at,
-    totalEligible:     m.total_eligible,
+    id:                  m.id,
+    title:               m.title,
+    description:         m.description ?? undefined,
+    type:                m.type,
+    status:              m.status,
+    convocationNumber:   m.convocation_number as 1 | 2,
+    scheduledAt:         m.scheduled_at,
+    location:            m.location ?? undefined,
+    residenceId:         m.residence_id ?? '',
+    buildingId:          m.building_id ?? undefined,
+    convocationSentAt:   m.convocation_sent_at ?? undefined,
+    createdAt:           m.created_at,
+    totalEligible:       m.total_eligible,
     agenda: agenda
       .filter(ai => ai.meeting_id === m.id)
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -99,7 +101,7 @@ router.post('/', async (req: Request, res, next) => {
     const { tenantDb } = req as AuthRequest
     const {
       title, description, type = 'GLOBAL', convocationNumber = 1,
-      scheduledAt, location, totalEligible = 0, residenceId,
+      scheduledAt, location, totalEligible = 0, residenceId, buildingId,
       agenda = [],
     } = req.body
 
@@ -111,15 +113,17 @@ router.post('/', async (req: Request, res, next) => {
     await tenantDb.insertInto('meetings').values({
       id,
       title,
-      description: description ?? null,
+      description:          description ?? null,
       type,
-      status:              'SCHEDULED',
-      convocation_number:  convocationNumber,
-      scheduled_at:        new Date(scheduledAt),
-      location:            location ?? null,
-      total_eligible:      totalEligible,
-      residence_id:        residenceId ?? null,
-      updated_at:          now,
+      status:               'SCHEDULED',
+      convocation_number:   convocationNumber,
+      scheduled_at:         new Date(scheduledAt),
+      location:             location ?? null,
+      total_eligible:       totalEligible,
+      residence_id:         residenceId ?? null,
+      building_id:          buildingId ?? null,
+      convocation_sent_at:  null,
+      updated_at:           now,
     }).execute()
 
     if (agenda.length) {
@@ -302,6 +306,30 @@ router.post('/:id/agenda/:itemId/close', async (req: Request, res, next) => {
       .execute()
 
     res.json({ voteStatus: 'CLOSED', result })
+  } catch (e) { next(e) }
+})
+
+// ── PATCH /api/meetings/:id/send-convocation ─────────────────────────────────
+
+router.patch('/:id/send-convocation', async (req: Request, res, next) => {
+  try {
+    const { tenantDb } = req as AuthRequest
+    const m = await tenantDb
+      .selectFrom('meetings')
+      .select(['id', 'status', 'convocation_sent_at'])
+      .where('id', '=', req.params.id)
+      .executeTakeFirst()
+    if (!m) throw new AppError(404, 'Meeting not found')
+    if (m.status !== 'SCHEDULED') throw new AppError(400, 'Only SCHEDULED meetings can have a convocation sent')
+    if (m.convocation_sent_at) throw new AppError(400, 'Convocation already sent')
+
+    const sentAt = new Date()
+    await tenantDb.updateTable('meetings')
+      .set({ convocation_sent_at: sentAt, updated_at: sentAt })
+      .where('id', '=', req.params.id)
+      .execute()
+
+    res.json({ convocationSentAt: sentAt.toISOString() })
   } catch (e) { next(e) }
 })
 
