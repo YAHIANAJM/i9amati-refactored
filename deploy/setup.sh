@@ -10,8 +10,11 @@ APP_DIR="/var/www/i9amati"
 
 echo "==> Installing system dependencies"
 apt-get update -y
-apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx ufw docker.io docker-compose-plugin
-systemctl enable --now docker
+apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx ufw
+
+command -v docker >/dev/null 2>&1 || { echo "Docker is not installed on this VPS"; exit 1; }
+docker compose version >/dev/null 2>&1 || { echo "Docker Compose plugin is not available"; exit 1; }
+
 systemctl enable --now nginx
 
 echo "==> Creating app directory"
