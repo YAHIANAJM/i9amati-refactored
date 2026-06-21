@@ -5,23 +5,24 @@ set -e
 
 APP_DIR="/var/www/i9amati"
 COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
+COMPOSE_ENV_FILE="$APP_DIR/apps/api/.env.production"
 
 echo "==> [1/5] Pulling latest code"
 cd $APP_DIR
 git pull origin main
 
 echo "==> [2/5] Starting PostgreSQL container"
-docker compose -f $COMPOSE_FILE up -d postgres
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE up -d postgres
 
 echo "==> [3/5] Building app images"
-docker compose -f $COMPOSE_FILE build api
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE build api
 
 echo "==> [4/5] Running public schema migrations"
-docker compose -f $COMPOSE_FILE run --rm api npm run db:migrate:public:prod
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE run --rm api npm run db:migrate:public:prod
 
 echo "==> [5/5] Starting application stack"
-docker compose -f $COMPOSE_FILE up -d --remove-orphans api
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE up -d --remove-orphans api
 
 echo ""
-docker compose -f $COMPOSE_FILE ps
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE ps
 echo "✓ Deploy complete."
