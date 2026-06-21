@@ -3,40 +3,19 @@
 # Usage: bash deploy/setup.sh
 set -e
 
-APP_DIR="/var/www/i9amati"
-
-: "${API_DOMAIN:?Set API_DOMAIN before running, for example: API_DOMAIN=srv1765015.hstgr.cloud}"
-: "${CERTBOT_EMAIL:?Set CERTBOT_EMAIL before running, for example: CERTBOT_EMAIL=you@example.com}"
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "==> Installing system dependencies"
 apt-get update -y
-apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx ufw
+apt-get install -y ca-certificates curl git ufw
 
 command -v docker >/dev/null 2>&1 || { echo "Docker is not installed on this VPS"; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "Docker Compose plugin is not available"; exit 1; }
 
-systemctl enable --now nginx
-
-echo "==> Creating app directory"
-mkdir -p $APP_DIR
-
 echo "==> Configuring UFW firewall"
 ufw allow OpenSSH
-ufw allow 'Nginx Full'
+ufw allow 4000/tcp
 ufw --force enable
-
-echo "==> Cloning repository"
-git clone https://github.com/YOUR_USERNAME/i9amati-refactored.git $APP_DIR
-
-echo "==> Copying nginx config"
-cp $APP_DIR/deploy/nginx.conf /etc/nginx/sites-available/i9amati
-sed -i "s/srv1765015.hstgr.cloud/$API_DOMAIN/g" /etc/nginx/sites-available/i9amati
-ln -sf /etc/nginx/sites-available/i9amati /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl reload nginx
-
-echo "==> Obtaining SSL certificates"
-certbot --nginx -d $API_DOMAIN --non-interactive --agree-tos -m $CERTBOT_EMAIL
 
 echo ""
 echo "=========================================="

@@ -3,7 +3,7 @@
 # Usage: bash deploy/deploy.sh
 set -e
 
-APP_DIR="/var/www/i9amati"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
 COMPOSE_ENV_FILE="$APP_DIR/apps/api/.env.production"
 
