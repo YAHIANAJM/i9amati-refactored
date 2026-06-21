@@ -50,9 +50,9 @@
 
 ---
 
-## 2. Home Page
+## 2. Home Page ✅ Done
 
-**Tracker status**: 🔄 In Progress
+**Tracker status**: ✅ Done
 
 ### What already exists
 

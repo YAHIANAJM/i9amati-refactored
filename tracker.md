@@ -9,14 +9,13 @@
 
 | Section | Owner | Status | Progress |
 |---------|-------|--------|----------|
-| Home Page | Ayman | ⬜ Not Started | 0% |
+| Home Page | Ayman | ✅ Done | 100% |
 | Login / Registration | Ayman | ✅ Done | 100% |
 | Chatbot | Ayman | ✅ Done | 100% |
 
 ---
 
 ## ⚙️ Management Sections
-
 
 | # | Section | Owner | Status | Progress |
 |---|---------|-------|--------|----------|
@@ -54,7 +53,7 @@
 | Member | Total | Done | In Progress | Remaining |
 |--------|-------|------|-------------|-----------|
 | **Yahia** | **8** | 2 | 1 | 5 |
-| **Ayman** | **8** | 2 | 0 | 6 |
+| **Ayman** | **8** | 3 | 0 | 5 |
 | **Bader** | **7** | 2 | 0 | 5 |
 
 ---

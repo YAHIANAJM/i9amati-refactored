@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
 import { authClient }     from '@/lib/auth-client'
 
+import { Home }           from '@/pages/Home'
 import { AuthLayout }     from '@/pages/auth/AuthLayout'
 import { Login }          from '@/pages/auth/Login'
 import { Register }       from '@/pages/auth/Register'
@@ -47,7 +48,7 @@ import { Residences }     from '@/pages/syndic/Residences'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/syndic" replace />} />
+      <Route path="/" element={<Home />} />
       <Route path="/auth" element={<AuthLayout />}>
         <Route path="login"    element={<Login />} />
         <Route path="register" element={<Register />} />

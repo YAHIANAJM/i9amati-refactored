@@ -76,7 +76,7 @@ Each step: white card on grey background, back/next buttons, form validation inl
 
 ---
 
-## Task 3 — Home Page (public landing)
+## Task 3 — Home Page (public landing) ✅ Done
 
 **File**: `apps/web/src/pages/Home.tsx` ← needs to be created
 **Route**: `/` ← replace current `<Navigate to="/syndic" />` in `App.tsx`
