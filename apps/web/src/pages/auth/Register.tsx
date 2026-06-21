@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff } from 'lucide-react'
+import { Building3D } from '@/components/auth/Building3D'
 
 const TEAL = '#2B8C80'
 
@@ -57,19 +58,23 @@ export function Register() {
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
     >
 
-      {/* ── LEFT — transparent, video bleeds through ── */}
+      {/* ── LEFT — transparent panel with 3D building ── */}
       <div className="relative flex-1">
         <div className="absolute inset-0 bg-black/20" />
         <div className="absolute top-6 left-6 z-10 flex items-center gap-6">
-          {['My Buildings', 'Finance', 'Documents', 'Meetings'].map(item => (
-            <span key={item} className="text-white text-sm font-medium cursor-pointer hover:opacity-80 transition-opacity" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
-              {item}
-            </span>
+          {[
+            { label: 'Home',     to: '/'            },
+            { label: 'About',    to: '/?s=about'    },
+            { label: 'Services', to: '/?s=services' },
+          ].map(({ label, to }) => (
+            <Link key={label} to={to}
+              className="text-white text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+              {label}
+            </Link>
           ))}
         </div>
-        <div className="absolute bottom-6 right-6 z-10">
-          <p className="text-white/40 text-xs tracking-widest uppercase font-medium">إقامتي · IQAMATI</p>
-        </div>
+        <Building3D />
       </div>
 
       {/* ── RIGHT — white form panel ── */}
