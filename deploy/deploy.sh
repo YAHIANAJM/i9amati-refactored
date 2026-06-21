@@ -15,13 +15,13 @@ echo "==> [2/5] Starting PostgreSQL container"
 docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE up -d postgres
 
 echo "==> [3/5] Building app images"
-docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE build api web
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE build api
 
 echo "==> [4/5] Running public schema migrations"
 docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE run --rm api npm run db:migrate:public:prod
 
 echo "==> [5/5] Starting application stack"
-docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE up -d --remove-orphans api web
+docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE up -d --remove-orphans api
 
 echo ""
 docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE ps
