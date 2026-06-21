@@ -3,10 +3,9 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Home, CreditCard, FileText, CalendarCheck,
   BarChart3, Rss, Wrench, Bell, Users, User, Settings, LogOut,
-  ChevronLeft, ChevronRight, ChevronDown, PieChart, TrendingUp,
+  ChevronLeft, ChevronRight, ChevronDown, PieChart, TrendingUp, Bot, MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 /* ─── Section definitions ────────────────────────────────── */
 
@@ -62,6 +61,16 @@ const sections = [
     defaultOpen: false,
     items: [
       { label: 'Union Members', icon: Users, to: '/syndic/union-members' },
+    ],
+  },
+  {
+    key: 'chatbot',
+    label: 'CHATBOT ASSISTANCE',
+    defaultOpen: false,
+    special: true,
+    items: [
+      { label: 'Chatbot Analytics', icon: Bot,          to: '/syndic/dash/chatbot' },
+      { label: 'Chat Interface',    icon: MessageSquare, to: '/syndic/chat' },
     ],
   },
 ]
@@ -128,31 +137,53 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         {sections.map(section => (
           <div key={section.key}>
 
-            {/* Section header - clickable accordion trigger */}
-            <button
-              onClick={() => open && toggleSection(section.key)}
-              className={cn(
-                'w-full flex items-center transition-colors',
-                open
-                  ? 'px-3 py-1.5 justify-between hover:bg-muted/50 rounded-md mx-1 w-[calc(100%-8px)]'
-                  : 'justify-center py-1.5'
-              )}
-            >
-              {open ? (
-                <>
-                  <span className="text-[11px] font-extrabold tracking-widest text-foreground/75 uppercase">
-                    {section.label}
-                  </span>
-                  <ChevronDown
-                    size={12}
-                    className={cn(
-                      'text-muted-foreground/50 transition-transform duration-200',
-                      expanded[section.key] && 'rotate-180'
-                    )}
-                  />
-                </>
-              ) : null}
-            </button>
+            {/* Special chatbot section gets a prominent header with image */}
+            {section.special && open && (
+              <div className="mx-2 mt-3 mb-1 rounded-xl bg-slate-900 px-3 py-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <img src="/chatbot.png" alt="bot" className="w-6 h-6 object-contain" />
+                    <span className="text-[11px] font-extrabold tracking-wider text-white leading-tight">
+                      Chatbot<br />Assistance
+                    </span>
+                  </div>
+                  <button onClick={() => toggleSection(section.key)}>
+                    <ChevronDown
+                      size={12}
+                      className={cn('text-slate-400 transition-transform duration-200', expanded[section.key] && 'rotate-180')}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Normal section header */}
+            {!section.special && (
+              <button
+                onClick={() => open && toggleSection(section.key)}
+                className={cn(
+                  'w-full flex items-center transition-colors',
+                  open
+                    ? 'px-3 py-1.5 justify-between hover:bg-muted/50 rounded-md mx-1 w-[calc(100%-8px)]'
+                    : 'justify-center py-1.5'
+                )}
+              >
+                {open ? (
+                  <>
+                    <span className="text-[11px] font-extrabold tracking-widest text-foreground/75 uppercase">
+                      {section.label}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      className={cn(
+                        'text-muted-foreground/50 transition-transform duration-200',
+                        expanded[section.key] && 'rotate-180'
+                      )}
+                    />
+                  </>
+                ) : null}
+              </button>
+            )}
 
             {/* Section items */}
             {(open ? expanded[section.key] : true) && (

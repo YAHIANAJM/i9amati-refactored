@@ -7,27 +7,27 @@
 import 'dotenv/config'
 import * as path from 'path'
 import { pathToFileURL } from 'url'
-import { Kysely, PostgresDialect } from 'kysely'
-import type { Migration, MigrationProvider } from 'kysely'
+import { Kysely, PostgresDialect, type Migration, type MigrationProvider } from 'kysely'
+import { Migrator } from 'kysely/migration'
 import { Pool } from 'pg'
 import { promises as fs } from 'fs'
 
-// FileMigrationProvider uses import(absoluteWindowsPath) which fails on Windows —
-// Node's ESM loader reads 'D:' as a URL scheme. pathToFileURL() converts it
-// to a valid file:///D:/... URL before the dynamic import.
-class WindowsSafeFileMigrationProvider implements MigrationProvider {
-  constructor(private folder: string) {}
-
-  async getMigrations(): Promise<Record<string, Migration>> {
-    const migrations: Record<string, Migration> = {}
-    const files = (await fs.readdir(this.folder)).sort()
-    for (const fileName of files) {
-      if (!fileName.endsWith('.ts') && !fileName.endsWith('.js')) continue
-      const fileUrl = pathToFileURL(path.join(this.folder, fileName)).href
-      const mod = await import(fileUrl)
-      migrations[fileName.replace(/\.[jt]s$/, '')] = mod
-    }
-    return migrations
+// FileMigrationProvider uses import() internally which needs file:// URLs on Windows.
+// This custom provider converts paths explicitly.
+function makeProvider(migrationFolder: string): MigrationProvider {
+  return {
+    async getMigrations(): Promise<Record<string, Migration>> {
+      const migrations: Record<string, Migration> = {}
+      const files = (await fs.readdir(migrationFolder))
+        .filter(f => f.endsWith('.ts') || f.endsWith('.js'))
+        .sort()
+      for (const file of files) {
+        const fileUrl = pathToFileURL(path.join(migrationFolder, file)).href
+        const mod = await import(fileUrl)
+        migrations[file.replace(/\.(ts|js)$/, '')] = mod
+      }
+      return migrations
+    },
   }
 }
 
@@ -35,19 +35,28 @@ async function migrate(target: 'public' | 'tenant', orgSlug?: string) {
   const schemaName = target === 'public' ? 'public' : orgSlug!
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-  const db   = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
+
+  // Raw SQL in tenant migrations (ALTER TABLE …) ignores withSchema.
+  // Setting search_path on every connection makes unqualified table refs
+  // resolve to the tenant schema automatically.
+  if (target === 'tenant') {
+    pool.on('connect', client => {
+      client.query(`SET search_path TO "${schemaName}", public`)
+    })
+  }
+
+  const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
 
   if (target === 'tenant') {
     await db.schema.createSchema(schemaName).ifNotExists().execute()
   }
 
   const scopedDb = target === 'tenant' ? db.withSchema(schemaName) : db
-
-  const migrationFolder = path.join(__dirname, '../../migrations', target)
+  const migrationFolder = path.resolve(__dirname, '../../migrations', target)
 
   const migrator = new Migrator({
     db: scopedDb as Kysely<any>,
-    provider: new WindowsSafeFileMigrationProvider(migrationFolder),
+    provider: makeProvider(migrationFolder),
     migrationTableSchema: schemaName,
   })
 

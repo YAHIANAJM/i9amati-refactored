@@ -1,24 +1,14 @@
 import type React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
-import { authClient }     from '@/lib/auth-client'
 
 import { Home }           from '@/pages/Home'
 import { AuthLayout }     from '@/pages/auth/AuthLayout'
 import { Login }          from '@/pages/auth/Login'
 import { Register }       from '@/pages/auth/Register'
 
+// TODO: re-enable when backend + DB are ready
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = authClient.useSession()
-
-  if (isPending) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>
-  }
-
-  if (!session) {
-    return <Navigate to="/auth/login" replace />
-  }
-
   return <>{children}</>
 }
 
@@ -31,6 +21,7 @@ import { AccountingDash } from '@/pages/syndic/dashboards/AccountingDash'
 import { FeedDash }       from '@/pages/syndic/dashboards/FeedDash'
 import { ServicesDash }   from '@/pages/syndic/dashboards/ServicesDash'
 import { UnionDash }      from '@/pages/syndic/dashboards/UnionDash'
+import { ChatbotDash }    from '@/pages/syndic/dashboards/ChatbotDash'
 
 // ── Functional pages ──
 import { Association }    from '@/pages/syndic/Association'
@@ -44,6 +35,7 @@ import { Alerts }         from '@/pages/syndic/Alerts'
 import { UnionMembers }   from '@/pages/syndic/UnionMembers'
 import { Profile }        from '@/pages/syndic/Profile'
 import { Residences }     from '@/pages/syndic/Residences'
+import { Chat }           from '@/pages/syndic/Chat'
 
 export default function App() {
   return (
@@ -64,6 +56,7 @@ export default function App() {
         <Route path="dash/feed"           element={<FeedDash />} />
         <Route path="dash/services"       element={<ServicesDash />} />
         <Route path="dash/union"          element={<UnionDash />} />
+        <Route path="dash/chatbot"        element={<ChatbotDash />} />
 
         {/* ── GENERAL ── */}
         <Route path="profile"             element={<Profile />} />
@@ -86,6 +79,7 @@ export default function App() {
         {/* ── Settings ── */}
         <Route path="settings"            element={<Profile />} />
         <Route path="residences"          element={<Residences />} />
+        <Route path="chat"                element={<Chat />} />
       </Route>
     </Routes>
   )
