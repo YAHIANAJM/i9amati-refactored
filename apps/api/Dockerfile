@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY apps/mobile/package.json ./apps/mobile/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install dependencies
-RUN npm ci
+RUN npm install --workspaces --include-workspace-root
 
 # Copy the rest of the monorepo source code
 COPY . .

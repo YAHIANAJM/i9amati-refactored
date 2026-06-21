@@ -9,7 +9,7 @@ COMPOSE_ENV_FILE="$APP_DIR/apps/api/.env.production"
 
 echo "==> [1/5] Pulling latest code"
 cd $APP_DIR
-git pull origin main
+git pull origin master
 
 echo "==> [2/5] Starting PostgreSQL container"
 docker compose --env-file $COMPOSE_ENV_FILE -f $COMPOSE_FILE up -d postgres
