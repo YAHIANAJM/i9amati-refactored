@@ -1,20 +1,23 @@
 /**
  * Migration runner used by npm scripts.
  * Usage:
- *   tsx src/db/migrate.ts public            — run public schema migrations
- *   tsx src/db/migrate.ts tenant <orgSlug>  — run tenant migrations for one org
+ *   tsx src/db/migrate.mts public            — run public schema migrations
+ *   tsx src/db/migrate.mts tenant <orgSlug>  — run tenant migrations for one org
  */
 import 'dotenv/config'
 import * as path from 'path'
-import { pathToFileURL } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { Kysely, PostgresDialect } from 'kysely'
+import { Migrator } from 'kysely/migration'
 import type { Migration, MigrationProvider } from 'kysely'
 import { Pool } from 'pg'
 import { promises as fs } from 'fs'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname  = path.dirname(__filename)
+
 // FileMigrationProvider uses import(absoluteWindowsPath) which fails on Windows —
-// Node's ESM loader reads 'D:' as a URL scheme. pathToFileURL() converts it
-// to a valid file:///D:/... URL before the dynamic import.
+// Node's ESM loader reads 'D:' as a URL scheme. pathToFileURL() fixes this.
 class WindowsSafeFileMigrationProvider implements MigrationProvider {
   constructor(private folder: string) {}
 
@@ -54,8 +57,8 @@ async function migrate(target: 'public' | 'tenant', orgSlug?: string) {
   const { error, results } = await migrator.migrateToLatest()
 
   results?.forEach(r => {
-    if (r.status === 'Success')     console.log(`✓ ${r.migrationName}`)
-    else if (r.status === 'Error')  console.error(`✗ ${r.migrationName}`)
+    if (r.status === 'Success')    console.log(`✓ ${r.migrationName}`)
+    else if (r.status === 'Error') console.error(`✗ ${r.migrationName}`)
   })
 
   if (error) {
@@ -69,11 +72,11 @@ async function migrate(target: 'public' | 'tenant', orgSlug?: string) {
 
 const [, , target, orgSlug] = process.argv
 if (target !== 'public' && target !== 'tenant') {
-  console.error('Usage: tsx src/db/migrate.ts public | tenant <orgSlug>')
+  console.error('Usage: tsx src/db/migrate.mts public | tenant <orgSlug>')
   process.exit(1)
 }
 if (target === 'tenant' && !orgSlug) {
-  console.error('Usage: tsx src/db/migrate.ts tenant <orgSlug>')
+  console.error('Usage: tsx src/db/migrate.mts tenant <orgSlug>')
   process.exit(1)
 }
 

@@ -8,8 +8,8 @@
 ## Task Order (logical dependency)
 
 ```
-1. Login / Registration      ← gate to the app, partially done
-2. Home Page                 ← public-facing, partially done
+1. Login / Registration      ✅ Done
+2. Home Page                 ✅ Done
 3. Meetings & Voting         ← core legal feature, biggest remaining task
 4. Union Members             ← simpler data management
 5. Meetings Analytics Dash   ← already drafted, needs review/polish
