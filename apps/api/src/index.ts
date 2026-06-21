@@ -7,6 +7,7 @@ import { toNodeHandler } from 'better-auth/node'
 import { auth } from './auth'
 import residencesRouter from './routes/residences'
 import apartmentsRouter from './routes/apartments'
+import meetingsRouter from './routes/meetings'
 import { errorHandler } from './middleware/errorHandler'
 import { db } from './db/db'
 
@@ -24,6 +25,7 @@ app.all('/api/auth/*', toNodeHandler(auth))
 
 app.use('/api/residences', residencesRouter)
 app.use('/api/apartments', apartmentsRouter)
+app.use('/api/meetings',   meetingsRouter)
 
 app.use(errorHandler)
 
