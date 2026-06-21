@@ -2,7 +2,10 @@ import type React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
 
+import { Home }           from '@/pages/Home'
+import { AuthLayout }     from '@/pages/auth/AuthLayout'
 import { Login }          from '@/pages/auth/Login'
+import { Register }       from '@/pages/auth/Register'
 
 // TODO: re-enable when backend + DB are ready
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -37,8 +40,11 @@ import { Chat }           from '@/pages/syndic/Chat'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/syndic" replace />} />
-      <Route path="/auth/login" element={<Login />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/auth" element={<AuthLayout />}>
+        <Route path="login"    element={<Login />} />
+        <Route path="register" element={<Register />} />
+      </Route>
       <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
 
         {/* ── DASHBOARDS section ── */}
