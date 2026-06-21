@@ -23,5 +23,8 @@ jobs:
       - name: Install dependencies
         run: npm install --workspaces --include-workspace-root
 
+      - name: Build shared package
+        run: npm --workspace packages/shared run build
+
       - name: Build backend
         run: npm --workspace apps/api run build
