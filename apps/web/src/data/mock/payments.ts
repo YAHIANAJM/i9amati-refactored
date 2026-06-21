@@ -16,15 +16,48 @@ export interface FeeRecord {
 }
 
 export const mockFees: FeeRecord[] = [
-  { id: 'fee-1', apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-06-02', paymentMethod: 'CASH',     status: 'PAID' },
-  { id: 'fee-2', apartmentId: 'apt-2', unitCode: 'A-102', ownerName: 'فاطمة الزهراء بنحدو', building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-05-30', paymentMethod: 'TRANSFER', status: 'PAID' },
-  { id: 'fee-3', apartmentId: 'apt-3', unitCode: 'A-103', ownerName: 'يوسف العلمي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-06', dueDate: '2024-05-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
-  { id: 'fee-4', apartmentId: 'apt-4', unitCode: 'A-201', ownerName: 'خديجة بنعلي',          building: 'Bât A',     residenceId: 'res-1', amount: 650, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-06-01', paymentMethod: 'CHECK',    status: 'PAID' },
-  { id: 'fee-5', apartmentId: 'apt-5', unitCode: 'A-202', ownerName: 'حسن الشرقاوي',         building: 'Bât A',     residenceId: 'res-1', amount: 450, period: '2024-06', dueDate: '2024-06-01', paidAt: null,         paymentMethod: null,       status: 'PENDING' },
-  { id: 'fee-6', apartmentId: 'apt-6', unitCode: 'A-301', ownerName: 'عائشة اللمراني',       building: 'Bât A',     residenceId: 'res-1', amount: 550, period: '2024-06', dueDate: '2024-05-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
-  { id: 'fee-7', apartmentId: 'apt-7', unitCode: 'AT-101', ownerName: 'رشيد بوعزة',          building: 'Bât Atlas', residenceId: 'res-2', amount: 400, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-06-03', paymentMethod: 'CASH',     status: 'PAID' },
-  { id: 'fee-8', apartmentId: 'apt-8', unitCode: 'AT-102', ownerName: 'نادية التازي',         building: 'Bât Atlas', residenceId: 'res-2', amount: 600, period: '2024-06', dueDate: '2024-06-01', paidAt: null,         paymentMethod: null,       status: 'PENDING' },
-  { id: 'fee-9', apartmentId: 'apt-9', unitCode: 'AT-201', ownerName: '—',                   building: 'Bât Atlas', residenceId: 'res-2', amount: 400, period: '2024-06', dueDate: '2024-06-01', paidAt: null,         paymentMethod: null,       status: 'PENDING' },
+  // ── A-101 محمد الفاسي — 6 months ──────────────────────────────────────────
+  { id: 'fee-1a', apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-01', dueDate: '2024-01-01', paidAt: '2024-01-03', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-1b', apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-02', dueDate: '2024-02-01', paidAt: '2024-02-02', paymentMethod: 'TRANSFER', status: 'PAID' },
+  { id: 'fee-1c', apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-03', dueDate: '2024-03-01', paidAt: '2024-03-01', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-1d', apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-04', dueDate: '2024-04-01', paidAt: '2024-04-04', paymentMethod: 'CHECK',    status: 'PAID' },
+  { id: 'fee-1e', apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-05', dueDate: '2024-05-01', paidAt: '2024-05-02', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-1',  apartmentId: 'apt-1', unitCode: 'A-101', ownerName: 'محمد الفاسي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-06-02', paymentMethod: 'CASH',     status: 'PAID' },
+
+  // ── A-102 فاطمة الزهراء بنحدو — 4 months ──────────────────────────────────
+  { id: 'fee-2c', apartmentId: 'apt-2', unitCode: 'A-102', ownerName: 'فاطمة الزهراء بنحدو', building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-03', dueDate: '2024-03-01', paidAt: '2024-03-03', paymentMethod: 'TRANSFER', status: 'PAID' },
+  { id: 'fee-2d', apartmentId: 'apt-2', unitCode: 'A-102', ownerName: 'فاطمة الزهراء بنحدو', building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-04', dueDate: '2024-04-01', paidAt: '2024-04-01', paymentMethod: 'TRANSFER', status: 'PAID' },
+  { id: 'fee-2e', apartmentId: 'apt-2', unitCode: 'A-102', ownerName: 'فاطمة الزهراء بنحدو', building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-05', dueDate: '2024-05-01', paidAt: '2024-05-30', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-2',  apartmentId: 'apt-2', unitCode: 'A-102', ownerName: 'فاطمة الزهراء بنحدو', building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-05-30', paymentMethod: 'TRANSFER', status: 'PAID' },
+
+  // ── A-103 يوسف العلمي — 4 months (deteriorating) ─────────────────────────
+  { id: 'fee-3c', apartmentId: 'apt-3', unitCode: 'A-103', ownerName: 'يوسف العلمي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-03', dueDate: '2024-03-01', paidAt: '2024-03-10', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-3d', apartmentId: 'apt-3', unitCode: 'A-103', ownerName: 'يوسف العلمي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-04', dueDate: '2024-04-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
+  { id: 'fee-3e', apartmentId: 'apt-3', unitCode: 'A-103', ownerName: 'يوسف العلمي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-05', dueDate: '2024-05-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
+  { id: 'fee-3',  apartmentId: 'apt-3', unitCode: 'A-103', ownerName: 'يوسف العلمي',          building: 'Bât A',     residenceId: 'res-1', amount: 500, period: '2024-06', dueDate: '2024-05-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
+
+  // ── A-201 خديجة بنعلي — 3 months ─────────────────────────────────────────
+  { id: 'fee-4d', apartmentId: 'apt-4', unitCode: 'A-201', ownerName: 'خديجة بنعلي',          building: 'Bât A',     residenceId: 'res-1', amount: 650, period: '2024-04', dueDate: '2024-04-01', paidAt: '2024-04-02', paymentMethod: 'CHECK',    status: 'PAID' },
+  { id: 'fee-4e', apartmentId: 'apt-4', unitCode: 'A-201', ownerName: 'خديجة بنعلي',          building: 'Bât A',     residenceId: 'res-1', amount: 650, period: '2024-05', dueDate: '2024-05-01', paidAt: '2024-05-03', paymentMethod: 'CHECK',    status: 'PAID' },
+  { id: 'fee-4',  apartmentId: 'apt-4', unitCode: 'A-201', ownerName: 'خديجة بنعلي',          building: 'Bât A',     residenceId: 'res-1', amount: 650, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-06-01', paymentMethod: 'CHECK',    status: 'PAID' },
+
+  // ── A-202 حسن الشرقاوي — 2 months ────────────────────────────────────────
+  { id: 'fee-5e', apartmentId: 'apt-5', unitCode: 'A-202', ownerName: 'حسن الشرقاوي',         building: 'Bât A',     residenceId: 'res-1', amount: 450, period: '2024-05', dueDate: '2024-05-01', paidAt: '2024-05-08', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-5',  apartmentId: 'apt-5', unitCode: 'A-202', ownerName: 'حسن الشرقاوي',         building: 'Bât A',     residenceId: 'res-1', amount: 450, period: '2024-06', dueDate: '2024-06-01', paidAt: null,         paymentMethod: null,       status: 'PENDING' },
+
+  // ── A-301 عائشة اللمراني — 2 months ──────────────────────────────────────
+  { id: 'fee-6e', apartmentId: 'apt-6', unitCode: 'A-301', ownerName: 'عائشة اللمراني',       building: 'Bât A',     residenceId: 'res-1', amount: 550, period: '2024-05', dueDate: '2024-05-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
+  { id: 'fee-6',  apartmentId: 'apt-6', unitCode: 'A-301', ownerName: 'عائشة اللمراني',       building: 'Bât A',     residenceId: 'res-1', amount: 550, period: '2024-06', dueDate: '2024-05-01', paidAt: null,         paymentMethod: null,       status: 'OVERDUE' },
+
+  // ── AT-101 رشيد بوعزة — 2 months ─────────────────────────────────────────
+  { id: 'fee-7e', apartmentId: 'apt-7', unitCode: 'AT-101', ownerName: 'رشيد بوعزة',          building: 'Bât Atlas', residenceId: 'res-2', amount: 400, period: '2024-05', dueDate: '2024-05-01', paidAt: '2024-05-05', paymentMethod: 'CASH',     status: 'PAID' },
+  { id: 'fee-7',  apartmentId: 'apt-7', unitCode: 'AT-101', ownerName: 'رشيد بوعزة',          building: 'Bât Atlas', residenceId: 'res-2', amount: 400, period: '2024-06', dueDate: '2024-06-01', paidAt: '2024-06-03', paymentMethod: 'CASH',     status: 'PAID' },
+
+  // ── AT-102 نادية التازي — 1 month ────────────────────────────────────────
+  { id: 'fee-8',  apartmentId: 'apt-8', unitCode: 'AT-102', ownerName: 'نادية التازي',         building: 'Bât Atlas', residenceId: 'res-2', amount: 600, period: '2024-06', dueDate: '2024-06-01', paidAt: null,         paymentMethod: null,       status: 'PENDING' },
+
+  // ── AT-201 (vacant) — 1 month ─────────────────────────────────────────────
+  { id: 'fee-9',  apartmentId: 'apt-9', unitCode: 'AT-201', ownerName: '—',                   building: 'Bât Atlas', residenceId: 'res-2', amount: 400, period: '2024-06', dueDate: '2024-06-01', paidAt: null,         paymentMethod: null,       status: 'PENDING' },
 ]
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
@@ -122,13 +155,13 @@ export const mockProjects: ProjectFund[] = [
     status: 'COLLECTING',
     dueDate: '2024-07-01',
     contributions: [
-      { ownerId: 'own-1', ownerName: 'محمد الفاسي',          unitCode: 'A-101', shareAmount: 2000, status: 'PAID',    paidAt: '2024-06-06', paymentMethod: 'CASH' },
-      { ownerId: 'own-2', ownerName: 'فاطمة الزهراء بنحدو', unitCode: 'A-102', shareAmount: 2000, status: 'PENDING', paidAt: null,         paymentMethod: null },
-      { ownerId: 'own-3', ownerName: 'يوسف العلمي',          unitCode: 'A-103', shareAmount: 2000, status: 'OVERDUE', paidAt: null,         paymentMethod: null },
-      { ownerId: 'own-4', ownerName: 'خديجة بنعلي',          unitCode: 'A-201', shareAmount: 2000, status: 'PAID',    paidAt: '2024-06-04', paymentMethod: 'TRANSFER' },
-      { ownerId: 'own-6', ownerName: 'حسن الشرقاوي',         unitCode: 'A-202', shareAmount: 2000, status: 'PENDING', paidAt: null,         paymentMethod: null },
-      { ownerId: 'own-7', ownerName: 'عائشة اللمراني',       unitCode: 'A-301', shareAmount: 2000, status: 'OVERDUE', paidAt: null,         paymentMethod: null },
-      { ownerId: 'own-8', ownerName: 'رشيد بوعزة',           unitCode: 'AT-101', shareAmount: 2000, status: 'PAID',   paidAt: '2024-06-02', paymentMethod: 'CASH' },
+      { ownerId: 'own-1', ownerName: 'محمد الفاسي',          unitCode: 'A-101',  shareAmount: 2000, status: 'PAID',    paidAt: '2024-06-06', paymentMethod: 'CASH' },
+      { ownerId: 'own-2', ownerName: 'فاطمة الزهراء بنحدو', unitCode: 'A-102',  shareAmount: 2000, status: 'PENDING', paidAt: null,         paymentMethod: null },
+      { ownerId: 'own-3', ownerName: 'يوسف العلمي',          unitCode: 'A-103',  shareAmount: 2000, status: 'OVERDUE', paidAt: null,         paymentMethod: null },
+      { ownerId: 'own-4', ownerName: 'خديجة بنعلي',          unitCode: 'A-201',  shareAmount: 2000, status: 'PAID',    paidAt: '2024-06-04', paymentMethod: 'TRANSFER' },
+      { ownerId: 'own-6', ownerName: 'حسن الشرقاوي',         unitCode: 'A-202',  shareAmount: 2000, status: 'PENDING', paidAt: null,         paymentMethod: null },
+      { ownerId: 'own-7', ownerName: 'عائشة اللمراني',       unitCode: 'A-301',  shareAmount: 2000, status: 'OVERDUE', paidAt: null,         paymentMethod: null },
+      { ownerId: 'own-8', ownerName: 'رشيد بوعزة',           unitCode: 'AT-101', shareAmount: 2000, status: 'PAID',    paidAt: '2024-06-02', paymentMethod: 'CASH' },
       { ownerId: 'own-9', ownerName: 'نادية التازي',          unitCode: 'AT-102', shareAmount: 2000, status: 'PENDING', paidAt: null,        paymentMethod: null },
       { ownerId: 'own-3', ownerName: '—',                     unitCode: 'AT-201', shareAmount: 2000, status: 'PENDING', paidAt: null,        paymentMethod: null },
     ],

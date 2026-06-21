@@ -106,184 +106,220 @@ function MarkPaidForm({ amount, onConfirm, onCancel }: {
 
 // ─── Fee Invoice Modal ────────────────────────────────────────────────────────
 
-function FeeInvoiceModal({ fee, onClose, onMarkPaid }: {
-  fee: FeeRecord
+function FeeInvoiceModal({ fees, onClose, onMarkPaid }: {
+  fees: FeeRecord[]
   onClose: () => void
-  onMarkPaid: (d: { amount: number; method: string; date: string; note: string }) => void
+  onMarkPaid: (id: string, d: { amount: number; method: string; date: string; note: string }) => void
 }) {
-  const [markingPaid, setMarkingPaid] = useState(false)
+  const [markingId, setMarkingId] = useState<string | null>(null)
 
-  const isPaid    = fee.status === 'PAID'
-  const isOverdue = fee.status === 'OVERDUE'
+  const sorted    = [...fees].sort((a, b) => a.period.localeCompare(b.period))
+  const owner     = sorted[0]
+  const paidCount = sorted.filter(f => f.status === 'PAID').length
+  const total     = sorted.reduce((s, f) => s + f.amount, 0)
+  const allPaid   = paidCount === sorted.length
+  const anyOverdue = sorted.some(f => f.status === 'OVERDUE')
 
-  const steps = [
-    { label: 'Invoice\nCreated',   done: true },
-    { label: 'Due Date\nSet',      done: true },
-    { label: 'Payment\nReceived',  done: isPaid },
-    { label: 'Confirmed',          done: isPaid },
-  ]
-  const trackW = isPaid ? '100%' : isOverdue ? '38%' : '52%'
+  // Stepper reflects overall collection state
+  const isPaid    = allPaid
+  const isOverdue = !allPaid && anyOverdue
+  const nodeStates = [
+    'done',
+    'done',
+    isPaid ? 'done' : isOverdue ? 'overdue' : 'current',
+    isPaid ? 'done' : 'empty',
+  ] as const
+  const stepLabels = ['Account\nActive', 'Fees\nIssued', 'Up to\nDate', 'All\nClear']
+  const barFills   = isPaid
+    ? ['bg-emerald-500', 'bg-emerald-500', 'bg-emerald-500']
+    : isOverdue
+    ? ['bg-emerald-500', 'bg-red-200',     'bg-gray-200']
+    : ['bg-emerald-500', 'bg-gray-900',    'bg-gray-200']
+
+  const overallStatus = allPaid ? 'PAID' : anyOverdue ? 'OVERDUE' : 'PENDING'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Card */}
-      <div className="relative z-10 w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden">
+      {/* Phone-shell card */}
+      <div className="relative z-10 w-full max-w-sm rounded-[32px] overflow-hidden max-h-[90vh] flex flex-col"
+        style={{ background: '#f6f6f8', boxShadow: '0 40px 70px -25px rgba(20,22,30,0.38)' }}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
-          <p className="text-sm font-bold text-gray-900">Fee Invoice</p>
+        {/* ── Header nav row ── */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
           <button onClick={onClose}
-            className="h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
-            <X size={15} />
+            className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors text-gray-700">
+            <X size={16} />
+          </button>
+          <p className="text-[17px] font-extrabold text-gray-900 tracking-tight">Payment Status</p>
+          <button className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors text-gray-700">
+            <Download size={15} />
           </button>
         </div>
 
-        {/* Receipt section */}
-        <div className="px-5 pt-4 pb-2">
-          {/* Printer slot */}
-          <div className="h-5 bg-gray-900 rounded-t-lg flex items-center justify-center gap-1.5">
-            {[...Array(9)].map((_, i) => <span key={i} className="h-1 w-1 rounded-full bg-white/20" />)}
-          </div>
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1">
 
-          {/* Paper */}
-          <div className="bg-white border border-t-0 border-gray-200 rounded-b-xl shadow-[0_8px_28px_rgba(0,0,0,0.06)]">
-            <div className="px-5 pt-4 pb-3 border-t-2 border-dashed border-gray-200 text-center">
-              <p className="font-mono text-[11px] text-gray-400 tracking-widest">
-                ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-              </p>
-              <p className="font-mono text-sm font-semibold text-gray-800 mt-1">
-                Syndic Fee — {fee.period}
-              </p>
-              <p className="font-mono text-xs text-gray-500 mt-0.5">
-                Unit {fee.unitCode} · {fee.building}
-              </p>
-              <p className="font-mono text-[11px] text-gray-400 tracking-widest mt-1">
-                ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-              </p>
+          {/* ── Ticket wrap ── */}
+          <div className="px-5 pb-4">
+
+            {/* Printer body */}
+            <div className="relative h-16 rounded-t-2xl overflow-hidden"
+              style={{ background: 'linear-gradient(170deg,#585858 0%,#282828 52%,#181818 100%)', boxShadow: '0 16px 24px -8px rgba(0,0,0,0.5)' }}>
+              <div className="absolute top-0 left-0 right-0 h-7 rounded-t-2xl pointer-events-none"
+                style={{ background: 'linear-gradient(to bottom,rgba(255,255,255,0.08),transparent)' }} />
+              <div className="absolute bottom-0 left-0 right-0 h-5 pointer-events-none" style={{ background: '#0d0d0d' }} />
             </div>
 
-            <div className="px-5 py-3 space-y-2.5">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Fee Amount</span>
-                <span className="font-bold text-gray-900">{fmt(fee.amount)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Due Date</span>
-                <span className="text-gray-700">{fee.dueDate}</span>
-              </div>
-              {fee.paidAt && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Paid On</span>
-                  <span className="text-emerald-600 font-semibold">{fee.paidAt}</span>
-                </div>
-              )}
-              {fee.paymentMethod && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Method</span>
-                  <span className="text-gray-700">{METHOD_LABEL[fee.paymentMethod]}</span>
-                </div>
-              )}
-            </div>
+            {/* Receipt paper */}
+            <div className="bg-white -mt-4 rounded-b-2xl" style={{ boxShadow: '0 18px 30px -18px rgba(20,20,30,0.18)' }}>
 
-            <div className="border-t border-dashed border-gray-200 mx-5" />
+              {/* Title */}
+              <div className="pt-5 pb-3 px-5 text-center">
+                <div className="w-full h-px mb-3" style={{ backgroundImage: 'repeating-linear-gradient(to right,#c7c9cd 0,#c7c9cd 6px,transparent 6px,transparent 11px)' }} />
+                <p className="font-mono text-sm font-bold text-gray-800">Syndic Fees — Unit {owner.unitCode}</p>
+                <p className="font-mono text-xs text-gray-400 mt-0.5">{owner.ownerName} · {owner.building}</p>
+                <div className="w-full h-px mt-3" style={{ backgroundImage: 'repeating-linear-gradient(to right,#c7c9cd 0,#c7c9cd 6px,transparent 6px,transparent 11px)' }} />
+              </div>
 
-            <div className="px-5 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                    {fee.ownerName.charAt(0)}
+              {/* Totals row */}
+              <div className="px-5 pb-1">
+                <div className="flex justify-between items-baseline py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-400">Total</span>
+                  <span className="text-lg font-bold text-gray-900">{fmt(total)}</span>
+                </div>
+                <div className="flex justify-between items-baseline py-2">
+                  <span className="text-sm text-gray-400">Per Month</span>
+                  <span className="text-sm font-semibold text-gray-700">{fmt(owner.amount)}</span>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="mx-5 h-px bg-gray-100" />
+
+              {/* Fee rows — one per period, like the HTML person rows */}
+              {sorted.map(f => (
+                <div key={f.id} className="flex items-center justify-between px-5 py-3 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-mono text-[10px] font-bold flex items-center justify-center shrink-0 leading-tight text-center">
+                      {f.period.slice(0, 4)}<br />{f.period.slice(5)}
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-semibold text-gray-900">{new Date(f.period + '-01').toLocaleDateString('fr-MA', { month: 'long', year: 'numeric' })}</p>
+                      <p className="text-[11px] text-gray-400">Due {f.dueDate}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{fee.ownerName}</p>
-                    <p className="text-[11px] text-gray-400">Owner · {fee.unitCode}</p>
-                  </div>
+
+                  {/* Per-row pill */}
+                  {f.status === 'PAID' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-semibold text-gray-700" style={{ background: '#e1f7e9' }}>
+                      <span className="w-[15px] h-[15px] rounded-full flex items-center justify-center shrink-0" style={{ background: '#1aab5d' }}>
+                        <Check size={8} className="text-white" strokeWidth={3.2} />
+                      </span>
+                      Paid
+                    </span>
+                  ) : f.status === 'OVERDUE' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-semibold text-gray-700" style={{ background: '#fde8e6' }}>
+                      <span className="w-[15px] h-[15px] rounded-full flex items-center justify-center shrink-0" style={{ background: '#b8392c' }}>
+                        <AlertCircle size={8} className="text-white" />
+                      </span>
+                      Overdue
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-semibold text-gray-700" style={{ background: '#fdf0d8' }}>
+                      <span className="w-[15px] h-[15px] rounded-full flex items-center justify-center shrink-0" style={{ background: '#ee9f33' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" width={8} height={8}>
+                          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>
+                        </svg>
+                      </span>
+                      Pending
+                    </span>
+                  )}
                 </div>
-                <StatusPill status={fee.status} />
-              </div>
+              ))}
             </div>
           </div>
-        </div>
 
-        {/* Progress stepper */}
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-gray-400">Payment Status</p>
-            <p className={cn(
-              'text-sm font-black uppercase tracking-wider',
-              isPaid ? 'text-emerald-600' : isOverdue ? 'text-red-500' : 'text-amber-500'
-            )}>
-              {STATUS_FEE[fee.status].label}
-            </p>
-          </div>
-
-          <div className="relative flex items-center justify-between px-3">
-            {/* Track line */}
-            <div className="absolute left-3 right-3 top-3.5 h-0.5 bg-gray-200 z-0">
-              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: trackW }} />
+          {/* ── Payment Status card ── */}
+          <div className="mx-5 mb-4 bg-white rounded-2xl px-5 py-4" style={{ boxShadow: '0 14px 26px -18px rgba(20,20,30,0.15)' }}>
+            <div className="flex items-center justify-between mb-5">
+              <span className="text-[15px] font-bold text-gray-900">Payment Status</span>
+              <span className={cn(
+                'text-xs font-black tracking-[1px] uppercase',
+                allPaid ? 'text-emerald-600' : anyOverdue ? 'text-red-600' : 'text-amber-500'
+              )}>
+                {paidCount}/{sorted.length} paid
+              </span>
             </div>
 
-            {steps.map((step, i) => {
-              const isOverdueStep = isOverdue && i === 2
-              return (
-                <div key={i} className="relative z-10 flex flex-col items-center gap-1.5">
-                  <div className={cn(
-                    'h-7 w-7 rounded-full border-2 flex items-center justify-center transition-colors',
-                    step.done
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : isOverdueStep
-                      ? 'bg-red-50 border-red-400 text-red-400'
-                      : !isPaid && i === 2
-                      ? 'bg-gray-900 border-gray-900 text-white'
-                      : 'bg-white border-gray-200 text-gray-300'
-                  )}>
-                    {step.done
-                      ? <Check size={12} />
-                      : isOverdueStep
-                      ? <AlertCircle size={11} />
-                      : <span className="text-[10px]">{i + 1}</span>
-                    }
+            <div className="flex items-start">
+              {stepLabels.flatMap((label, i) => {
+                const state = nodeStates[i]
+                const node = (
+                  <div key={`n${i}`} className="flex flex-col items-center gap-1.5">
+                    <div className={cn(
+                      'w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0',
+                      state === 'done'    && 'bg-emerald-500',
+                      state === 'current' && 'bg-gray-900',
+                      state === 'overdue' && 'bg-red-50 border-2 border-red-400',
+                      state === 'empty'   && 'bg-white border-2 border-gray-200',
+                    )}>
+                      {state === 'done'    && <Check size={11} className="text-white" strokeWidth={3} />}
+                      {state === 'overdue' && <AlertCircle size={10} className="text-red-400" />}
+                    </div>
+                    <p className="text-[9px] text-gray-400 text-center w-[50px] leading-tight whitespace-pre-line">{label}</p>
                   </div>
-                  <p className="text-[9px] text-gray-400 text-center w-[52px] leading-tight whitespace-pre-line">
-                    {step.label}
-                  </p>
-                </div>
-              )
-            })}
+                )
+                if (i === stepLabels.length - 1) return [node]
+                return [node, <div key={`b${i}`} className={cn('flex-1 h-0.5 mt-[11px]', barFills[i])} />]
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="px-5 pb-5 space-y-2.5">
-          {!markingPaid ? (
-            <>
-              <div className={cn('grid gap-2', isPaid ? 'grid-cols-1' : 'grid-cols-2')}>
-                {!isPaid && (
-                  <button className="h-10 rounded-xl bg-gray-900 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gray-800 transition-colors">
-                    <Bell size={13} /> Send Reminder
-                  </button>
-                )}
-                <button className="h-10 rounded-xl border border-gray-200 text-gray-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gray-50 transition-colors">
-                  <Download size={13} /> Download Invoice
-                </button>
-              </div>
-              {!isPaid && (
-                <button onClick={() => setMarkingPaid(true)}
-                  className="w-full h-11 rounded-xl bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors">
-                  <Check size={15} /> Mark as Paid
+          {/* ── Action buttons ── */}
+          {!markingId && (
+            <div className={cn('flex gap-2.5 mx-5', allPaid ? 'mb-5' : 'mb-3')}>
+              {!allPaid && (
+                <button className="flex-1 h-11 rounded-3xl text-white text-[13px] font-bold flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90"
+                  style={{ background: '#222a38' }}>
+                  <Bell size={14} /> Send Reminder
                 </button>
               )}
-            </>
-          ) : (
-            <MarkPaidForm
-              amount={fee.amount}
-              onConfirm={d => { onMarkPaid(d); onClose() }}
-              onCancel={() => setMarkingPaid(false)}
-            />
+              <button className={cn(
+                'h-11 rounded-3xl text-[13px] font-bold flex items-center justify-center gap-1.5 border transition-colors hover:bg-gray-50',
+                allPaid ? 'flex-1' : 'px-5',
+              )} style={{ borderColor: '#e2e3e7', color: '#222a38', background: '#fff' }}>
+                <Download size={13} /> Download Invoice
+              </button>
+            </div>
+          )}
+
+          {/* ── Mark as Paid — for first unpaid fee ── */}
+          {!allPaid && (
+            <div className="mx-5 mb-6">
+              {!markingId ? (
+                <button
+                  onClick={() => {
+                    const first = sorted.find(f => f.status !== 'PAID')
+                    if (first) setMarkingId(first.id)
+                  }}
+                  className="w-full h-12 rounded-3xl bg-emerald-600 text-white text-[15px] font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors">
+                  <Check size={16} /> Mark as Paid
+                </button>
+              ) : (
+                <MarkPaidForm
+                  amount={sorted.find(f => f.id === markingId)?.amount ?? 0}
+                  onConfirm={d => { onMarkPaid(markingId, d); setMarkingId(null) }}
+                  onCancel={() => setMarkingId(null)}
+                />
+              )}
+            </div>
           )}
         </div>
+
+        {/* Home bar */}
+        <div className="w-32 h-[5px] rounded-full mx-auto my-4 shrink-0" style={{ background: '#222a38', opacity: 0.85 }} />
       </div>
     </div>
   )
@@ -539,8 +575,8 @@ function FeesTab() {
   const [fees, setFees]               = useState<FeeRecord[]>(mockFees)
   const [search, setSearch]           = useState('')
   const [statusF, setStatusF]         = useState<'ALL'|'PAID'|'PENDING'|'OVERDUE'>('ALL')
-  const [markingId, setMarkingId]     = useState<string | null>(null)
-  const [selectedFee, setSelectedFee] = useState<FeeRecord | null>(null)
+  const [markingId, setMarkingId]         = useState<string | null>(null)
+  const [selectedAptId, setSelectedAptId] = useState<string | null>(null)
 
   const filtered = fees.filter(f => {
     const ms = statusF === 'ALL' || f.status === statusF
@@ -593,7 +629,7 @@ function FeesTab() {
           <tbody>
             {filtered.map(f => (
               <>
-                <tr key={f.id} onClick={() => setSelectedFee(f)} className={cn('border-b transition-colors hover:bg-muted/20 cursor-pointer', markingId === f.id && 'bg-emerald-50/40')}>
+                <tr key={f.id} onClick={() => setSelectedAptId(f.apartmentId)} className={cn('border-b transition-colors hover:bg-muted/20 cursor-pointer', markingId === f.id && 'bg-emerald-50/40')}>
                   <td className="px-4 py-3"><span className="inline-flex items-center justify-center h-7 min-w-[52px] px-2 rounded-md bg-primary/10 text-primary text-xs font-bold">{f.unitCode}</span></td>
                   <td className="px-4 py-3 text-sm font-medium">{f.ownerName}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{f.building}</td>
@@ -631,11 +667,11 @@ function FeesTab() {
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} record(s)</p>
 
-      {selectedFee && (
+      {selectedAptId && (
         <FeeInvoiceModal
-          fee={selectedFee}
-          onClose={() => setSelectedFee(null)}
-          onMarkPaid={d => markPaid(selectedFee.id, d)}
+          fees={fees.filter(f => f.apartmentId === selectedAptId)}
+          onClose={() => setSelectedAptId(null)}
+          onMarkPaid={(id, d) => markPaid(id, d)}
         />
       )}
     </div>
