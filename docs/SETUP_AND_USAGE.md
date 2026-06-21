@@ -33,7 +33,7 @@ npm run dev
 On the VPS, use Docker Compose instead of PM2:
 
 1. Configure `apps/api/.env.production` with your secrets.
-2. From the repo root on the VPS, run `API_DOMAIN=srv1765015.hstgr.cloud CERTBOT_EMAIL=you@example.com bash deploy/setup.sh` once to configure Nginx and Certbot. Docker must already be installed on the VPS.
+2. From the repo root on the VPS, run `bash deploy/setup.sh`. Docker must already be installed on the VPS. This script only prepares the firewall for the API port; it does not touch any existing service on port 80.
 3. Run `bash deploy/deploy.sh` for each release to pull code, rebuild the API image, run migrations, and restart the stack.
 
 ### Database Management
