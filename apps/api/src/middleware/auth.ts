@@ -47,14 +47,20 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         profileId = profile.id
         activeOrganizationId = profile.organization_id
 
-        await db
-          .updateTable('public.session')
-          .set({
-            profile_id:            profile.id,
-            active_organization_id: profile.organization_id,
-          })
-          .where('id', '=', session.session.id)
-          .execute()
+        // Persisting these fields is best-effort; requests should still pass
+        // when we can derive org/profile directly from DB.
+        try {
+          await db
+            .updateTable('public.session')
+            .set({
+              profile_id:             profile.id,
+              active_organization_id: profile.organization_id,
+            })
+            .where('id', '=', session.session.id)
+            .execute()
+        } catch (persistError) {
+          console.warn('Auth session backfill warning:', persistError)
+        }
       }
     }
 
