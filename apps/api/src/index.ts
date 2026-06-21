@@ -20,7 +20,7 @@ app.use(cookieParser())
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }))
 
-app.all('/api/auth/*', toNodeHandler(auth))
+app.all('/api/auth/{*path}', toNodeHandler(auth))
 
 app.use('/api/residences', residencesRouter)
 app.use('/api/apartments', apartmentsRouter)

@@ -1,6 +1,7 @@
 import type React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
+import { Toaster }        from '@/components/toast'
 
 import { Home }           from '@/pages/Home'
 import { AuthLayout }     from '@/pages/auth/AuthLayout'
@@ -39,6 +40,8 @@ import { Chat }           from '@/pages/syndic/Chat'
 
 export default function App() {
   return (
+    <>
+    <Toaster />
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/auth" element={<AuthLayout />}>
@@ -82,5 +85,6 @@ export default function App() {
         <Route path="chat"                element={<Chat />} />
       </Route>
     </Routes>
+    </>
   )
 }
