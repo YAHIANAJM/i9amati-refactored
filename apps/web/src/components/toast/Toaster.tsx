@@ -1,98 +1,109 @@
-import * as RadixToast from '@radix-ui/react-toast'
-import { X, CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react'
-import { useToast, dismissToast, type ToastVariant } from './useToast'
-import { useEffect, useRef } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { X, CheckCircle2, XCircle, AlertTriangle, Info, Bell } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useToast, dismissToast, type ToastVariant, type ToastItem } from './useToast'
 
-const VARIANTS: Record<ToastVariant, {
-  bg: string
+const STYLES: Record<ToastVariant, {
   border: string
   icon: React.ReactNode
-  titleColor: string
+  bar: string
 }> = {
   success: {
-    bg: 'bg-white',
-    border: 'border-l-4 border-l-emerald-500',
+    border: 'border-l-[4px] border-emerald-500',
     icon: <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />,
-    titleColor: 'text-slate-800',
+    bar: 'bg-emerald-500',
   },
   error: {
-    bg: 'bg-white',
-    border: 'border-l-4 border-l-red-500',
+    border: 'border-l-[4px] border-red-500',
     icon: <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />,
-    titleColor: 'text-slate-800',
+    bar: 'bg-red-500',
   },
   warning: {
-    bg: 'bg-white',
-    border: 'border-l-4 border-l-amber-400',
+    border: 'border-l-[4px] border-amber-400',
     icon: <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />,
-    titleColor: 'text-slate-800',
+    bar: 'bg-amber-400',
   },
   info: {
-    bg: 'bg-white',
-    border: 'border-l-4 border-l-blue-500',
+    border: 'border-l-[4px] border-blue-500',
     icon: <Info size={18} className="text-blue-500 shrink-0 mt-0.5" />,
-    titleColor: 'text-slate-800',
+    bar: 'bg-blue-500',
+  },
+  confirmation: {
+    border: 'border-l-[4px] border-indigo-500',
+    icon: <Bell size={18} className="text-indigo-500 shrink-0 mt-0.5" />,
+    bar: 'bg-indigo-500',
   },
 }
 
-function ToastItem({ id, title, description, variant, duration = 4000 }: {
-  id: string
-  title: string
-  description?: string
-  variant: ToastVariant
-  duration?: number
-}) {
-  const v = VARIANTS[variant]
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+const DURATION = 10000 // 10s
+
+function ToastCard({ id, title, description, variant, duration = DURATION }: ToastItem) {
+  const s = STYLES[variant]
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => dismissToast(id), duration)
-    return () => clearTimeout(timerRef.current)
+    const t = setTimeout(() => dismissToast(id), duration)
+    return () => clearTimeout(t)
   }, [id, duration])
 
   return (
-    <RadixToast.Root
-      open
-      onOpenChange={(open) => { if (!open) dismissToast(id) }}
-      className={`
-        flex items-start gap-3 w-80 rounded-lg shadow-lg px-4 py-3
-        ${v.bg} ${v.border}
-        data-[state=open]:animate-in data-[state=open]:slide-in-from-right-full
-        data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right-full
-        data-[state=closed]:fade-out-80
-        transition-all duration-200
-      `}
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: 80, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0,  scale: 1    }}
+      exit={{    opacity: 0, x: 80, scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+      className={`relative flex items-start gap-3 w-80 rounded-lg shadow-lg bg-white px-4 py-3 pb-[18px] overflow-hidden ${s.border}`}
     >
-      {v.icon}
+      {s.icon}
+
       <div className="flex-1 min-w-0">
-        <RadixToast.Title className={`text-sm font-semibold leading-snug ${v.titleColor}`}>
-          {title}
-        </RadixToast.Title>
+        <p className="text-sm font-semibold text-slate-800 leading-snug">{title}</p>
         {description && (
-          <RadixToast.Description className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-            {description}
-          </RadixToast.Description>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
         )}
       </div>
-      <RadixToast.Close
+
+      <button
         onClick={() => dismissToast(id)}
         className="shrink-0 text-slate-400 hover:text-slate-600 transition-colors mt-0.5"
       >
         <X size={14} />
-      </RadixToast.Close>
-    </RadixToast.Root>
+      </button>
+
+      {/* progress bar — slides from right to left over `duration` ms */}
+      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-100">
+        <motion.div
+          className={`h-full origin-left ${s.bar}`}
+          initial={{ scaleX: 1 }}
+          animate={{ scaleX: 0 }}
+          transition={{ duration: duration / 1000, ease: 'linear' }}
+        />
+      </div>
+    </motion.div>
   )
 }
 
 export function Toaster() {
   const { toasts } = useToast()
 
+  const bottom = toasts.filter(t => t.variant !== 'confirmation')
+  const top    = toasts.filter(t => t.variant === 'confirmation')
+
   return (
-    <RadixToast.Provider swipeDirection="right">
-      {toasts.map(t => (
-        <ToastItem key={t.id} {...t} />
-      ))}
-      <RadixToast.Viewport className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 w-80" />
-    </RadixToast.Provider>
+    <>
+      {/* error / success / warning / info — bottom right */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 items-end">
+        <AnimatePresence mode="sync">
+          {bottom.map(t => <ToastCard key={t.id} {...t} />)}
+        </AnimatePresence>
+      </div>
+
+      {/* confirmation — top right */}
+      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-2 items-end">
+        <AnimatePresence mode="sync">
+          {top.map(t => <ToastCard key={t.id} {...t} />)}
+        </AnimatePresence>
+      </div>
+    </>
   )
 }

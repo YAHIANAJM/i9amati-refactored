@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 
-export type ToastVariant = 'success' | 'error' | 'warning' | 'info'
+export type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'confirmation'
 
 export interface ToastItem {
   id: string
@@ -12,7 +12,6 @@ export interface ToastItem {
 
 type Listener = (toasts: ToastItem[]) => void
 
-// Global store — survives component remounts
 const listeners: Set<Listener> = new Set()
 let toasts: ToastItem[] = []
 
