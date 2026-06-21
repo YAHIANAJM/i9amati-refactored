@@ -31,8 +31,32 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    const profileId            = session.session.profileId
-    const activeOrganizationId = session.session.activeOrganizationId
+    let profileId            = session.session.profileId
+    let activeOrganizationId = session.session.activeOrganizationId
+
+    // Fallback for sessions that were created before profile fields were set.
+    // This keeps protected routes working after login without forcing a re-auth.
+    if (!profileId || !activeOrganizationId) {
+      const profile = await db
+        .selectFrom('public.profiles')
+        .select(['id', 'organization_id'])
+        .where('user_id', '=', session.user.id)
+        .executeTakeFirst()
+
+      if (profile) {
+        profileId = profile.id
+        activeOrganizationId = profile.organization_id
+
+        await db
+          .updateTable('public.session')
+          .set({
+            profile_id:            profile.id,
+            active_organization_id: profile.organization_id,
+          })
+          .where('id', '=', session.session.id)
+          .execute()
+      }
+    }
 
     if (!profileId || !activeOrganizationId) {
       return res.status(401).json({ error: 'No active organization in session' })
