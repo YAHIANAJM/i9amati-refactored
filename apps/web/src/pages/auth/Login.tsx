@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
+import { toastError, toastSuccess } from '@/components/toast'
 
 const TEAL = '#2B8C80'
 
@@ -12,19 +13,21 @@ export function Login() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
     try {
       const { error } = await authClient.signIn.email({ email, password })
-      if (error) setError(error.message || 'Échec de la connexion')
-      else navigate('/syndic')
+      if (error) {
+        toastError(error.message || 'فشل تسجيل الدخول', 'تحقق من البريد الإلكتروني وكلمة المرور')
+      } else {
+        toastSuccess('مرحباً بك', 'تم تسجيل الدخول بنجاح')
+        navigate('/syndic')
+      }
     } catch (err: any) {
-      setError(err.message || 'Une erreur inattendue est survenue')
+      toastError('خطأ غير متوقع', err.message)
     } finally {
       setLoading(false)
     }
@@ -63,10 +66,6 @@ export function Login() {
           </p>
 
           <form onSubmit={handleLogin} className="space-y-3">
-            {error && (
-              <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{error}</div>
-            )}
-
             <input
               type="email" required autoComplete="email" placeholder="Email or Phone ID"
               value={email} onChange={e => setEmail(e.target.value)}

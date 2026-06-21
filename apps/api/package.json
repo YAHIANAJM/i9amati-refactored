@@ -2,7 +2,7 @@
   "name": "@i9amati/api",
   "version": "1.0.0",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --watch .env src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "db:migrate:public": "tsx src/db/migrate.mts public",
