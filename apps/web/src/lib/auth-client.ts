@@ -3,7 +3,7 @@ import { twoFactorClient, magicLinkClient, inferAdditionalFields } from 'better-
 import { PlatformRole } from '@i9amati/shared'
 
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000',
+  baseURL: import.meta.env.VITE_API_URL || '/',
   plugins: [
     inferAdditionalFields({
       user: {
