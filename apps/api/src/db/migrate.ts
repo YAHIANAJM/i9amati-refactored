@@ -62,9 +62,9 @@ async function migrate(target: 'public' | 'tenant', orgSlug?: string) {
 
   const { error, results } = await migrator.migrateToLatest()
 
-  results?.forEach((r) => {
-    if (r.status === 'Success') console.log(`✓ ${r.migrationName}`)
-    else if (r.status === 'Error') console.error(`✗ ${r.migrationName}`)
+  results?.forEach(r => {
+    if (r.status === 'Success')     console.log(`✓ ${r.migrationName}`)
+    else if (r.status === 'Error')  console.error(`✗ ${r.migrationName}`)
   })
 
   if (error) {
