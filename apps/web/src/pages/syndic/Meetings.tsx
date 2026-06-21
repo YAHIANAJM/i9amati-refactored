@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { TopBar } from '@/components/layout/TopBar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,9 +9,11 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   Plus, MapPin, Users, Clock, ChevronDown, X, Trash2,
   CheckCircle2, XCircle, Activity, Play, FileText,
-  Printer, UserCheck, UserX,
+  Printer, UserCheck, UserX, AlertTriangle, Scale, Loader2,
+  Send, Building2, Home, Mail,
 } from 'lucide-react'
-import { mockMeetings, type Meeting, type AgendaItem } from '@/data/mock/meetings'
+import { api } from '@/lib/api'
+import type { Meeting, AgendaItem } from '@/data/mock/meetings'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,6 +30,80 @@ const statusConfig: Record<Meeting['status'], { label: string; variant: 'info' |
   IN_PROGRESS: { label: 'En cours',  variant: 'warning' },
   COMPLETED:   { label: 'Terminée',  variant: 'success' },
   CANCELLED:   { label: 'Annulée',   variant: 'secondary' },
+}
+
+function quorumRequired(totalEligible: number) {
+  return Math.ceil(totalEligible * 0.5)
+}
+
+// ─── API hooks ────────────────────────────────────────────────────────────────
+
+function useMeetings() {
+  return useQuery<Meeting[]>({
+    queryKey: ['meetings'],
+    queryFn:  () => api.get('/api/meetings'),
+  })
+}
+
+function useMeetingMutations() {
+  const qc = useQueryClient()
+  const refetch = () => qc.invalidateQueries({ queryKey: ['meetings'] })
+
+  const startMeeting = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/meetings/${id}/start`),
+    onSuccess:  refetch,
+  })
+  const closeMeeting = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/meetings/${id}/close`),
+    onSuccess:  refetch,
+  })
+  const togglePresence = useMutation({
+    mutationFn: ({ meetingId, attendeeId }: { meetingId: string; attendeeId: string }) =>
+      api.patch(`/api/meetings/${meetingId}/attendees/${attendeeId}/presence`),
+    onSuccess: refetch,
+  })
+  const openVote = useMutation({
+    mutationFn: ({ meetingId, itemId }: { meetingId: string; itemId: string }) =>
+      api.post(`/api/meetings/${meetingId}/agenda/${itemId}/open`),
+    onSuccess: refetch,
+  })
+  const castVote = useMutation({
+    mutationFn: ({ meetingId, itemId, type }: { meetingId: string; itemId: string; type: 'pour' | 'contre' | 'abstention' }) =>
+      api.post(`/api/meetings/${meetingId}/agenda/${itemId}/cast`, { type }),
+    onMutate: async ({ meetingId, itemId, type }) => {
+      await qc.cancelQueries({ queryKey: ['meetings'] })
+      const prev = qc.getQueryData<Meeting[]>(['meetings'])
+      qc.setQueryData<Meeting[]>(['meetings'], old =>
+        old?.map(m => m.id !== meetingId ? m : {
+          ...m,
+          agenda: m.agenda.map(it => it.id !== itemId ? it : { ...it, [type]: it[type] + 1 }),
+        })
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(['meetings'], ctx.prev) },
+    onSettled: refetch,
+  })
+  const closeVote = useMutation({
+    mutationFn: ({ meetingId, itemId }: { meetingId: string; itemId: string }) =>
+      api.post(`/api/meetings/${meetingId}/agenda/${itemId}/close`),
+    onSuccess: refetch,
+  })
+  const presidentDecide = useMutation({
+    mutationFn: ({ meetingId, itemId, result }: { meetingId: string; itemId: string; result: 'ADOPTED' | 'REJECTED' }) =>
+      api.post(`/api/meetings/${meetingId}/agenda/${itemId}/president`, { result }),
+    onSuccess: refetch,
+  })
+  const sendConvocation = useMutation({
+    mutationFn: (id: string) => api.patch(`/api/meetings/${id}/send-convocation`),
+    onSuccess:  refetch,
+  })
+  const createMeeting = useMutation({
+    mutationFn: (body: object) => api.post('/api/meetings', body),
+    onSuccess: refetch,
+  })
+
+  return { startMeeting, closeMeeting, togglePresence, openVote, castVote, closeVote, presidentDecide, sendConvocation, createMeeting }
 }
 
 // ─── VoteBar ──────────────────────────────────────────────────────────────────
@@ -56,13 +133,20 @@ function VoteBar({ label, count, total, color }: { label: string; count: number;
 type AgendaRowProps = {
   item: AgendaItem
   isLive: boolean
+  quorumOk: boolean
+  noQuorumRequired: boolean
   onCast: (type: 'pour' | 'contre' | 'abstention') => void
   onOpen: () => void
   onClose: () => void
+  onPresidentDecide: (d: 'ADOPTED' | 'REJECTED') => void
+  loading: boolean
 }
 
-function AgendaItemRow({ item, isLive, onCast, onOpen, onClose }: AgendaRowProps) {
-  const total = item.pour + item.contre + item.abstention
+function AgendaItemRow({ item, isLive, quorumOk, noQuorumRequired, onCast, onOpen, onClose, onPresidentDecide, loading }: AgendaRowProps) {
+  const total   = item.pour + item.contre + item.abstention
+  const canVote = quorumOk || noQuorumRequired
+  const isTie   = item.voteStatus === 'CLOSED' && item.result === undefined
+
   return (
     <div className="rounded-xl border bg-white p-3.5 space-y-2.5">
       <div className="flex items-start justify-between gap-2">
@@ -73,24 +157,21 @@ function AgendaItemRow({ item, isLive, onCast, onOpen, onClose }: AgendaRowProps
           )}
         </div>
         {item.voteStatus === 'CLOSED' && item.result && (
-          <Badge
-            variant={item.result === 'ADOPTED' ? 'success' : 'destructive'}
-            className="shrink-0 text-[10px] gap-0.5"
-          >
-            {item.result === 'ADOPTED'
-              ? <><CheckCircle2 size={9} />Adopté</>
-              : <><XCircle size={9} />Rejeté</>
-            }
+          <Badge variant={item.result === 'ADOPTED' ? 'success' : 'destructive'} className="shrink-0 text-[10px] gap-0.5">
+            {item.result === 'ADOPTED' ? <><CheckCircle2 size={9} />Adopté</> : <><XCircle size={9} />Rejeté</>}
           </Badge>
         )}
+        {isTie && (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 shrink-0"><Scale size={10} /> Égalité</span>
+        )}
         {item.voteStatus === 'OPEN' && (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            Vote en cours
+          <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />Vote en cours
           </span>
         )}
         {item.voteStatus === 'PENDING' && isLive && (
-          <Button size="sm" variant="outline" className="h-6 text-[11px] px-2 shrink-0" onClick={onOpen}>
+          <Button size="sm" variant="outline" className="h-6 text-[11px] px-2 shrink-0" disabled={!canVote || loading}
+            title={!canVote ? "Quorum non atteint — vote impossible (1ère convocation)" : undefined} onClick={onOpen}>
             <Activity size={10} className="mr-1" /> Ouvrir le vote
           </Button>
         )}
@@ -98,15 +179,26 @@ function AgendaItemRow({ item, isLive, onCast, onOpen, onClose }: AgendaRowProps
 
       {(item.voteStatus === 'OPEN' || item.voteStatus === 'CLOSED') && (
         <div className="space-y-1.5">
-          <VoteBar label="Pour"        count={item.pour}        total={total} color="bg-emerald-500" />
-          <VoteBar label="Contre"      count={item.contre}      total={total} color="bg-red-500" />
-          <VoteBar label="Abstention"  count={item.abstention}  total={total} color="bg-slate-300" />
+          <VoteBar label="Pour"       count={item.pour}       total={total} color="bg-emerald-500" />
+          <VoteBar label="Contre"     count={item.contre}     total={total} color="bg-red-500" />
+          <VoteBar label="Abstention" count={item.abstention} total={total} color="bg-slate-300" />
           {item.voteStatus === 'OPEN' && (
             <div className="flex gap-1.5 pt-1">
-              <Button size="sm" className="flex-1 h-7 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onCast('pour')}>+1 Pour</Button>
-              <Button size="sm" className="flex-1 h-7 text-[11px] bg-red-600 hover:bg-red-700 text-white"          onClick={() => onCast('contre')}>+1 Contre</Button>
-              <Button size="sm" className="flex-1 h-7 text-[11px] bg-slate-500 hover:bg-slate-600 text-white"      onClick={() => onCast('abstention')}>+1 Abst.</Button>
-              <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5 shrink-0" onClick={onClose}>Clôturer</Button>
+              <Button size="sm" className="flex-1 h-7 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading} onClick={() => onCast('pour')}>+1 Pour</Button>
+              <Button size="sm" className="flex-1 h-7 text-[11px] bg-red-600 hover:bg-red-700 text-white"          disabled={loading} onClick={() => onCast('contre')}>+1 Contre</Button>
+              <Button size="sm" className="flex-1 h-7 text-[11px] bg-slate-500 hover:bg-slate-600 text-white"      disabled={loading} onClick={() => onCast('abstention')}>+1 Abst.</Button>
+              <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5 shrink-0" disabled={loading} onClick={onClose}>Clôturer</Button>
+            </div>
+          )}
+          {isTie && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 space-y-2">
+              <p className="text-[11px] font-semibold text-amber-800 flex items-center gap-1.5">
+                <Scale size={11} />Égalité — le Président du Conseil exerce sa voix prépondérante (Loi 18-00)
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 h-7 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading} onClick={() => onPresidentDecide('ADOPTED')}>Décision : Adopté</Button>
+                <Button size="sm" className="flex-1 h-7 text-[11px] bg-red-600 hover:bg-red-700 text-white"         disabled={loading} onClick={() => onPresidentDecide('REJECTED')}>Décision : Rejeté</Button>
+              </div>
             </div>
           )}
         </div>
@@ -119,226 +211,318 @@ function AgendaItemRow({ item, isLive, onCast, onOpen, onClose }: AgendaRowProps
 
 type DetailPanelProps = {
   meeting: Meeting
-  onCastVote:    (meetingId: string, itemId: string, type: 'pour' | 'contre' | 'abstention') => void
-  onOpenVote:    (meetingId: string, itemId: string) => void
-  onCloseVote:   (meetingId: string, itemId: string) => void
-  onStartMeeting: (meetingId: string) => void
-  onCloseMeeting: (meetingId: string) => void
-  onShowPV:      (meetingId: string) => void
+  mutations: ReturnType<typeof useMeetingMutations>
+  onShowPV: (id: string) => void
+  onSendConvocation: (id: string) => void
 }
 
-function DetailPanel({ meeting, onCastVote, onOpenVote, onCloseVote, onStartMeeting, onCloseMeeting, onShowPV }: DetailPanelProps) {
-  const present         = meeting.attendeeList.filter(a => a.present).length
-  const quorumRequired  = Math.ceil(meeting.totalEligible * 0.5)
-  const quorumReached   = present >= quorumRequired
-  const quorumPct       = Math.min(100, Math.round((present / meeting.totalEligible) * 100))
-  const allVoted        = meeting.agenda.length > 0 && meeting.agenda.every(i => i.voteStatus === 'CLOSED')
+function DetailPanel({ meeting: m, mutations, onShowPV, onSendConvocation }: DetailPanelProps) {
+  const present        = m.attendeeList.filter(a => a.present).length
+  const required       = quorumRequired(m.totalEligible)
+  const quorumReached  = present >= required
+  const noQuorumReq    = m.convocationNumber === 2
+  const quorumOk       = quorumReached || noQuorumReq
+  const quorumPct      = Math.min(100, Math.round((present / m.totalEligible) * 100))
+  const rsvpAccepted   = m.attendeeList.filter(a => a.rsvp === 'ACCEPTED').length
+  const allDone        = m.agenda.length > 0 && m.agenda.every(i => i.voteStatus === 'CLOSED' && i.result !== undefined)
+  const anyLoading     = mutations.castVote.isPending || mutations.openVote.isPending || mutations.closeVote.isPending || mutations.presidentDecide.isPending || mutations.togglePresence.isPending
 
   return (
     <div className="px-5 pb-5 pt-3">
       <div className="rounded-xl bg-slate-50 border p-4 space-y-4">
-        {/* Quorum bar */}
-        <div className="flex items-center gap-3">
-          {quorumReached
-            ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-            : <XCircle      size={15} className="text-red-400    shrink-0" />
-          }
-          <div className="flex-1">
-            <div className="flex justify-between text-[11px] mb-1">
-              <span className="font-medium text-foreground">
-                Quorum — {meeting.attendeeList.length > 0 ? `${present}/${meeting.totalEligible} présents` : 'liste non définie'}
-              </span>
-              <span className={`font-bold ${quorumReached ? 'text-emerald-600' : 'text-red-500'}`}>
-                {quorumReached ? 'Atteint ✓' : 'Non atteint'}
-              </span>
+
+        {/* Quorum */}
+        <div className="space-y-2">
+          {noQuorumReq && (
+            <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+              <CheckCircle2 size={13} className="text-blue-500 shrink-0" />
+              <p className="text-[11px] font-semibold text-blue-800">2ème convocation — quorum non requis (Loi 18-00 art. 30)</p>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${quorumReached ? 'bg-emerald-500' : 'bg-red-400'}`}
-                style={{ width: `${quorumPct}%` }}
-              />
+          )}
+          <div className="flex items-center gap-3">
+            {quorumReached ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" /> : <XCircle size={15} className="text-red-400 shrink-0" />}
+            <div className="flex-1">
+              <div className="flex justify-between text-[11px] mb-1">
+                <span className="font-medium">
+                  Présents physiquement : {present}/{m.totalEligible}
+                  {!noQuorumReq && <span className="text-muted-foreground"> (requis : {required})</span>}
+                </span>
+                <span className={`font-bold ${quorumReached ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {quorumReached ? 'Quorum atteint ✓' : noQuorumReq ? '—' : 'Non atteint'}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${quorumReached ? 'bg-emerald-500' : 'bg-red-400'}`} style={{ width: `${quorumPct}%` }} />
+              </div>
             </div>
           </div>
+          {m.status === 'IN_PROGRESS' && !quorumOk && (
+            <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+              <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-red-800">Quorum non atteint — marquez les présences avant d'ouvrir les votes.</p>
+            </div>
+          )}
         </div>
 
-        {/* Content grid */}
-        <div className="grid grid-cols-[1fr_200px] gap-4">
-          {/* Agenda */}
+        {/* Pointage */}
+        {m.status === 'IN_PROGRESS' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Pointage — Présence physique</p>
+              <span className="text-[10px] text-muted-foreground">{rsvpAccepted} confirmés · {present} présents</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {m.attendeeList.map(att => (
+                <button key={att.id}
+                  onClick={() => mutations.togglePresence.mutate({ meetingId: m.id, attendeeId: att.id })}
+                  disabled={anyLoading}
+                  className={`flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border text-left transition-all ${att.present ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-dashed hover:border-slate-300'}`}
+                >
+                  <div className="min-w-0">
+                    <p className={`text-[11px] font-medium truncate ${att.present ? 'text-emerald-900' : 'text-muted-foreground'}`}>{att.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground/70">{att.apartment}</span>
+                      {att.rsvp === 'ACCEPTED' && <span className="text-[9px] font-medium text-blue-500 bg-blue-50 px-1 rounded">Confirmé</span>}
+                      {att.rsvp === 'DECLINED' && <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-1 rounded">Excusé</span>}
+                    </div>
+                  </div>
+                  {att.present ? <UserCheck size={13} className="text-emerald-600 shrink-0" /> : <UserX size={13} className="text-muted-foreground/30 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Agenda + attendees */}
+        <div className={m.status === 'IN_PROGRESS' ? '' : 'grid grid-cols-[1fr_200px] gap-4'}>
           <div className="space-y-2 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Ordre du jour</p>
-            {meeting.agenda.map((item, i) => (
+            {m.agenda.map((item, i) => (
               <div key={item.id} className="flex gap-2">
-                <span className="text-[10px] font-bold text-muted-foreground mt-2 shrink-0 tabular-nums">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
+                <span className="text-[10px] font-bold text-muted-foreground mt-2 shrink-0 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
                 <div className="flex-1 min-w-0">
                   <AgendaItemRow
                     item={item}
-                    isLive={meeting.status === 'IN_PROGRESS'}
-                    onCast={type  => onCastVote(meeting.id, item.id, type)}
-                    onOpen={()    => onOpenVote(meeting.id, item.id)}
-                    onClose={()   => onCloseVote(meeting.id, item.id)}
+                    isLive={m.status === 'IN_PROGRESS'}
+                    quorumOk={quorumReached}
+                    noQuorumRequired={noQuorumReq}
+                    loading={anyLoading}
+                    onCast={type  => mutations.castVote.mutate({ meetingId: m.id, itemId: item.id, type })}
+                    onOpen={() => mutations.openVote.mutate({ meetingId: m.id, itemId: item.id })}
+                    onClose={() => mutations.closeVote.mutate({ meetingId: m.id, itemId: item.id })}
+                    onPresidentDecide={result => mutations.presidentDecide.mutate({ meetingId: m.id, itemId: item.id, result })}
                   />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Attendees */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Participants</p>
-            {meeting.attendeeList.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground italic">Aucun participant enregistré.</p>
-            ) : (
+          {m.status !== 'IN_PROGRESS' && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                {m.status === 'SCHEDULED' ? 'Réponses convocation' : 'Participants'}
+              </p>
               <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
-                {meeting.attendeeList.map(att => (
+                {m.attendeeList.map(att => (
                   <div key={att.id} className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-white border text-xs">
                     <div className="min-w-0">
-                      <p className="font-medium text-foreground truncate text-[11px]">{att.name}</p>
+                      <p className="font-medium truncate text-[11px]">{att.name}</p>
                       <p className="text-muted-foreground text-[10px]">{att.apartment}</p>
                     </div>
-                    {att.present
-                      ? <UserCheck size={12} className="text-emerald-500 shrink-0" />
-                      : <UserX    size={12} className="text-muted-foreground/40 shrink-0" />
+                    {m.status === 'SCHEDULED'
+                      ? <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${att.rsvp === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-700' : att.rsvp === 'DECLINED' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                          {att.rsvp === 'ACCEPTED' ? 'Confirmé' : att.rsvp === 'DECLINED' ? 'Excusé' : 'En attente'}
+                        </span>
+                      : att.present ? <UserCheck size={12} className="text-emerald-500 shrink-0" /> : <UserX size={12} className="text-muted-foreground/40 shrink-0" />
                     }
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Footer actions */}
-        {(meeting.status === 'SCHEDULED' || (meeting.status === 'IN_PROGRESS' && allVoted) || meeting.status === 'COMPLETED') && (
-          <div className="flex gap-2 pt-1 border-t">
-            {meeting.status === 'SCHEDULED' && (
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onStartMeeting(meeting.id)}>
-                <Play size={11} /> Démarrer la réunion
+        <div className="flex gap-2 pt-1 border-t flex-wrap">
+          {m.status === 'SCHEDULED' && (
+            <>
+              {!m.convocationSentAt ? (
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onSendConvocation(m.id)}>
+                  <Send size={11} /> Envoyer convocation
+                </Button>
+              ) : (
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 h-8">
+                  <Mail size={11} /> Convocation envoyée
+                </span>
+              )}
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={mutations.startMeeting.isPending}
+                onClick={() => mutations.startMeeting.mutate(m.id)}>
+                {mutations.startMeeting.isPending ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />} Démarrer
               </Button>
-            )}
-            {meeting.status === 'IN_PROGRESS' && allVoted && (
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-slate-800 hover:bg-slate-900 text-white" onClick={() => onCloseMeeting(meeting.id)}>
-                Clôturer la réunion
-              </Button>
-            )}
-            {meeting.status === 'COMPLETED' && (
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onShowPV(meeting.id)}>
-                <FileText size={11} /> Générer le PV
-              </Button>
-            )}
-          </div>
-        )}
+            </>
+          )}
+          {m.status === 'IN_PROGRESS' && allDone && (
+            <Button size="sm" className="h-8 text-xs gap-1.5 bg-slate-800 hover:bg-slate-900 text-white"
+              disabled={mutations.closeMeeting.isPending}
+              onClick={() => mutations.closeMeeting.mutate(m.id)}>
+              {mutations.closeMeeting.isPending && <Loader2 size={11} className="animate-spin" />} Clôturer la réunion
+            </Button>
+          )}
+          {m.status === 'COMPLETED' && (
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onShowPV(m.id)}>
+              <FileText size={11} /> Générer le PV
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-// ─── PVModal ──────────────────────────────────────────────────────────────────
+// ─── ConvocationModal ─────────────────────────────────────────────────────────
 
-function PVModal({ meeting, onClose }: { meeting: Meeting; onClose: () => void }) {
-  const date    = new Date(meeting.scheduledAt)
-  const present = meeting.attendeeList.filter(a => a.present).length
-  const quorum  = present >= Math.ceil(meeting.totalEligible * 0.5)
-
+function ConvocationModal({ meeting: m, onClose, onConfirm, loading }: {
+  meeting: Meeting; onClose: () => void; onConfirm: () => void; loading: boolean
+}) {
+  const date = new Date(m.scheduledAt)
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" showClose={false}>
-        <div className="flex items-center gap-2 px-6 pt-6 pb-2">
-          <DialogTitle className="flex items-center gap-2 text-sm font-bold">
-            <FileText size={15} /> Procès-Verbal de Réunion
-          </DialogTitle>
-        </div>
-
-        <div className="px-6 pb-2 space-y-5 text-sm" id="pv-print">
-          {/* Info header */}
-          <div className="rounded-lg bg-slate-50 border p-3.5 text-xs space-y-1.5">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <div><span className="text-muted-foreground">Titre : </span><span className="font-semibold">{meeting.title}</span></div>
-              <div><span className="text-muted-foreground">Type : </span><span className="font-semibold">{typeLabel[meeting.type]}</span></div>
-              <div><span className="text-muted-foreground">Date : </span><span className="font-semibold">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span></div>
-              <div><span className="text-muted-foreground">Heure : </span><span className="font-semibold">{date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span></div>
-              {meeting.location && (
-                <div className="col-span-2"><span className="text-muted-foreground">Lieu : </span><span className="font-semibold">{meeting.location}</span></div>
-              )}
+      <DialogContent className="max-w-md" showClose={false}>
+        <div className="px-6 pt-6 pb-5">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <DialogTitle className="text-sm font-bold flex items-center gap-2">
+                <Send size={14} className="text-primary" /> Envoyer la convocation
+              </DialogTitle>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Un email de convocation sera envoyé à tous les membres listés ci-dessous.
+              </p>
             </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 shrink-0"><X size={14} /></button>
           </div>
 
-          {/* Quorum */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1.5">Quorum</p>
-            <p className="text-xs leading-relaxed">
-              <span className="font-semibold">{present}</span> copropriétaires présents sur <span className="font-semibold">{meeting.totalEligible}</span> membres éligibles
-              {' '}— Quorum{' '}
-              <span className={`font-bold ${quorum ? 'text-emerald-600' : 'text-red-600'}`}>
-                {quorum ? 'atteint ✓' : 'non atteint ✗'}
-              </span>
+          {/* Meeting summary */}
+          <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 mb-4 text-xs space-y-1">
+            <p className="font-bold text-foreground">{m.title}</p>
+            <p className="text-muted-foreground">{typeLabel[m.type]} · {m.convocationNumber}ème convocation</p>
+            <p className="text-muted-foreground">
+              {date.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              {' à '}{date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </p>
+            {m.location && <p className="text-muted-foreground flex items-center gap-1"><MapPin size={9} /> {m.location}</p>}
           </div>
 
-          {/* Résolutions */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">Résolutions votées</p>
-            <div className="space-y-2.5">
-              {meeting.agenda.map((item, i) => {
-                const total = item.pour + item.contre + item.abstention
-                const pct   = (v: number) => total > 0 ? Math.round((v / total) * 100) : 0
-                return (
-                  <div key={item.id} className="rounded-lg border p-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <span className="text-[10px] font-bold text-muted-foreground">Résolution {i + 1} — </span>
-                        <span className="text-xs font-semibold">{item.title}</span>
-                      </div>
-                      {item.result && (
-                        <Badge variant={item.result === 'ADOPTED' ? 'success' : 'destructive'} className="text-[10px] shrink-0">
-                          {item.result === 'ADOPTED' ? 'Adopté' : 'Rejeté'}
-                        </Badge>
-                      )}
-                    </div>
-                    {item.voteStatus === 'CLOSED' && (
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="text-center py-1.5 rounded bg-emerald-50 border border-emerald-100">
-                          <p className="font-bold text-emerald-700">{item.pour}</p>
-                          <p className="text-[10px] text-muted-foreground">Pour ({pct(item.pour)}%)</p>
-                        </div>
-                        <div className="text-center py-1.5 rounded bg-red-50 border border-red-100">
-                          <p className="font-bold text-red-700">{item.contre}</p>
-                          <p className="text-[10px] text-muted-foreground">Contre ({pct(item.contre)}%)</p>
-                        </div>
-                        <div className="text-center py-1.5 rounded bg-slate-50 border">
-                          <p className="font-bold text-slate-700">{item.abstention}</p>
-                          <p className="text-[10px] text-muted-foreground">Abstention ({pct(item.abstention)}%)</p>
-                        </div>
-                      </div>
-                    )}
-                    {item.voteStatus !== 'CLOSED' && (
-                      <p className="text-[11px] text-muted-foreground italic">Vote non effectué.</p>
-                    )}
+          {/* Recipients */}
+          <div className="space-y-1.5 mb-5">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+              {m.attendeeList.length} destinataire{m.attendeeList.length > 1 ? 's' : ''}
+            </p>
+            <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+              {m.attendeeList.map(att => (
+                <div key={att.id} className="flex items-center gap-2.5 py-1.5 px-3 rounded-lg bg-slate-50 border text-xs">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] shrink-0">
+                    {att.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                   </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Signatures */}
-          <div className="pt-2 border-t">
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-4">Signatures</p>
-            <div className="grid grid-cols-2 gap-8">
-              {['Le Syndic', 'Le Président du Conseil'].map(role => (
-                <div key={role} className="text-center">
-                  <div className="h-14 border-b border-dashed mb-2" />
-                  <p className="text-[11px] text-muted-foreground">{role}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-[11px]">{att.name}</p>
+                    <p className="text-muted-foreground text-[10px]">{att.apartment}</p>
+                  </div>
+                  <Mail size={11} className="text-muted-foreground/50 shrink-0" />
                 </div>
               ))}
             </div>
           </div>
+
+          <div className="flex gap-2 pt-3 border-t">
+            <Button variant="ghost" className="flex-1 text-sm" onClick={onClose}>Annuler</Button>
+            <Button className="flex-1 text-sm gap-1.5" disabled={loading} onClick={onConfirm}>
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+              Confirmer l'envoi
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── PVModal ──────────────────────────────────────────────────────────────────
+
+function PVModal({ meeting: m, onClose }: { meeting: Meeting; onClose: () => void }) {
+  const date     = new Date(m.scheduledAt)
+  const present  = m.attendeeList.filter(a => a.present).length
+  const required = quorumRequired(m.totalEligible)
+  const quorum   = present >= required || m.convocationNumber === 2
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" showClose={false}>
+
+        {/* .pv-print-area: @media print makes only this section visible */}
+        <div className="pv-print-area">
+          <div className="flex items-center gap-2 px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <FileText size={15} /> Procès-Verbal de Réunion
+            </DialogTitle>
+          </div>
+          <div className="px-6 pb-6 space-y-5 text-sm">
+            <div className="rounded-lg bg-slate-50 border p-3.5 text-xs space-y-1.5">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <div><span className="text-muted-foreground">Titre : </span><span className="font-semibold">{m.title}</span></div>
+                <div><span className="text-muted-foreground">Type : </span><span className="font-semibold">{typeLabel[m.type]}</span></div>
+                <div><span className="text-muted-foreground">Date : </span><span className="font-semibold">{date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span></div>
+                <div><span className="text-muted-foreground">Heure : </span><span className="font-semibold">{date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span></div>
+                <div><span className="text-muted-foreground">Convocation : </span><span className="font-semibold">{m.convocationNumber}ème</span></div>
+                {m.location && <div><span className="text-muted-foreground">Lieu : </span><span className="font-semibold">{m.location}</span></div>}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1.5">Quorum</p>
+              {m.convocationNumber === 2
+                ? <p className="text-xs">{present} présents sur {m.totalEligible} — <span className="font-bold text-blue-600">2ème convocation : quorum non requis</span></p>
+                : <p className="text-xs">{present} présents sur {m.totalEligible} (requis : {required}) — Quorum <span className={`font-bold ${quorum ? 'text-emerald-600' : 'text-red-600'}`}>{quorum ? 'atteint ✓' : 'non atteint ✗'}</span></p>
+              }
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">Résolutions votées</p>
+              <div className="space-y-2.5">
+                {m.agenda.map((item, i) => {
+                  const total = item.pour + item.contre + item.abstention
+                  const pct   = (v: number) => total > 0 ? Math.round((v / total) * 100) : 0
+                  return (
+                    <div key={item.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div><span className="text-[10px] font-bold text-muted-foreground">Résolution {i + 1} — </span><span className="text-xs font-semibold">{item.title}</span></div>
+                        {item.result && <Badge variant={item.result === 'ADOPTED' ? 'success' : 'destructive'} className="text-[10px] shrink-0">{item.result === 'ADOPTED' ? 'Adopté' : 'Rejeté'}</Badge>}
+                      </div>
+                      {item.voteStatus === 'CLOSED' && (
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="text-center py-1.5 rounded bg-emerald-50 border border-emerald-100"><p className="font-bold text-emerald-700">{item.pour}</p><p className="text-[10px] text-muted-foreground">Pour ({pct(item.pour)}%)</p></div>
+                          <div className="text-center py-1.5 rounded bg-red-50 border border-red-100"><p className="font-bold text-red-700">{item.contre}</p><p className="text-[10px] text-muted-foreground">Contre ({pct(item.contre)}%)</p></div>
+                          <div className="text-center py-1.5 rounded bg-slate-50 border"><p className="font-bold text-slate-700">{item.abstention}</p><p className="text-[10px] text-muted-foreground">Abstention ({pct(item.abstention)}%)</p></div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-8">Signatures</p>
+              <div className="grid grid-cols-2 gap-12">
+                {['Le Syndic', 'Le Président du Conseil'].map(role => (
+                  <div key={role} className="text-center"><div className="h-16 border-b border-dashed mb-2" /><p className="text-[11px] text-muted-foreground">{role}</p></div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t px-6 pb-5">
+        {/* Hidden when printing */}
+        <div className="pv-no-print flex justify-end gap-2 pt-2 border-t px-6 pb-5">
           <Button variant="ghost" size="sm" className="text-xs" onClick={onClose}>Fermer</Button>
-          <Button size="sm" className="text-xs gap-1.5" onClick={() => window.print()}>
-            <Printer size={12} /> Imprimer
-          </Button>
+          <Button size="sm" className="text-xs gap-1.5" onClick={() => window.print()}><Printer size={12} /> Imprimer</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -347,140 +531,148 @@ function PVModal({ meeting, onClose }: { meeting: Meeting; onClose: () => void }
 
 // ─── CreateMeetingDrawer ──────────────────────────────────────────────────────
 
+type Residence = { id: string; name: string; city?: string }
+type Building  = { id: string; name: string }
+
 type DraftMeeting = {
-  title:    string
-  type:     Meeting['type']
-  date:     string
-  time:     string
-  location: string
-  items:    Array<{ id: string; title: string; description: string }>
+  title: string; type: Meeting['type']; convocationNumber: 1 | 2
+  date: string; time: string; location: string
+  residenceId: string; buildingId: string
+  items: Array<{ id: string; title: string; description: string }>
 }
 
 const emptyDraft = (): DraftMeeting => ({
-  title: '', type: 'GLOBAL', date: '', time: '', location: '',
+  title: '', type: 'GLOBAL', convocationNumber: 1,
+  date: '', time: '', location: '',
+  residenceId: '', buildingId: '',
   items: [{ id: makeId(), title: '', description: '' }],
 })
 
-function CreateMeetingDrawer({ onClose, onSubmit }: { onClose: () => void; onSubmit: (d: DraftMeeting) => void }) {
+function CreateMeetingDrawer({ onClose, onSubmit, loading }: {
+  onClose: () => void; onSubmit: (d: DraftMeeting) => void; loading: boolean
+}) {
   const [draft, setDraft] = useState<DraftMeeting>(emptyDraft)
+
+  const { data: residences = [] } = useQuery<Residence[]>({
+    queryKey: ['residences'],
+    queryFn:  () => api.get('/api/residences'),
+  })
+
+  const { data: residenceDetail } = useQuery<{ buildings: Building[] }>({
+    queryKey:  ['residence', draft.residenceId],
+    queryFn:   () => api.get(`/api/residences/${draft.residenceId}`),
+    enabled:   !!draft.residenceId,
+  })
+  const buildings = residenceDetail?.buildings ?? []
 
   const addItem    = () => setDraft(d => ({ ...d, items: [...d.items, { id: makeId(), title: '', description: '' }] }))
   const removeItem = (id: string) => setDraft(d => ({ ...d, items: d.items.filter(it => it.id !== id) }))
   const setItem    = (id: string, key: 'title' | 'description', val: string) =>
     setDraft(d => ({ ...d, items: d.items.map(it => it.id === id ? { ...it, [key]: val } : it) }))
-
-  const valid = draft.title.trim() && draft.date && draft.items.every(it => it.title.trim())
-
+  const valid    = draft.title.trim() && draft.date && draft.items.every(it => it.title.trim())
   const inputCls = 'w-full h-9 px-3 rounded-lg border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 transition'
 
   return (
     <>
-      <motion.div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[460px] bg-white shadow-2xl flex flex-col"
+      <motion.div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+      <motion.div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[460px] bg-white shadow-2xl flex flex-col"
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-      >
-        {/* Header */}
+        transition={{ type: 'spring', damping: 28, stiffness: 280 }}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-          <div>
-            <h2 className="text-sm font-bold">Planifier une réunion</h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Renseigner les détails de la nouvelle assemblée</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
-            <X size={15} />
-          </button>
+          <div><h2 className="text-sm font-bold">Planifier une réunion</h2><p className="text-[11px] text-muted-foreground mt-0.5">Renseigner les détails de la nouvelle assemblée</p></div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"><X size={15} /></button>
         </div>
-
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Titre *</label>
-            <input
-              className={inputCls}
-              placeholder="Ex: Assemblée Générale Ordinaire 2025"
-              value={draft.title}
-              onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
-            />
+            <input className={inputCls} placeholder="Ex: Assemblée Générale Ordinaire 2025" value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
           </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Type</label>
-            <select
-              className={inputCls}
-              value={draft.type}
-              onChange={e => setDraft(d => ({ ...d, type: e.target.value as Meeting['type'] }))}
-            >
+            <select className={inputCls} value={draft.type} onChange={e => setDraft(d => ({ ...d, type: e.target.value as Meeting['type'] }))}>
               <option value="GLOBAL">Assemblée Générale Ordinaire</option>
               <option value="EXCEPTIONAL">AG Extraordinaire</option>
               <option value="NORMAL">Réunion de Conseil</option>
             </select>
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Convocation</label>
+            <div className="flex gap-2">
+              {([1, 2] as const).map(n => (
+                <button key={n} onClick={() => setDraft(d => ({ ...d, convocationNumber: n }))}
+                  className={`flex-1 h-9 rounded-lg border text-sm font-semibold transition-all ${draft.convocationNumber === n ? 'bg-primary text-white border-primary' : 'bg-white text-foreground hover:bg-muted'}`}>
+                  {n}ème convocation
+                </button>
+              ))}
+            </div>
+            {draft.convocationNumber === 2 && <p className="text-[10px] text-blue-600">Quorum non requis — délibère valablement quel que soit le nombre de présents (Loi 18-00 art. 30).</p>}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Date *</label>
-              <input type="date" className={inputCls} value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Heure</label>
-              <input type="time" className={inputCls} value={draft.time} onChange={e => setDraft(d => ({ ...d, time: e.target.value }))} />
-            </div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Date *</label><input type="date" className={inputCls} value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Heure</label><input type="time" className={inputCls} value={draft.time} onChange={e => setDraft(d => ({ ...d, time: e.target.value }))} /></div>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Lieu</label>
-            <input
-              className={inputCls}
-              placeholder="Salle de réunion, en ligne..."
-              value={draft.location}
-              onChange={e => setDraft(d => ({ ...d, location: e.target.value }))}
-            />
+            <input className={inputCls} placeholder="Salle de réunion, en ligne..." value={draft.location} onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} />
+          </div>
+
+          {/* Residence + building */}
+          <div className="space-y-3 rounded-xl border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Portée de la réunion</p>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1.5"><Home size={10} /> Résidence</label>
+              <select className={inputCls} value={draft.residenceId}
+                onChange={e => setDraft(d => ({ ...d, residenceId: e.target.value, buildingId: '' }))}>
+                <option value="">— Sans résidence spécifique —</option>
+                {residences.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}{r.city ? ` · ${r.city}` : ''}</option>
+                ))}
+              </select>
+            </div>
+            {draft.residenceId && buildings.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1.5"><Building2 size={10} /> Bâtiment (optionnel)</label>
+                <select className={inputCls} value={draft.buildingId}
+                  onChange={e => setDraft(d => ({ ...d, buildingId: e.target.value }))}>
+                  <option value="">— Toute la résidence —</option>
+                  {buildings.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {draft.residenceId && buildings.length === 0 && (
+              <p className="text-[10px] text-muted-foreground italic">Aucun bâtiment enregistré pour cette résidence.</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Ordre du jour *</label>
-              <button className="text-[11px] font-semibold text-primary hover:text-primary/80 flex items-center gap-0.5" onClick={addItem}>
-                <Plus size={11} /> Ajouter un point
-              </button>
+              <button className="text-[11px] font-semibold text-primary hover:text-primary/80 flex items-center gap-0.5" onClick={addItem}><Plus size={11} /> Ajouter un point</button>
             </div>
             {draft.items.map((item, i) => (
               <div key={item.id} className="rounded-lg border p-3 space-y-2 bg-slate-50/60">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-muted-foreground shrink-0 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                  <input
-                    className="flex-1 h-8 px-2.5 rounded-md border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/25"
-                    placeholder="Point de l'ordre du jour *"
-                    value={item.title}
-                    onChange={e => setItem(item.id, 'title', e.target.value)}
-                  />
-                  {draft.items.length > 1 && (
-                    <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0">
-                      <Trash2 size={12} />
-                    </button>
-                  )}
+                  <input className="flex-1 h-8 px-2.5 rounded-md border bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/25" placeholder="Point de l'ordre du jour *" value={item.title} onChange={e => setItem(item.id, 'title', e.target.value)} />
+                  {draft.items.length > 1 && <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0"><Trash2 size={12} /></button>}
                 </div>
-                <textarea
-                  className="w-full px-2.5 py-1.5 rounded-md border bg-white text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/25"
-                  rows={2}
-                  placeholder="Description (optionnel)"
-                  value={item.description}
-                  onChange={e => setItem(item.id, 'description', e.target.value)}
-                />
+                <textarea className="w-full px-2.5 py-1.5 rounded-md border bg-white text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/25" rows={2} placeholder="Description (optionnel)" value={item.description} onChange={e => setItem(item.id, 'description', e.target.value)} />
               </div>
             ))}
           </div>
         </div>
-
-        {/* Footer */}
         <div className="px-6 py-4 border-t flex gap-3 shrink-0">
           <Button variant="ghost" className="flex-1 text-sm" onClick={onClose}>Annuler</Button>
-          <Button className="flex-1 text-sm" disabled={!valid} onClick={() => onSubmit(draft)}>Planifier</Button>
+          <Button className="flex-1 text-sm" disabled={!valid || loading} onClick={() => onSubmit(draft)}>
+            {loading ? <Loader2 size={14} className="animate-spin mr-1" /> : null} Planifier
+          </Button>
         </div>
       </motion.div>
     </>
@@ -490,66 +682,57 @@ function CreateMeetingDrawer({ onClose, onSubmit }: { onClose: () => void; onSub
 // ─── Meetings page ────────────────────────────────────────────────────────────
 
 export function Meetings() {
-  const [meetings, setMeetings]     = useState<Meeting[]>(mockMeetings)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [pvId, setPvId]             = useState<string | null>(null)
+  const [pvId,       setPvId]       = useState<string | null>(null)
+  const [convoId,    setConvoId]    = useState<string | null>(null)
 
-  const castVote = useCallback((meetingId: string, itemId: string, type: 'pour' | 'contre' | 'abstention') => {
-    setMeetings(prev => prev.map(m => m.id !== meetingId ? m : {
-      ...m, agenda: m.agenda.map(it => it.id !== itemId ? it : { ...it, [type]: it[type] + 1 }),
-    }))
-  }, [])
+  const { data: meetings = [], isLoading, error } = useMeetings()
+  const mutations = useMeetingMutations()
 
-  const openVote = useCallback((meetingId: string, itemId: string) => {
-    setMeetings(prev => prev.map(m => m.id !== meetingId ? m : {
-      ...m, agenda: m.agenda.map(it => it.id !== itemId ? it : { ...it, voteStatus: 'OPEN' as const }),
-    }))
-  }, [])
+  const handleCreate = (draft: DraftMeeting) => {
+    mutations.createMeeting.mutate({
+      title:             draft.title,
+      type:              draft.type,
+      convocationNumber: draft.convocationNumber,
+      scheduledAt:       `${draft.date}T${draft.time || '10:00'}:00`,
+      location:          draft.location || undefined,
+      totalEligible:     8,
+      residenceId:       draft.residenceId || undefined,
+      buildingId:        draft.buildingId  || undefined,
+      agenda:            draft.items.map(it => ({ title: it.title, description: it.description || undefined })),
+    }, { onSuccess: () => setDrawerOpen(false) })
+  }
 
-  const closeVote = useCallback((meetingId: string, itemId: string) => {
-    setMeetings(prev => prev.map(m => m.id !== meetingId ? m : {
-      ...m, agenda: m.agenda.map(it => {
-        if (it.id !== itemId) return it
-        return { ...it, voteStatus: 'CLOSED' as const, result: it.pour > it.contre ? 'ADOPTED' as const : 'REJECTED' as const }
-      }),
-    }))
-  }, [])
+  const handleConfirmConvocation = () => {
+    if (!convoId) return
+    mutations.sendConvocation.mutate(convoId, { onSuccess: () => setConvoId(null) })
+  }
 
-  const startMeeting = useCallback((meetingId: string) => {
-    setMeetings(prev => prev.map(m => m.id !== meetingId ? m : { ...m, status: 'IN_PROGRESS' as const }))
-  }, [])
+  const pvMeeting    = pvId    ? meetings.find(m => m.id === pvId)    ?? null : null
+  const convoMeeting = convoId ? meetings.find(m => m.id === convoId) ?? null : null
 
-  const closeMeeting = useCallback((meetingId: string) => {
-    setMeetings(prev => prev.map(m => m.id !== meetingId ? m : { ...m, status: 'COMPLETED' as const }))
-  }, [])
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-full">
+        <TopBar title="Réunions & AG" subtitle="Assemblées générales et réunions de copropriété" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
 
-  const createMeeting = useCallback((draft: DraftMeeting) => {
-    const scheduledAt = `${draft.date}T${draft.time || '10:00'}:00`
-    const newM: Meeting = {
-      id:           makeId(),
-      title:        draft.title,
-      type:         draft.type,
-      status:       'SCHEDULED',
-      scheduledAt,
-      location:     draft.location || undefined,
-      residenceId:  'res-1',
-      createdAt:    new Date().toISOString(),
-      totalEligible: 19,
-      description:  '',
-      agenda: draft.items.map(it => ({
-        id: makeId(), title: it.title,
-        description: it.description || undefined,
-        voteStatus: 'PENDING' as const,
-        pour: 0, contre: 0, abstention: 0,
-      })),
-      attendeeList: [],
-    }
-    setMeetings(prev => [newM, ...prev])
-    setDrawerOpen(false)
-  }, [])
-
-  const pvMeeting = pvId ? meetings.find(m => m.id === pvId) ?? null : null
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-full">
+        <TopBar title="Réunions & AG" subtitle="Assemblées générales et réunions de copropriété" />
+        <div className="flex-1 flex items-center justify-center text-sm text-destructive">
+          Erreur de chargement : {(error as Error).message}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -564,95 +747,64 @@ export function Meetings() {
       />
 
       <div className="flex-1 p-6 space-y-3 animate-fade-in">
+        {meetings.length === 0 && (
+          <div className="text-center py-16 text-sm text-muted-foreground">
+            Aucune réunion planifiée. Créez-en une avec le bouton ci-dessus.
+          </div>
+        )}
         {meetings.map(m => {
-          const date        = new Date(m.scheduledAt)
-          const cfg         = statusConfig[m.status]
+          const date         = new Date(m.scheduledAt)
+          const cfg          = statusConfig[m.status]
           const presentCount = m.attendeeList.filter(a => a.present).length
-          const isExpanded  = expandedId === m.id
+          const isExpanded   = expandedId === m.id
 
           return (
             <Card key={m.id} className="overflow-hidden hover:shadow-sm transition-shadow">
               <CardContent className="p-0">
-                {/* Card row */}
                 <div className="flex items-start gap-4 p-5">
-                  {/* Date block */}
                   <div className="flex flex-col items-center justify-center h-14 w-14 rounded-xl bg-primary/10 shrink-0">
                     <span className="text-xl font-bold text-primary leading-none">{date.getDate()}</span>
-                    <span className="text-[11px] text-primary/70 uppercase tracking-wide">
-                      {date.toLocaleString('fr-MA', { month: 'short' })}
-                    </span>
+                    <span className="text-[11px] text-primary/70 uppercase tracking-wide">{date.toLocaleString('fr-MA', { month: 'short' })}</span>
                   </div>
-
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <h3 className="text-sm font-semibold">{m.title}</h3>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                      <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        {typeLabel[m.type]}
-                      </span>
+                      <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{typeLabel[m.type]}</span>
+                      {m.convocationNumber === 2 && <span className="text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">2ème convocation</span>}
+                      {m.convocationSentAt && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <Mail size={9} /> Convocation envoyée
+                        </span>
+                      )}
                     </div>
-                    {m.description && (
-                      <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{m.description}</p>
-                    )}
+                    {m.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{m.description}</p>}
                     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} />
-                        {date.toLocaleTimeString('fr-MA', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {m.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin size={11} /> {m.location}
-                        </span>
-                      )}
-                      {m.attendeeList.length > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Users size={11} /> {presentCount}/{m.totalEligible} présents
-                        </span>
-                      )}
+                      <span className="flex items-center gap-1"><Clock size={11} />{date.toLocaleTimeString('fr-MA', { hour: '2-digit', minute: '2-digit' })}</span>
+                      {m.location && <span className="flex items-center gap-1"><MapPin size={11} /> {m.location}</span>}
+                      {m.attendeeList.length > 0 && <span className="flex items-center gap-1"><Users size={11} /> {presentCount}/{m.totalEligible} présents</span>}
                     </div>
                   </div>
-
                   <div className="flex gap-2 shrink-0 items-center">
-                    {m.status === 'SCHEDULED' && (
-                      <Button size="sm" variant="outline" className="text-xs h-8">Envoyer convocation</Button>
-                    )}
                     {m.status === 'IN_PROGRESS' && (
                       <span className="flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-md px-2.5 h-8">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                        En cours
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />En cours
                       </span>
                     )}
-                    <Button
-                      size="sm"
-                      variant={isExpanded ? 'secondary' : 'ghost'}
-                      className="text-xs h-8 gap-1"
-                      onClick={() => setExpandedId(isExpanded ? null : m.id)}
-                    >
-                      Détails
-                      <ChevronDown size={12} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    <Button size="sm" variant={isExpanded ? 'secondary' : 'ghost'} className="text-xs h-8 gap-1"
+                      onClick={() => setExpandedId(isExpanded ? null : m.id)}>
+                      Détails <ChevronDown size={12} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     </Button>
                   </div>
                 </div>
 
-                {/* Accordion detail */}
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
+                      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                      className="overflow-hidden border-t"
-                    >
-                      <DetailPanel
-                        meeting={m}
-                        onCastVote={castVote}
-                        onOpenVote={openVote}
-                        onCloseVote={closeVote}
-                        onStartMeeting={startMeeting}
-                        onCloseMeeting={closeMeeting}
-                        onShowPV={setPvId}
-                      />
+                      className="overflow-hidden border-t">
+                      <DetailPanel meeting={m} mutations={mutations} onShowPV={setPvId} onSendConvocation={setConvoId} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -662,15 +814,21 @@ export function Meetings() {
         })}
       </div>
 
-      {/* Create drawer */}
       <AnimatePresence>
         {drawerOpen && (
-          <CreateMeetingDrawer onClose={() => setDrawerOpen(false)} onSubmit={createMeeting} />
+          <CreateMeetingDrawer onClose={() => setDrawerOpen(false)} onSubmit={handleCreate} loading={mutations.createMeeting.isPending} />
         )}
       </AnimatePresence>
 
-      {/* PV modal */}
-      {pvMeeting && <PVModal meeting={pvMeeting} onClose={() => setPvId(null)} />}
+      {pvMeeting    && <PVModal meeting={pvMeeting} onClose={() => setPvId(null)} />}
+      {convoMeeting && (
+        <ConvocationModal
+          meeting={convoMeeting}
+          onClose={() => setConvoId(null)}
+          onConfirm={handleConfirmConvocation}
+          loading={mutations.sendConvocation.isPending}
+        />
+      )}
     </div>
   )
 }

@@ -7,11 +7,17 @@ import { toNodeHandler } from 'better-auth/node'
 import { auth } from './auth'
 import residencesRouter from './routes/residences'
 import apartmentsRouter from './routes/apartments'
+import meetingsRouter from './routes/meetings'
 import { errorHandler } from './middleware/errorHandler'
 import { db } from './db/db'
 
 const app = express()
 const PORT = process.env.PORT || 4000
+
+// Trust nginx reverse proxy so req.ip / secure cookies work correctly
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1)
+}
 
 app.use(helmet())
 app.use(cors({ origin: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(','), credentials: true }))
@@ -24,6 +30,7 @@ app.all('/api/auth/*', toNodeHandler(auth))
 
 app.use('/api/residences', residencesRouter)
 app.use('/api/apartments', apartmentsRouter)
+app.use('/api/meetings',   meetingsRouter)
 
 app.use(errorHandler)
 

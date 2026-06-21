@@ -7,8 +7,9 @@
 import 'dotenv/config'
 import * as path from 'path'
 import { pathToFileURL } from 'url'
-import { Kysely, PostgresDialect, type Migration, type MigrationProvider } from 'kysely'
+import { Kysely, PostgresDialect } from 'kysely'
 import { Migrator } from 'kysely/migration'
+import type { Migration, MigrationProvider } from 'kysely/migration'
 import { Pool } from 'pg'
 import { promises as fs } from 'fs'
 

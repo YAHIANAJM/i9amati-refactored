@@ -9,7 +9,7 @@ import * as path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { Kysely, PostgresDialect } from 'kysely'
 import { Migrator } from 'kysely/migration'
-import type { Migration, MigrationProvider } from 'kysely'
+import type { Migration, MigrationProvider } from 'kysely/migration'
 import { Pool } from 'pg'
 import { promises as fs } from 'fs'
 

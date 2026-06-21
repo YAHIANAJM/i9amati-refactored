@@ -1,8 +1,8 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install openssl for Prisma
+# Install openssl for native crypto/runtime requirements
 RUN apk add --no-cache openssl
 
 # Copy root package files
@@ -20,11 +20,8 @@ RUN npm ci
 # Copy the rest of the monorepo source code
 COPY . .
 
-# Generate Prisma client
-WORKDIR /app/apps/api
-RUN npx prisma generate
-
 # Build the API
+WORKDIR /app/apps/api
 RUN npm run build
 
 EXPOSE 4000

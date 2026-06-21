@@ -4,11 +4,13 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "db:migrate:public": "tsx src/db/migrate.mts public",
     "db:migrate:tenant": "tsx src/db/migrate.mts tenant",
     "db:migrate:all-tenants": "tsx src/db/migrateAllTenants.ts",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "db:migrate:public:prod": "node dist/src/db/migrate.mjs public",
+    "db:migrate:tenant:prod": "node dist/src/db/migrate.mjs tenant"
   },
   "dependencies": {
     "@i9amati/shared": "*",

@@ -223,9 +223,40 @@ export interface MeetingTable {
   description: string | null
   status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   type: 'GLOBAL' | 'EXCEPTIONAL' | 'NORMAL'
+  convocation_number: 1 | 2
   scheduled_at: Timestamp
   location: string | null
-  agenda: ColumnType<unknown, unknown, unknown> // json array
+  total_eligible: number
+  residence_id: string | null
+  building_id: string | null
+  convocation_sent_at: Timestamp | null
+  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  updated_at: Timestamp
+}
+
+export interface AgendaItemTable {
+  id: Generated<string>
+  meeting_id: string
+  title: string
+  description: string | null
+  vote_status: 'PENDING' | 'OPEN' | 'CLOSED'
+  pour: number
+  contre: number
+  abstention: number
+  result: 'ADOPTED' | 'REJECTED' | null
+  sort_order: number
+  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  updated_at: Timestamp
+}
+
+export interface MeetingAttendeeTable {
+  id: Generated<string>
+  meeting_id: string
+  profile_id: string | null
+  name: string
+  apartment: string
+  rsvp: 'ACCEPTED' | 'DECLINED' | 'PENDING'
+  present: boolean
   created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
   updated_at: Timestamp
 }
@@ -363,6 +394,8 @@ export interface Database {
   payments: PaymentTable
   complaints: ComplaintTable
   meetings: MeetingTable
+  agenda_items: AgendaItemTable
+  meeting_attendees: MeetingAttendeeTable
   meetings_members: MeetingMemberTable
   groups: GroupTable
   _profile_groups: ProfileGroupTable
