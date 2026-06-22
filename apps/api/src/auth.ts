@@ -59,6 +59,21 @@ export const auth = betterAuth({
     },
   },
 
+  socialProviders: {
+    ...(process.env.GOOGLE_CLIENT_ID ? {
+      google: {
+        clientId:     process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      },
+    } : {}),
+    ...(process.env.FACEBOOK_APP_ID ? {
+      facebook: {
+        clientId:     process.env.FACEBOOK_APP_ID,
+        clientSecret: process.env.FACEBOOK_APP_SECRET!,
+      },
+    } : {}),
+  },
+
   plugins: [
     admin(),
     twoFactor(),

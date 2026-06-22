@@ -5,6 +5,10 @@ import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
 
+async function socialSignIn(provider: 'google' | 'facebook') {
+  await authClient.signIn.social({ provider, callbackURL: '/syndic' })
+}
+
 const TEAL = '#2B8C80'
 
 export function Login() {
@@ -107,8 +111,8 @@ export function Login() {
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           <div className="flex justify-center gap-3">
-            <SocialBtn><GoogleIcon /></SocialBtn>
-            <SocialBtn><FacebookIcon /></SocialBtn>
+            <SocialBtn onClick={() => socialSignIn('google')}><GoogleIcon /></SocialBtn>
+            <SocialBtn onClick={() => socialSignIn('facebook')}><FacebookIcon /></SocialBtn>
             <SocialBtn><AppleIcon /></SocialBtn>
           </div>
           <p className="mt-5 text-center text-xs text-gray-400">
@@ -141,9 +145,9 @@ export function Login() {
   )
 }
 
-function SocialBtn({ children }: { children: React.ReactNode }) {
+function SocialBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   return (
-    <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+    <button type="button" onClick={onClick} className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
       {children}
     </button>
   )

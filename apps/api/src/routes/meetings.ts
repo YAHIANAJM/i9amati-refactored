@@ -1,6 +1,8 @@
 import { Router, Request } from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
+import { db } from '../db/db'
+import { sendConvocationEmail } from '../lib/mailer'
 import { randomUUID } from 'crypto'
 
 const router = Router()
@@ -316,7 +318,7 @@ router.patch('/:id/send-convocation', async (req: Request, res, next) => {
     const { tenantDb } = req as AuthRequest
     const m = await tenantDb
       .selectFrom('meetings')
-      .select(['id', 'status', 'convocation_sent_at'])
+      .select(['id', 'title', 'status', 'scheduled_at', 'location', 'convocation_sent_at'])
       .where('id', '=', req.params.id)
       .executeTakeFirst()
     if (!m) throw new AppError(404, 'Meeting not found')
@@ -329,9 +331,72 @@ router.patch('/:id/send-convocation', async (req: Request, res, next) => {
       .where('id', '=', req.params.id)
       .execute()
 
+    // Fire-and-forget email delivery — don't block the response
+    sendConvocationEmails(tenantDb, m).catch(err =>
+      console.error('[Convocation] Email delivery failed:', err)
+    )
+
     res.json({ convocationSentAt: sentAt.toISOString() })
   } catch (e) { next(e) }
 })
+
+async function sendConvocationEmails(
+  tenantDb: import('../middleware/auth').TenantDB,
+  meeting: { id: string; title: string; scheduled_at: unknown; location: string | null }
+) {
+  const [attendees, agendaItems] = await Promise.all([
+    tenantDb.selectFrom('meeting_attendees')
+      .select(['profile_id', 'name'])
+      .where('meeting_id', '=', meeting.id)
+      .where('profile_id', 'is not', null)
+      .execute(),
+    tenantDb.selectFrom('agenda_items')
+      .select(['title', 'description'])
+      .where('meeting_id', '=', meeting.id)
+      .orderBy('sort_order', 'asc')
+      .execute(),
+  ])
+
+  const profileIds = attendees.map(a => a.profile_id as string).filter(Boolean)
+  if (!profileIds.length) return
+
+  // Resolve profile_id → user email via public schema (two steps to avoid cross-schema join)
+  const profiles = await db
+    .selectFrom('public.profiles')
+    .select(['id', 'user_id'])
+    .where('id', 'in', profileIds)
+    .execute()
+
+  const userIds = profiles.map(p => p.user_id)
+  if (!userIds.length) return
+
+  const users = await db
+    .selectFrom('public.users')
+    .select(['id', 'email', 'name', 'first_name', 'last_name'])
+    .where('id', 'in', userIds)
+    .execute()
+
+  const userById = new Map(users.map(u => [u.id, u]))
+  const agenda   = agendaItems.map(ai => ({ title: ai.title, description: ai.description ?? undefined }))
+
+  await Promise.all(
+    profiles.map(p => {
+      const user = userById.get(p.user_id)
+      if (!user?.email) return
+      const attendee = attendees.find(a => a.profile_id === p.id)
+      return sendConvocationEmail({
+        to:            user.email,
+        recipientName: user.first_name
+          ? `${user.first_name} ${user.last_name ?? ''}`.trim()
+          : (attendee?.name ?? user.name),
+        meetingTitle:    meeting.title,
+        meetingDate:     new Date(meeting.scheduled_at as any),
+        meetingLocation: meeting.location,
+        agendaItems:     agenda,
+      }).catch(err => console.error('[Mailer] Failed for', user.email, err))
+    })
+  )
+}
 
 // ── POST /api/meetings/:id/agenda/:itemId/president ───────────────────────────
 

@@ -1,30 +1,26 @@
 import { useState } from 'react'
-import { Search, Bell, Settings2, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2 } from 'lucide-react'
+import { Search, Bell, Settings2, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 
-// ─── Static demo notifications ─────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 type NotifType = 'PAYMENT' | 'MEETING' | 'COMPLAINT' | 'DOCUMENT'
 
-type Notif = {
-  id: string
-  type: NotifType
-  title: string
-  body: string
-  time: string
-  read: boolean
+interface ApiNotif {
+  id:       string
+  type:     NotifType
+  title:    string
+  body:     string
+  time:     string
+  linkedAt: string
 }
 
-const DEMO_NOTIFS: Notif[] = [
-  { id: 'n1', type: 'PAYMENT',   title: 'Paiement en retard',        body: 'Ahmed Alaoui — Apt 1A n\'a pas payé la charge du mois de Juin.',             time: 'Il y a 2h',    read: false },
-  { id: 'n2', type: 'MEETING',   title: 'Réunion dans 48h',          body: 'L\'Assemblée Générale Ordinaire 2025 aura lieu dans 2 jours.',                 time: 'Il y a 5h',    read: false },
-  { id: 'n3', type: 'COMPLAINT', title: 'Nouvelle réclamation',       body: 'Fuite d\'eau signalée au couloir 3ème étage par Fatima Benali.',              time: 'Hier',         read: false },
-  { id: 'n4', type: 'PAYMENT',   title: 'Paiement reçu',             body: 'Khadija Tazi — Apt 2B a payé 850 MAD pour Juin.',                             time: 'Hier',         read: true  },
-  { id: 'n5', type: 'DOCUMENT',  title: 'Document mis à jour',       body: 'Le règlement de copropriété a été mis à jour. Consultez les documents.',       time: 'Il y a 3j',    read: true  },
-  { id: 'n6', type: 'MEETING',   title: 'Convocation envoyée',       body: 'La convocation de l\'AG du 15/07 a été envoyée à 8 membres.',                  time: 'Il y a 3j',    read: true  },
-]
+interface Notif extends ApiNotif {
+  read: boolean
+}
 
 const notifIcon: Record<NotifType, React.ReactNode> = {
   PAYMENT:   <CreditCard size={13} />,
@@ -42,12 +38,16 @@ const notifColor: Record<NotifType, string> = {
 
 // ─── NotificationPanel ─────────────────────────────────────────────────────────
 
-function NotificationPanel({ onClose }: { onClose: () => void }) {
-  const [notifs, setNotifs] = useState<Notif[]>(DEMO_NOTIFS)
-  const unread = notifs.filter(n => !n.read).length
+interface NotificationPanelProps {
+  notifs:       Notif[]
+  isLoading:    boolean
+  onMarkRead:   (id: string) => void
+  onMarkAllRead: () => void
+  onClose:      () => void
+}
 
-  const markAllRead = () => setNotifs(ns => ns.map(n => ({ ...n, read: true })))
-  const markRead    = (id: string) => setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n))
+function NotificationPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClose }: NotificationPanelProps) {
+  const unread = notifs.filter(n => !n.read).length
 
   return (
     <>
@@ -77,7 +77,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex items-center gap-1">
             {unread > 0 && (
-              <button className="text-[11px] text-primary hover:underline font-medium px-1" onClick={markAllRead}>
+              <button className="text-[11px] text-primary hover:underline font-medium px-1" onClick={onMarkAllRead}>
                 Tout lire
               </button>
             )}
@@ -89,7 +89,13 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 
         {/* List */}
         <div className="overflow-y-auto flex-1">
-          {notifs.length === 0 && (
+          {isLoading && (
+            <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-sm">Chargement…</span>
+            </div>
+          )}
+          {!isLoading && notifs.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
               <CheckCircle2 size={24} className="mb-2 opacity-40" />
               <p className="text-sm">Aucune notification</p>
@@ -98,7 +104,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
           {notifs.map(n => (
             <button
               key={n.id}
-              onClick={() => markRead(n.id)}
+              onClick={() => onMarkRead(n.id)}
               className={`w-full flex items-start gap-3 px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-muted/50 ${!n.read ? 'bg-primary/[0.03]' : ''}`}
             >
               <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${notifColor[n.type]}`}>
@@ -123,16 +129,33 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 // ─── TopBar ────────────────────────────────────────────────────────────────────
 
 interface TopBarProps {
-  title: React.ReactNode
-  subtitle?: React.ReactNode
-  actions?: React.ReactNode
+  title:      React.ReactNode
+  subtitle?:  React.ReactNode
+  actions?:   React.ReactNode
   hideSearch?: boolean
 }
 
 export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
-  const navigate        = useNavigate()
+  const navigate   = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
-  const unreadCount     = DEMO_NOTIFS.filter(n => !n.read).length
+  const [readIds,   setReadIds]   = useState<Set<string>>(new Set())
+
+  const { data: rawNotifs = [], isLoading } = useQuery<ApiNotif[]>({
+    queryKey: ['notifications'],
+    queryFn:  async () => {
+      const res = await fetch('/api/notifications', { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch notifications')
+      return res.json()
+    },
+    refetchInterval: 60_000,
+    staleTime:       30_000,
+  })
+
+  const notifs     = rawNotifs.map(n => ({ ...n, read: readIds.has(n.id) }))
+  const unreadCount = notifs.filter(n => !n.read).length
+
+  const markRead    = (id: string) => setReadIds(prev => new Set([...prev, id]))
+  const markAllRead = ()           => setReadIds(new Set(rawNotifs.map(n => n.id)))
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
@@ -163,7 +186,15 @@ export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
             )}
           </Button>
           <AnimatePresence>
-            {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
+            {notifOpen && (
+              <NotificationPanel
+                notifs={notifs}
+                isLoading={isLoading}
+                onMarkRead={markRead}
+                onMarkAllRead={markAllRead}
+                onClose={() => setNotifOpen(false)}
+              />
+            )}
           </AnimatePresence>
         </div>
 

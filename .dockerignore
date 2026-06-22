@@ -4,6 +4,7 @@ npm-debug.log
 dist
 .env
 .env.local
+apps/api/.env.production
 .git
 .gitignore
 .vercel
