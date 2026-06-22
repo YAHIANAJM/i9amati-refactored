@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { toNodeHandler } from 'better-auth/node'
 import { auth } from './auth'
+import setupRouter from './routes/setup'
 import residencesRouter from './routes/residences'
 import apartmentsRouter from './routes/apartments'
 import meetingsRouter from './routes/meetings'
@@ -30,6 +31,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }))
 
 app.all('/api/auth/*', toNodeHandler(auth))
 
+app.use('/api/setup',         setupRouter)
 app.use('/api/residences',    residencesRouter)
 app.use('/api/apartments',   apartmentsRouter)
 app.use('/api/meetings',     meetingsRouter)
