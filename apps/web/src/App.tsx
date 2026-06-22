@@ -4,6 +4,8 @@ import { SyndicLayout }   from '@/components/layout/SyndicLayout'
 import { authClient }     from '@/lib/auth-client'
 
 import { Home }           from '@/pages/Home'
+import { Privacy }        from '@/pages/Privacy'
+import { DataDeletion }   from '@/pages/DataDeletion'
 import { AuthLayout }     from '@/pages/auth/AuthLayout'
 import { Login }          from '@/pages/auth/Login'
 import { Register }       from '@/pages/auth/Register'
@@ -57,6 +59,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/privacy"       element={<Privacy />} />
+      <Route path="/data-deletion" element={<DataDeletion />} />
       <Route path="/auth" element={<AuthLayout />}>
         <Route path="login"    element={<Login />} />
         <Route path="register" element={<Register />} />
