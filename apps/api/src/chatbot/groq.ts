@@ -24,8 +24,11 @@ function getModel(): ChatGroq {
     model = new ChatGroq({
       modelName: 'llama-3.3-70b-versatile',
       temperature: 0.3,
-      maxTokens: 1024,
+      maxTokens: 512,
       apiKey: process.env.GROQ_API_KEY,
+      // node-fetch + gzip causes ERR_STREAM_PREMATURE_CLOSE on some VPS networks.
+      // Disabling compression fixes it at the cost of slightly more bandwidth.
+      defaultHeaders: { 'Accept-Encoding': 'identity' },
     })
   }
   return model
