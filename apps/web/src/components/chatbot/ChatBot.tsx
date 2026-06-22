@@ -134,12 +134,9 @@ export function ChatBot() {
               <motion.span
                 animate={{ y: [0, -9, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="flex items-center justify-center w-24 h-24 rounded-full bg-white"
-                style={{
-                  boxShadow: '0 16px 48px rgba(0,0,0,0.30), 0 6px 16px rgba(0,0,0,0.16), inset 0 1px 2px rgba(255,255,255,0.9)',
-                }}
+                className="flex items-center justify-center w-20 h-20"
               >
-                <img src="/chatbot.png" alt="IQAMATI Chat" className="w-16 h-16 object-contain" />
+                <img src="/chatbot.png" alt="IQAMATI Chat" className="w-20 h-20 object-contain drop-shadow-2xl" />
               </motion.span>
             </motion.button>
           </motion.div>
