@@ -6,7 +6,7 @@ import { ChatMessage, type Message } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { TypingIndicator } from './TypingIndicator'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 // How long the circle is visible before sliding away (ms)
 const HIDE_DELAY = 8000
