@@ -6,7 +6,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
 
 async function socialSignIn(provider: 'google' | 'facebook') {
-  await authClient.signIn.social({ provider, callbackURL: '/syndic' })
+  await authClient.signIn.social({ provider, callbackURL: `${window.location.origin}/syndic` })
 }
 
 const TEAL = '#2B8C80'
