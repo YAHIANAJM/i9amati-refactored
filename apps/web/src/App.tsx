@@ -25,7 +25,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!session) return <Navigate to="/auth/login" replace />
 
   // New user — has account but no org yet (social login or fresh email signup)
-  if (!session.session.activeOrganizationId) return <Navigate to="/auth/setup" replace />
+  // activeOrganizationId is an additional session field not in Better Auth's strict type
+  const activeOrgId = (session.session as any).activeOrganizationId
+  if (!activeOrgId) return <Navigate to="/auth/setup" replace />
 
   return <>{children}</>
 }
