@@ -1,9 +1,10 @@
 import { Search, Bell, Settings2, ChevronDown } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Link } from 'react-router-dom'
 
 export function Header() {
   return (
-    <header className="flex items-center justify-between px-5 py-3 shrink-0 bg-white rounded-xl shadow-sm border border-border/40">
+    <header className="flex items-center justify-between px-5 py-3 shrink-0 bg-white rounded-b-xl shadow-sm border border-border/40 mx-36">
       {/* Left - brand */}
       <div className="flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
@@ -24,6 +25,23 @@ export function Header() {
         />
         <kbd className="absolute right-3 text-[10px] text-foreground/40 hidden lg:block">⌘K</kbd>
       </div>
+
+      {/* Nav links */}
+      <nav className="hidden md:flex items-center gap-1 mr-3">
+        {[
+          { label: 'Home',     to: '/'          },
+          { label: 'About',    to: '/#about'    },
+          { label: 'Services', to: '/#services' },
+        ].map(({ label, to }) => (
+          <Link
+            key={label}
+            to={to}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
 
       {/* Right - actions + user */}
       <div className="flex items-center gap-2">

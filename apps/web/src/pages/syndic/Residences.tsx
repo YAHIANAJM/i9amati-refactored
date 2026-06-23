@@ -7,6 +7,7 @@ import { mockResidences } from '@/data/mock/residences'
 import { mockBuildings } from '@/data/mock/buildings'
 import { mockApartments } from '@/data/mock/apartments'
 import { Link } from 'react-router-dom'
+import { AddResidenceModal } from '@/components/residences/AddResidenceModal'
 
 const statusConfig = {
   ACTIVE:      { label: 'Actif',      variant: 'success'   as const },
@@ -24,9 +25,11 @@ export function Residences() {
         title="Résidences & Immeubles"
         subtitle="Gérez vos immeubles et copropriétés"
         actions={
-          <Button size="sm" className="gap-1.5">
-            <Plus size={14} /> Nouvelle résidence
-          </Button>
+          <AddResidenceModal>
+            <Button size="sm" className="gap-1.5">
+              <Plus size={14} /> Nouvelle résidence
+            </Button>
+          </AddResidenceModal>
         }
       />
 
@@ -114,12 +117,14 @@ export function Residences() {
           })}
 
           {/* Add new */}
-          <button className="flex flex-col items-center justify-center min-h-[300px] rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 mb-3 transition-colors">
-              <Plus size={20} className="text-muted-foreground group-hover:text-primary" />
-            </div>
-            <p className="text-sm font-medium text-muted-foreground group-hover:text-primary">Ajouter</p>
-          </button>
+          <AddResidenceModal>
+            <button className="flex flex-col items-center justify-center min-h-[300px] rounded-xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors group w-full">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 mb-3 transition-colors">
+                <Plus size={20} className="text-muted-foreground group-hover:text-primary" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground group-hover:text-primary">Ajouter</p>
+            </button>
+          </AddResidenceModal>
         </div>
       </div>
     </div>

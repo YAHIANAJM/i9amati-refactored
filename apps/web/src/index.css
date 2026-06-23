@@ -4,29 +4,53 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    /* ── Brand palette ────────────────────────────────────────────────────────
+       TEAL  #2B8C80  → hsl(173 53% 36%)   primary brand (Home / Login / dashboard)
+       RUST  #B84A2A  → hsl(14  63% 44%)   "IQAMATI" wordmark accent
+       NAVY  #0e1822  → hsl(216 52%  9%)   Home page dark background / sidebar base
+    ──────────────────────────────────────────────────────────────────────── */
+
+    --background:          0   0%  100%;
+    --foreground:        222  47%  11%;
+
+    --card:                0   0%  100%;
+    --card-foreground:   222  47%  11%;
+
+    --border:            173  20%  88%;
+    --input:             173  20%  88%;
+    --ring:              173  53%  36%;
+
+    /* primary = brand teal */
+    --primary:           173  53%  36%;
+    --primary-foreground:  0   0%  100%;
+
+    /* secondary = soft teal tint */
+    --secondary:         173  30%  94%;
+    --secondary-foreground: 173 53% 28%;
+
+    --muted:             173  15%  95%;
+    --muted-foreground:  173  10%  48%;
+
+    --accent:            173  30%  94%;
+    --accent-foreground: 173  53%  28%;
+
+    --destructive:         0  84%  60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* brand rust — for IQAMATI wordmark / terracotta highlights */
+    --brand-rust:         14  63%  44%;
+
+    /* brand navy — home background / sidebar */
+    --brand-navy:        216  52%   9%;
+
     --radius: 0.5rem;
-    --sidebar: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
+
+    /* sidebar inherits navy */
+    --sidebar:           216  52%   9%;
+    --sidebar-foreground:  0   0%  100%;
+    --sidebar-border:    216  40%  14%;
+    --sidebar-accent:    216  40%  14%;
+    --sidebar-accent-foreground: 0 0% 100%;
   }
 
   * {
@@ -38,10 +62,7 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
-  ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar        { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { @apply bg-border rounded-full; }
 }

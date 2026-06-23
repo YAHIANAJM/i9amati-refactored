@@ -42,6 +42,12 @@ export default {
           accent: 'hsl(var(--sidebar-accent))',
           'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
         },
+        // ── Named brand tokens (use as text-brand-rust, bg-brand-navy, etc.)
+        brand: {
+          teal:  'hsl(var(--primary))',
+          rust:  'hsl(var(--brand-rust))',
+          navy:  'hsl(var(--brand-navy))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

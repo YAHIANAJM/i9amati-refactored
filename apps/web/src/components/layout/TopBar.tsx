@@ -1,4 +1,4 @@
-import { Search, Bell, Settings2 } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface TopBarProps {
@@ -10,9 +10,9 @@ interface TopBarProps {
 
 export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
+    <div className="flex items-center justify-between px-6 py-4 border-b-2 border-white/30 bg-white/10 backdrop-blur-md sticky top-0 z-10">
       <div>
-        <h1 className="text-base font-semibold text-foreground leading-tight">{title}</h1>
+        <h1 className="inline-flex items-center text-sm font-semibold text-foreground leading-tight bg-white px-3 py-1 rounded-full border border-border/40 shadow-sm">{title}</h1>
         {subtitle && <div className="mt-1">{subtitle}</div>}
       </div>
 
@@ -27,15 +27,6 @@ export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
             <kbd className="absolute right-2 text-[10px] text-muted-foreground hidden lg:block">⌘K</kbd>
           </div>
         )}
-
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
-        </Button>
-
-        <Button variant="ghost" size="icon">
-          <Settings2 size={16} />
-        </Button>
 
         {actions}
       </div>
