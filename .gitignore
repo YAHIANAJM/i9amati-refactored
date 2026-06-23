@@ -51,3 +51,5 @@ web-build/
 .agents/
 .gemini/
 skills-lock.json
+.vercel
+.env*

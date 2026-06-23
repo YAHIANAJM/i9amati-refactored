@@ -66,3 +66,23 @@
   ::-webkit-scrollbar-track  { background: transparent; }
   ::-webkit-scrollbar-thumb  { @apply bg-border rounded-full; }
 }
+
+@media print {
+  /* Hide everything, then reveal only the PV print area */
+  * { visibility: hidden !important; }
+  .pv-print-area,
+  .pv-print-area * { visibility: visible !important; }
+  .pv-print-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    padding: 32px;
+    box-sizing: border-box;
+  }
+  /* Suppress browser chrome (URL bar etc.) */
+  @page { margin: 16mm; }
+  /* Explicit hide for action buttons inside the print area */
+  .pv-no-print { display: none !important; }
+}

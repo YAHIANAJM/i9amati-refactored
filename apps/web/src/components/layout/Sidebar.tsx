@@ -236,7 +236,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           </NavLink>
 
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/auth/login')}
             title={!open ? 'Logout' : undefined}
             className={cn(
               'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors',

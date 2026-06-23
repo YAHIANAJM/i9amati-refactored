@@ -5,6 +5,10 @@ import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
 
+async function socialSignIn(provider: 'google' | 'facebook') {
+  await authClient.signIn.social({ provider, callbackURL: `${window.location.origin}/syndic` })
+}
+
 const TEAL = '#2B8C80'
 
 export function Register() {
@@ -30,7 +34,7 @@ export function Register() {
         name: `${form.firstName} ${form.lastName}`,
       })
       if (error) setError(error.message || "Échec de l'inscription")
-      else navigate('/syndic')
+      else navigate('/auth/setup', { replace: true })
     } catch (err: any) {
       setError(err.message || 'Une erreur inattendue est survenue')
     } finally {
@@ -132,9 +136,8 @@ export function Register() {
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           <div className="flex justify-center gap-3">
-            <SocialBtn><GoogleIcon /></SocialBtn>
-            <SocialBtn><FacebookIcon /></SocialBtn>
-            <SocialBtn><AppleIcon /></SocialBtn>
+            <SocialBtn onClick={() => socialSignIn('google')}><GoogleIcon /></SocialBtn>
+            <SocialBtn onClick={() => socialSignIn('facebook')}><FacebookIcon /></SocialBtn>
           </div>
           <p className="mt-5 text-center text-xs text-gray-400">
             Déjà un compte ?{' '}
@@ -147,9 +150,9 @@ export function Register() {
   )
 }
 
-function SocialBtn({ children }: { children: React.ReactNode }) {
+function SocialBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   return (
-    <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+    <button type="button" onClick={onClick} className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
       {children}
     </button>
   )
@@ -174,10 +177,3 @@ function FacebookIcon() {
   )
 }
 
-function AppleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="#000">
-      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
-    </svg>
-  )
-}

@@ -7,8 +7,6 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',') ?? [],
 
-  // Pass the Kysely instance directly — Better Auth uses it with its built-in
-  // Kysely adapter, which handles migrations via the BA CLI.
   database: {
     db,
     type: 'postgres',
@@ -33,6 +31,47 @@ export const auth = betterAuth({
       activeOrganizationId: { type: 'string', required: false },
       profileId:            { type: 'string', required: false },
     },
+  },
+
+  // Auto-populate activeOrganizationId + profileId on every new session so
+  // the tenant middleware works immediately after login without a second round-trip.
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const profile = await db
+            .selectFrom('public.profiles')
+            .select(['id', 'organization_id'])
+            .where('user_id', '=', session.userId)
+            .executeTakeFirst()
+
+          if (!profile) return
+
+          return {
+            data: {
+              ...session,
+              activeOrganizationId: profile.organization_id,
+              profileId:            profile.id,
+            },
+          }
+        },
+      },
+    },
+  },
+
+  socialProviders: {
+    ...(process.env.GOOGLE_CLIENT_ID ? {
+      google: {
+        clientId:     process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      },
+    } : {}),
+    ...(process.env.FACEBOOK_APP_ID ? {
+      facebook: {
+        clientId:     process.env.FACEBOOK_APP_ID,
+        clientSecret: process.env.FACEBOOK_APP_SECRET!,
+      },
+    } : {}),
   },
 
   plugins: [

@@ -1,15 +1,35 @@
 import type React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SyndicLayout }   from '@/components/layout/SyndicLayout'
+import { authClient }     from '@/lib/auth-client'
 import { Toaster }        from '@/components/toast'
 
 import { Home }           from '@/pages/Home'
+import { Privacy }        from '@/pages/Privacy'
+import { DataDeletion }   from '@/pages/DataDeletion'
 import { AuthLayout }     from '@/pages/auth/AuthLayout'
 import { Login }          from '@/pages/auth/Login'
 import { Register }       from '@/pages/auth/Register'
+import { Setup }          from '@/pages/auth/Setup'
 
-// TODO: re-enable when backend + DB are ready
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = authClient.useSession()
+
+  if (isPending) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#d8dce3]">
+        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (!session) return <Navigate to="/auth/login" replace />
+
+  // New user — has account but no org yet (social login or fresh email signup)
+  // activeOrganizationId is an additional session field not in Better Auth's strict type
+  const activeOrgId = (session.session as any).activeOrganizationId
+  if (!activeOrgId) return <Navigate to="/auth/setup" replace />
+
   return <>{children}</>
 }
 
@@ -44,9 +64,12 @@ export default function App() {
     <Toaster />
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/privacy"       element={<Privacy />} />
+      <Route path="/data-deletion" element={<DataDeletion />} />
       <Route path="/auth" element={<AuthLayout />}>
         <Route path="login"    element={<Login />} />
         <Route path="register" element={<Register />} />
+        <Route path="setup"    element={<Setup />} />
       </Route>
       <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
 

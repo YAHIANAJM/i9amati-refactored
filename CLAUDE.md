@@ -165,3 +165,4 @@ Web — `.env` in `apps/web/`:
 ```
 VITE_API_URL=   # API base URL (default: http://localhost:4000)
 ```
+
