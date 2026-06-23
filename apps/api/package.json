@@ -13,6 +13,7 @@
     "db:migrate:tenant:prod": "node dist/src/db/migrate.mjs tenant"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.0",
     "@i9amati/shared": "*",
     "@langchain/core": "^0.3.0",
     "@langchain/groq": "^0.1.0",

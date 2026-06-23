@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely'
 import { auth } from '../auth'
 import { db } from '../db/db'
 import type { Database } from '../db/types'
-import { PlatformRole } from '@i9amati/shared'
+import { PlatformRole, ProfileRole } from '@i9amati/shared'
 
 // TenantDB is a Kysely instance scoped to the org's schema via withSchema().
 // All unqualified table names (residences, apartments, …) will resolve to
@@ -14,6 +14,7 @@ export type TenantDB = Kysely<Database>
 export interface AuthRequest extends Request {
   userId: string
   platformRole: PlatformRole
+  profileRole: ProfileRole
   profileId: string
   activeOrganizationId: string
   orgSlug: string
@@ -39,7 +40,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     if (!profileId || !activeOrganizationId) {
       const profile = await db
         .selectFrom('public.profiles')
-        .select(['id', 'organization_id'])
+        .select(['id', 'organization_id', 'role'])
         .where('user_id', '=', session.user.id)
         .executeTakeFirst()
 
@@ -68,11 +69,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ error: 'No active organization in session' })
     }
 
-    const org = await db
-      .selectFrom('public.organizations')
-      .select('slug')
-      .where('id', '=', activeOrganizationId)
-      .executeTakeFirst()
+    const [org, profileRow] = await Promise.all([
+      db.selectFrom('public.organizations').select('slug').where('id', '=', activeOrganizationId).executeTakeFirst(),
+      db.selectFrom('public.profiles').select('role').where('id', '=', profileId).executeTakeFirst(),
+    ])
 
     if (!org) {
       return res.status(401).json({ error: 'Organization not found' })
@@ -82,6 +82,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     authReq.user                 = session.user
     authReq.userId               = session.user.id
     authReq.platformRole         = (session.user.platformRole as PlatformRole) ?? PlatformRole.USER
+    authReq.profileRole          = (profileRow?.role as ProfileRole) ?? ProfileRole.OWNER
     authReq.profileId            = profileId
     authReq.activeOrganizationId = activeOrganizationId
     authReq.orgSlug              = org.slug
