@@ -14,7 +14,7 @@ export function SyndicLayout() {
 
   return (
     <SidebarCtx.Provider value={{ open, setOpen }}>
-      <div className="flex flex-col h-screen overflow-hidden bg-[#d8dce3] p-4 gap-3">
+      <div className="flex flex-col h-screen overflow-hidden bg-[#d8dce3] pt-0 px-4 pb-4 gap-3">
 
         {/* Full-width header */}
         <Header />
