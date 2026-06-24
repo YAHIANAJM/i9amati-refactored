@@ -101,7 +101,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
 
   return (
     <aside className={cn(
-      'flex flex-col bg-white/10 backdrop-blur-md rounded-xl border-[3px] border-white transition-all duration-300 ease-in-out shrink-0 overflow-hidden',
+      'flex flex-col bg-white rounded-xl shadow-sm border border-border/50 transition-all duration-300 ease-in-out shrink-0 overflow-hidden',
       open ? 'w-[220px]' : 'w-[60px]'
     )}>
 
@@ -170,13 +170,13 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
               >
                 {open ? (
                   <>
-                    <span className="text-[11px] font-extrabold tracking-widest text-white uppercase">
+                    <span className="text-[11px] font-extrabold tracking-widest text-foreground/75 uppercase">
                       {section.label}
                     </span>
                     <ChevronDown
                       size={12}
                       className={cn(
-                        'text-white/60 transition-transform duration-200',
+                        'text-muted-foreground/50 transition-transform duration-200',
                         expanded[section.key] && 'rotate-180'
                       )}
                     />
@@ -198,8 +198,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                       'flex items-center gap-2.5 rounded-lg transition-colors',
                       open ? 'px-2.5 py-1.5' : 'justify-center p-2.5',
                       isActive
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-white/80 text-foreground hover:bg-white hover:text-primary border border-white/60'
+                        ? 'bg-primary text-white'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
                     <item.icon size={15} className="shrink-0" />

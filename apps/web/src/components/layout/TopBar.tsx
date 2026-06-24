@@ -158,9 +158,9 @@ export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
   const markAllRead = ()           => setReadIds(new Set(rawNotifs.map(n => n.id)))
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b-2 border-white/30 bg-white/10 backdrop-blur-md sticky top-0 z-10">
+    <div className="flex items-center justify-between px-6 py-4 border-b bg-background/95 backdrop-blur sticky top-0 z-10">
       <div>
-        <h1 className="inline-flex items-center text-sm font-semibold text-foreground leading-tight bg-white px-3 py-1 rounded-full border border-border/40 shadow-sm">{title}</h1>
+        <h1 className="text-base font-semibold text-foreground leading-tight">{title}</h1>
         {subtitle && <div className="mt-1">{subtitle}</div>}
       </div>
 

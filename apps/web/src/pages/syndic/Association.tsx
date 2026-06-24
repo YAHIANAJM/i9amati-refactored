@@ -85,9 +85,9 @@ const aptStatus = {
 
 function StatItem({ value, label, color }: { value: number; label: string; color: string }) {
   return (
-    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm">
-      <span className={`text-base font-extrabold tabular-nums leading-none ${color}`}>{value}</span>
-      <span className="text-[11px] font-medium text-white/70 leading-none">{label}</span>
+    <span className="flex items-baseline gap-1">
+      <span className={`text-sm font-bold tabular-nums leading-none ${color}`}>{value}</span>
+      <span className="text-xs text-muted-foreground leading-none">{label}</span>
     </span>
   )
 }
@@ -444,12 +444,12 @@ function ResidenceModal({
                     </div>
                     <div className="flex gap-1 flex-wrap justify-end">
                       {(residence.facilities ?? []).slice(0, 3).map(f => (
-                        <span key={f} className="text-[9px] font-semibold bg-white/15 backdrop-blur-sm text-white px-2 py-0.5 rounded-full border border-white/20">
+                        <span key={f} className="text-[9px] font-semibold bg-black/30 text-white px-2 py-0.5 rounded-full">
                           {f}
                         </span>
                       ))}
                       {(residence.facilities ?? []).length > 3 && (
-                        <span className="text-[9px] font-semibold bg-white/15 backdrop-blur-sm text-white px-2 py-0.5 rounded-full border border-white/20">
+                        <span className="text-[9px] font-semibold bg-black/30 text-white px-2 py-0.5 rounded-full">
                           +{(residence.facilities ?? []).length - 3}
                         </span>
                       )}
@@ -1148,29 +1148,19 @@ export function Association() {
 
   /* ── breadcrumb ── */
   const Breadcrumb = () => (
-    <div className="flex items-center gap-1.5 text-xs">
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
       <button
         onClick={() => { setView('residences'); setSelectedResidence(null); setSelectedBuilding(null) }}
-        className={cn(
-          'px-2.5 py-1 rounded-full border bg-white shadow-sm font-medium transition-colors',
-          view === 'residences'
-            ? 'text-foreground border-border/40 pointer-events-none'
-            : 'text-muted-foreground border-border/30 hover:text-primary hover:border-primary/30'
-        )}
+        className={cn('hover:text-primary transition-colors', view === 'residences' && 'text-foreground font-medium pointer-events-none')}
       >
         Owners' Association
       </button>
       {selectedResidence && (
         <>
-          <ChevronRight size={10} className="text-white/40 shrink-0" />
+          <ChevronRight size={12} />
           <button
             onClick={() => { setView('buildings'); setSelectedBuilding(null) }}
-            className={cn(
-              'px-2.5 py-1 rounded-full border bg-white shadow-sm font-medium transition-colors',
-              view === 'buildings'
-                ? 'text-foreground border-border/40 pointer-events-none'
-                : 'text-muted-foreground border-border/30 hover:text-primary hover:border-primary/30'
-            )}
+            className={cn('hover:text-primary transition-colors', view === 'buildings' && 'text-foreground font-medium pointer-events-none')}
           >
             {selectedResidence.name}
           </button>
@@ -1178,10 +1168,8 @@ export function Association() {
       )}
       {selectedBuilding && (
         <>
-          <ChevronRight size={10} className="text-white/40 shrink-0" />
-          <span className="px-2.5 py-1 rounded-full border border-border/40 bg-white shadow-sm font-medium text-foreground">
-            {selectedBuilding.name}
-          </span>
+          <ChevronRight size={12} />
+          <span className="text-foreground font-medium">{selectedBuilding.name}</span>
         </>
       )}
     </div>
@@ -1191,23 +1179,30 @@ export function Association() {
   const totalUnits = mockApartments.length
   const totalOccupied = mockApartments.filter(a => a.status === 'OCCUPIED').length
 
+  const dot = <span className="text-muted-foreground/30 text-xs mx-0.5">·</span>
+
   const HeaderSubtitle = () => {
     if (view === 'residences') return (
-      <div className="flex items-center flex-row gap-2 mt-1">
-        <StatItem value={mockResidences.length} label="Residences" color="text-sky-300" />
-        <StatItem value={totalUnits} label="Units" color="text-violet-300" />
-        <StatItem value={totalOccupied} label="Occupied" color="text-emerald-300" />
-        <StatItem value={totalUnits - totalOccupied} label="Vacant" color="text-white/50" />
+      <div className="flex items-center flex-row gap-1 mt-0.5">
+        <StatItem value={mockResidences.length} label="Residences" color="text-blue-600" />
+        {dot}
+        <StatItem value={totalUnits} label="Units" color="text-violet-600" />
+        {dot}
+        <StatItem value={totalOccupied} label="Occupied" color="text-emerald-600" />
+        {dot}
+        <StatItem value={totalUnits - totalOccupied} label="Vacant" color="text-slate-400" />
       </div>
     )
     if (view === 'buildings' && selectedResidence) {
       const bCount = mockBuildings.filter(b => b.residenceId === selectedResidence.id).length
       const aCount = mockApartments.filter(a => a.residenceId === selectedResidence.id).length
       return (
-        <div className="flex items-center flex-row gap-2 mt-1">
-          <StatItem value={bCount} label={bCount === 1 ? 'Building' : 'Buildings'} color="text-sky-300" />
-          <StatItem value={aCount} label="Units" color="text-violet-300" />
-          <span className="px-2.5 py-1 rounded-full border border-white/20 bg-white text-xs font-medium text-foreground shadow-sm">{selectedResidence.name}</span>
+        <div className="flex items-center flex-row gap-1 mt-0.5">
+          <StatItem value={bCount} label={bCount === 1 ? 'Building' : 'Buildings'} color="text-blue-600" />
+          {dot}
+          <StatItem value={aCount} label="Units" color="text-violet-600" />
+          {dot}
+          <span className="text-xs text-muted-foreground">{selectedResidence.name}</span>
         </div>
       )
     }
@@ -1215,10 +1210,12 @@ export function Association() {
       const apts = getApartmentsByBuilding(selectedBuilding.id)
       const occ = apts.filter(a => a.status === 'OCCUPIED').length
       return (
-        <div className="flex items-center flex-row gap-2 mt-1">
-          <StatItem value={apts.length} label="Apartments" color="text-violet-300" />
-          <StatItem value={occ} label="Occupied" color="text-emerald-300" />
-          <span className="px-2.5 py-1 rounded-full border border-white/20 bg-white text-xs font-medium text-foreground shadow-sm">{selectedBuilding.name}</span>
+        <div className="flex items-center flex-row gap-1 mt-0.5">
+          <StatItem value={apts.length} label="Apartments" color="text-violet-600" />
+          {dot}
+          <StatItem value={occ} label="Occupied" color="text-emerald-600" />
+          {dot}
+          <span className="text-xs text-muted-foreground">{selectedBuilding.name}</span>
         </div>
       )
     }
@@ -1261,7 +1258,7 @@ export function Association() {
         {view !== 'residences' && (
           <div className="flex items-center justify-between">
             <Breadcrumb />
-            <button onClick={goBack} className="px-2.5 py-1 rounded-full border border-border/40 bg-white shadow-sm text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors">
+            <button onClick={goBack} className="text-xs text-muted-foreground hover:text-primary transition-colors">
               ← Retour
             </button>
           </div>
