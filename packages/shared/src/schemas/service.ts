@@ -77,5 +77,5 @@ export const AttachFileSchema = z.object({
     invalid_type_error: 'validation.fileKey.required',
   }).min(1, { message: 'validation.fileKey.required' }).max(500, { message: 'validation.fileKey.tooLong' }),
   size: z.number({ invalid_type_error: 'validation.fileSize.invalid' })
-    .int().min(0, { message: 'validation.fileSize.invalid' }).optional(),
+    .int({ message: 'validation.fileSize.invalid' }).min(0, { message: 'validation.fileSize.invalid' }).optional(),
 })
