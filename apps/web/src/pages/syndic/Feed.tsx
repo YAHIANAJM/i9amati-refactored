@@ -116,7 +116,7 @@ function GroupMembersModal({
   const qc = useQueryClient()
   const [showPicker, setShowPicker] = useState(false)
 
-  const { data: members = [], isLoading: loadingMembers } = useQuery({
+  const { data: members = [], isLoading: loadingMembers, isError: membersError } = useQuery({
     queryKey: ['feed-group-members', group.id],
     queryFn: () => feedApi.getGroupMembers(group.id),
   })
@@ -166,6 +166,8 @@ function GroupMembersModal({
             <div className="flex items-center gap-2 text-xs text-muted-foreground p-4">
               <Loader2 size={12} className="animate-spin" /> Loading…
             </div>
+          ) : membersError ? (
+            <p className="text-sm text-red-500 text-center py-6">Failed to load members.</p>
           ) : members.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No members yet.</p>
           ) : (

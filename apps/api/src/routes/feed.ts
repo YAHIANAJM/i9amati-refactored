@@ -178,8 +178,26 @@ router.post('/groups', async (req: Request, res, next) => {
       })
       .execute()
 
-    // SYNDIC is always a member — create their membership row immediately
-    await ensureSyndicMembership(tenantDb, profileId, id)
+    // All SYNDIC profiles are always ADMIN members of every group — auto-add them on creation.
+    const { activeOrganizationId } = req as AuthRequest
+    const syndicProfiles = await db
+      .selectFrom('public.profiles')
+      .select('id')
+      .where('organization_id', '=', activeOrganizationId)
+      .where('role', '=', ProfileRole.SYNDIC)
+      .execute()
+
+    if (syndicProfiles.length > 0) {
+      await tenantDb
+        .insertInto('_profile_groups')
+        .values(syndicProfiles.map(p => ({
+          id:         crypto.randomUUID(),
+          group_id:   id,
+          profile_id: p.id,
+          role:       'ADMIN' as const,
+        })))
+        .execute()
+    }
 
     res.status(201).json({ id, slug })
   } catch (err) { next(err) }
@@ -272,6 +290,13 @@ router.get('/groups/:groupId/members', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
     const { groupId } = req.params
+
+    // SYNDIC must always be a member — ensure their row exists before we read members.
+    // This guards against the case where the page was served from cache and the
+    // bulk-ensure in GET /groups never ran in the current session.
+    if (profileRole === ProfileRole.SYNDIC) {
+      await ensureSyndicMembership(tenantDb, profileId, groupId)
+    }
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
