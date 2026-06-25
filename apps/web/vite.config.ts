@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },
     },
+    optimizeDeps: {
+      include: ['@i9amati/shared'],
+    },
     server: {
       host: true,
       port: 5173,

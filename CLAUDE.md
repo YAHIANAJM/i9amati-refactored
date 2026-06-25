@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 npm workspaces monorepo orchestrated by Turbo:
 
-- `apps/api` — Express + Prisma + PostgreSQL REST API (port 4000)
+- `apps/api` — Express + Kysely + PostgreSQL REST API (port 4000)
 - `apps/web` — React + Vite SPA (port 5173)
 - `apps/mobile` — Expo / React Native
 - `packages/shared` — TypeScript types and role enums shared across all apps (imported as `@i9amati/shared`)
@@ -36,60 +36,55 @@ Type checking:
 npm --workspace apps/web run typecheck   # tsc --noEmit
 ```
 
-API database commands (from repo root or `apps/api`):
+API database commands (from repo root):
 ```bash
-npm --workspace apps/api run db:generate   # prisma generate
-npm --workspace apps/api run db:migrate    # prisma migrate dev
-npm --workspace apps/api run db:push       # prisma db push (no migration file)
-npm --workspace apps/api run db:studio     # Prisma Studio UI
-npm --workspace apps/api run db:seed       # run apps/api/src/prisma/seed.ts
+npm --workspace apps/api run db:migrate:public          # migrate public schema
+npm --workspace apps/api run db:migrate:tenant <slug>   # migrate one org's tenant schema
+npm --workspace apps/api run db:migrate:all-tenants     # migrate every tenant schema
+npm --workspace apps/api run db:seed                    # run seed.ts
 ```
 
 Local PostgreSQL (Docker): `docker compose up -d postgres` — credentials: user/password, db: i9amati, port 5432.
+
+## Database Architecture (Kysely + Schema-per-Tenant)
+
+The API uses **Kysely** (not Prisma) with a raw `pg` connection pool. There is no ORM — all queries are typed via Kysely's query builder.
+
+**Two-schema multi-tenancy**: every organization gets its own PostgreSQL schema named after the org's slug:
+- `public` schema — Better Auth tables + org layer (`users`, `session`, `account`, `organizations`, `profiles`, `invitations`, …). Always queried with the `"public."` prefix.
+- `<orgSlug>` schema — all domain tables (`residences`, `buildings`, `apartments`, `payments`, `meetings`, …). Queried via `db.withSchema(orgSlug)`, which is pre-scoped in `tenantDb` on every `AuthRequest`.
+
+The single shared `db` instance lives in `apps/api/src/db/db.ts`. The `Database` interface with all table types is in `apps/api/src/db/types.ts`.
+
+Migration files live in `apps/api/migrations/public/` and `apps/api/migrations/tenant/`. Adding a new domain table means writing a migration in `migrations/tenant/`.
 
 ## API Architecture
 
 `apps/api/src/index.ts` mounts handlers on Express:
 - `/api/auth/*` — Better Auth handler via `toNodeHandler(auth)` — sign-in, sign-up, session, 2FA, magic link, OTP
+- `/api/setup` — initial org/residence onboarding after first login
 - `/api/residences` — residence CRUD
 - `/api/apartments` — apartment CRUD
+- `/api/meetings` — meeting CRUD
+- `/api/notifications` — notification list/read
+- `/api/chatbot` — LangGraph chatbot endpoint
 - `/health` — liveness probe
 
-**Auth** (`src/auth.ts`): `betterAuth()` instance with plugins: `admin`, `twoFactor`, `emailOTP`, `magicLink`. User model has additional fields: `firstName`, `lastName`, `phone`, `platformRole`. Session has `activeOrganizationId` and `profileId`.
+**Auth** (`src/auth.ts`): `betterAuth()` instance with plugins: `admin`, `twoFactor`, `emailOTP`, `magicLink`. Optional social providers (Google, Facebook) when their env vars are set. User model adds `firstName`, `lastName`, `phone`, `platformRole`, `verifiedAt`. Session adds `activeOrganizationId` and `profileId` (auto-populated on session create via `databaseHooks`).
 
 **Middleware** (`src/middleware/`):
-- `auth.ts` — exports `authenticate` (validates Better Auth session, attaches `userId`, `platformRole`, `profileId`, `activeOrganizationId`, `session`, `user` to `AuthRequest`). `requirePermission` is defined here but not yet implemented — routes import it but permission enforcement is pending.
+- `auth.ts` — exports `authenticate` (validates Better Auth session, looks up org slug, attaches `userId`, `platformRole`, `profileId`, `activeOrganizationId`, `orgSlug`, `session`, `user`, and `tenantDb` to `AuthRequest`). `requirePermission` is defined but not yet enforced — it's a no-op passthrough.
 - `errorHandler.ts` — global error handler, `AppError(statusCode, message)` for known errors.
 
 **Route pattern** for new domain routes:
 ```ts
 router.use(authenticate)
 router.get('/', async (req: Request, res, next) => {
-  const { activeOrganizationId } = req as AuthRequest
-  // always filter by activeOrganizationId for tenant isolation
+  const { tenantDb, profileId, activeOrganizationId } = req as AuthRequest
+  // tenantDb is already scoped to the org's schema via withSchema(orgSlug)
+  // use tenantDb for all domain tables, db for public.* tables
 })
 ```
-
-## Prisma Schema
-
-Single unified `apps/api/prisma/schema.prisma` — one Prisma client (`@prisma/client`).
-
-**Better Auth tables**: `User`, `Session`, `Account`, `Verification`, `TwoFactor`.
-
-**Organization layer**: `Organization`, `Profile` (user's identity within an org), `Invitation`.
-
-**Domain models**: `ResidenceComplex`, `Residence`, `Building`, `Apartment`, `SharedFacility`, `ResidenceProfile`, `Payment`, `Complaint`, `Meeting`, `FeedPost`, `FeedComment`, `Document`.
-
-Core entity graph:
-```
-Organization → Residence → Building → Apartment → Payment/Complaint
-                       ↓
-              ResidenceProfile (Profile × Residence × ProfileRole)
-```
-
-**`Profile`** (not `Member`) is the actor: `User → Profile → ResidenceProfile` where `ResidenceProfile` links a profile to a specific residence with a `ProfileRole` (SYNDIC/OWNER/TENANT/STAFF). A profile can hold multiple roles in the same residence (e.g. SYNDIC + OWNER) but not two of the same role.
-
-**Tenant isolation**: row-level. Every `Residence` carries an `organizationId`. All domain queries filter via `where: { organizationId: activeOrganizationId }` or via a nested residence join — no schema-per-org provisioning.
 
 ## Roles & Permissions
 
@@ -97,12 +92,12 @@ Organization → Residence → Building → Apartment → Payment/Complaint
 
 ```ts
 enum PlatformRole { SUDO, USER }         // user.platformRole — platform-level
-enum ProfileRole { SYNDIC, OWNER, TENANT, STAFF }  // ResidenceProfile.role — per-residence
+enum ProfileRole { SYNDIC, OWNER, TENANT, STAFF }  // profiles.role — per-org
 ```
 
 Import as `import { PlatformRole, ProfileRole } from '@i9amati/shared'`.
 
-Note: a Better Auth `organization` plugin with `createAccessControl` RBAC was planned but has not been implemented yet. Permission enforcement via `requirePermission` middleware is in progress.
+Note: `requirePermission` middleware is a no-op stub — per-resource permission enforcement is not yet implemented.
 
 ## Chatbot Architecture (LangGraph + Groq + RAG)
 
@@ -121,7 +116,7 @@ START → sanitize → safetyCheck → (conditional)
 
 ## Web App Architecture
 
-`apps/web/src/App.tsx` — all routes nested under `/syndic` inside `<SyndicLayout>`, guarded by `<ProtectedRoute>` which calls `authClient.useSession()`.
+`apps/web/src/App.tsx` — all routes nested under `/syndic` inside `<SyndicLayout>`, guarded by `<ProtectedRoute>` which calls `authClient.useSession()`. Users without an `activeOrganizationId` in their session are redirected to `/auth/setup`.
 
 **`SyndicLayout`** (`components/layout/SyndicLayout.tsx`): Fixed Sidebar + scrollable main area + floating `<ChatBot />` widget on every page.
 
@@ -131,7 +126,7 @@ START → sanitize → safetyCheck → (conditional)
 
 **Path alias**: `@/` resolves to `apps/web/src/` (configured in `vite.config.ts`).
 
-**UI stack**: shadcn-style components (Radix UI primitives + `class-variance-authority`) in `components/ui/`. Tailwind CSS + Framer Motion for layout/animation. Recharts for charts.
+**UI stack**: shadcn-style components (Radix UI primitives + `class-variance-authority`) in `components/ui/`. Tailwind CSS + Framer Motion for layout/animation. Recharts for charts. Three.js / React Three Fiber for 3D elements.
 
 **Auth client** (`src/lib/auth-client.ts`): `createAuthClient()` from `better-auth/react` with `twoFactorClient`, `magicLinkClient`, and `inferAdditionalFields` plugins. Points to `VITE_API_URL`.
 
@@ -159,10 +154,14 @@ CLOUDINARY_CLOUD_NAME=          # Cloudinary for file uploads
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 PORT=                           # API port (default: 4000)
+# Optional social providers (omit to disable):
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+FACEBOOK_APP_ID=
+FACEBOOK_APP_SECRET=
 ```
 
 Web — `.env` in `apps/web/`:
 ```
 VITE_API_URL=   # API base URL (default: http://localhost:4000)
 ```
-

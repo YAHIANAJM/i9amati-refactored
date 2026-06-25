@@ -1,4 +1,15 @@
-import { useState } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import {
+  defineFeedAbility, subject, ProfileRole,
+  UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, UPLOAD_MEDIA_MIME, mimeToMediaType
+} from '@i9amati/shared'
+import type { FeedAbility, MembershipInfo } from '@i9amati/shared'
+import { api } from '@/lib/api'
+import { 
+  toastCreated, toastUpdated, toastDeleted, toastApiError, toastSuccess 
+} from '@/components/toast'
+import { useTranslation } from 'react-i18next'
 import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -6,292 +17,346 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   Heart, MessageCircle, Image, Video,
-  Users, Building2, Settings2,
-  Plus, ChevronRight, Phone, Mail, CalendarDays,
-  UserPlus, Pencil, Trash2,
+  Users, Building2, Settings2, Plus,
+  ChevronRight, Pencil, Trash2, Send, Loader2, UserPlus, X,
 } from 'lucide-react'
 import {
-  mockFeedPosts, mockGroups, mockUsers, mockGroupMembers,
-  type MockFeedPost, type MockGroup, type MockUser, type GroupType,
-} from '@/data/mock/feed'
-import { cn, getInitials, formatDate } from '@/lib/utils'
+  feedApi,
+  type ApiGroup, type ApiPost, type ApiComment,
+  type ApiMember, type ApiOrgProfile, type GroupType, type GroupsResponse,
+} from '@/lib/feed.api'
+import { cn, getInitials } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
-
-// ── Constants ──────────────────────────────────────────────────────────────────
 
 const GROUP_COLORS: Record<GroupType, string> = {
   residence: 'bg-blue-100 text-blue-700',
   building:  'bg-emerald-100 text-emerald-700',
   custom:    'bg-violet-100 text-violet-700',
 }
-
 const GROUP_ICONS: Record<GroupType, React.ReactNode> = {
   residence: <Users size={16} />,
   building:  <Building2 size={16} />,
   custom:    <Settings2 size={16} />,
 }
 
-const CURRENT_USER = mockUsers[0] // Ahmed Benali (Syndic) — the logged-in user
+// ── Skeletons ─────────────────────────────────────────────────────────────────
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isSyndic(role: string) {
-  return role === 'Syndic' || role === 'Délégué'
+function PostSkeleton() {
+  return (
+    <div className="rounded-xl border bg-card p-4 space-y-3 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-full bg-muted shrink-0" />
+        <div className="space-y-1.5 flex-1">
+          <div className="h-3 w-28 bg-muted rounded" />
+          <div className="h-2.5 w-16 bg-muted rounded" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-3 bg-muted rounded w-full" />
+        <div className="h-3 bg-muted rounded w-4/5" />
+      </div>
+      <div className="flex gap-4 pt-2 border-t">
+        <div className="h-4 w-12 bg-muted rounded" />
+        <div className="h-4 w-20 bg-muted rounded" />
+      </div>
+    </div>
+  )
 }
 
-// ── Create Group Dialog ───────────────────────────────────────────────────────
+function GroupSkeleton() {
+  return (
+    <div className="rounded-xl border bg-card p-3 flex items-center gap-3 animate-pulse">
+      <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
+      <div className="space-y-1.5 flex-1">
+        <div className="h-3 w-24 bg-muted rounded" />
+        <div className="h-2.5 w-16 bg-muted rounded" />
+      </div>
+    </div>
+  )
+}
 
-function CreateGroupDialog({
-  open, onClose, onCreate,
+// ── Create / Rename Group Dialog ──────────────────────────────────────────────
+
+function GroupNameDialog({
+  open, onClose, onSave, initial, title,
 }: {
-  open: boolean
-  onClose: () => void
-  onCreate: (name: string) => void
+  open: boolean; onClose: () => void
+  onSave: (name: string) => void
+  initial?: string; title: string
 }) {
-  const [name, setName] = useState('')
-
-  function handleCreate() {
+  const { t } = useTranslation()
+  const [name, setName] = useState(initial ?? '')
+  function handle() {
     if (!name.trim()) return
-    onCreate(name.trim())
-    setName('')
+    onSave(name.trim())
     onClose()
   }
-
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-sm p-6">
-        <DialogTitle className="text-base font-semibold mb-4">Create a group</DialogTitle>
+        <DialogTitle className="text-base font-semibold mb-4">{title}</DialogTitle>
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block">Group name</label>
-            <input
-              autoFocus
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              placeholder="e.g. Propriétaires Bâtiment C"
-              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
-            />
-          </div>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handle()}
+            placeholder={t("feed.groupName")}
+            className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
+          />
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" disabled={!name.trim()} onClick={handleCreate}>Create</Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>{t("feed.cancel")}</Button>
+            <Button size="sm" disabled={!name.trim()} onClick={handle}>{t("feed.save")}</Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
-}
-
-// ── User Profile Modal ────────────────────────────────────────────────────────
-
-function UserProfileModal({ user, onClose }: { user: MockUser; onClose: () => void }) {
-  return (
-    <Dialog open onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-xs p-0 overflow-hidden">
-        <div className="bg-primary/10 px-6 pt-8 pb-5 flex flex-col items-center gap-3">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={user.avatar ?? undefined} />
-            <AvatarFallback className="text-lg font-semibold">{getInitials(user.name)}</AvatarFallback>
-          </Avatar>
-          <div className="text-center">
-            <p className="text-sm font-semibold">{user.name}</p>
-            <Badge variant={isSyndic(user.role) ? 'default' : 'secondary'} className="text-[10px] mt-1.5">
-              {user.role}
-            </Badge>
-          </div>
-        </div>
-        <div className="p-5 space-y-3">
-          <Row icon={<Building2 size={14} />} text={user.apartment} />
-          {user.phone && <Row icon={<Phone size={14} />} text={user.phone} />}
-          {user.email && <Row icon={<Mail size={14} />} text={user.email} muted />}
-          <div className="flex items-center gap-2.5 text-xs text-muted-foreground pt-1 border-t">
-            <CalendarDays size={12} className="shrink-0" />
-            <span>Member since {formatDate(user.joinedAt)}</span>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function Row({ icon, text, muted }: { icon: React.ReactNode; text: string; muted?: boolean }) {
-  return (
-    <div className="flex items-center gap-2.5 text-sm">
-      <span className="text-muted-foreground shrink-0">{icon}</span>
-      <span className={muted ? 'text-muted-foreground truncate' : ''}>{text}</span>
-    </div>
   )
 }
 
 // ── Group Members Modal ───────────────────────────────────────────────────────
 
 function GroupMembersModal({
-  group, members, availableUsers,
-  onClose, onSelectUser, onAddMember, onRemoveMember,
+  group, canManageMembers, onClose,
 }: {
-  group: MockGroup
-  members: MockUser[]
-  availableUsers: MockUser[]
-  onClose: () => void
-  onSelectUser: (user: MockUser) => void
-  onAddMember: (userId: string) => void
-  onRemoveMember: (userId: string) => void
+  group: ApiGroup; canManageMembers: boolean; onClose: () => void
 }) {
-  const [showAdd, setShowAdd] = useState(false)
+  const { t } = useTranslation()
+  const qc = useQueryClient()
+  const [showPicker, setShowPicker] = useState(false)
+
+  const { data: members = [], isLoading: loadingMembers, isError: membersError } = useQuery({
+    queryKey: ['feed-group-members', group.id],
+    queryFn: () => feedApi.getGroupMembers(group.id),
+  })
+
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['org-profiles'],
+    queryFn: feedApi.getOrgProfiles,
+    enabled: showPicker,
+  })
+
+  const memberProfileIds = new Set(members.map(m => m.profileId))
+  const available = allProfiles.filter(p => !memberProfileIds.has(p.profileId))
+
+  const addMember = useMutation({
+    mutationFn: (profileId: string) => feedApi.addGroupMember(group.id, profileId),
+    onSuccess: () => {
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+        qc.invalidateQueries({ queryKey: ['feed-groups'] }),
+      ])
+      toastSuccess(t('success.memberAdded'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
+
+  const removeMember = useMutation({
+    mutationFn: (profileId: string) => feedApi.removeGroupMember(group.id, profileId),
+    onSuccess: () => {
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+        qc.invalidateQueries({ queryKey: ['feed-groups'] }),
+      ])
+      toastDeleted(t('success.memberRemoved'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
 
   return (
     <Dialog open onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-sm p-0 overflow-hidden flex flex-col" style={{ maxHeight: '80vh' }}>
-
-        {/* Header */}
         <div className="p-5 border-b shrink-0">
-          <div className="flex items-center gap-2 pr-8">
+          <div className="flex items-center gap-3 pr-8">
             <div className={cn('h-8 w-8 rounded-full flex items-center justify-center shrink-0', GROUP_COLORS[group.type])}>
               {GROUP_ICONS[group.type]}
             </div>
             <div>
-              <DialogTitle className="text-sm font-semibold leading-tight">{group.name}</DialogTitle>
-              <p className="text-xs text-muted-foreground">{members.length} members</p>
+              <DialogTitle className="text-sm font-semibold">{group.name}</DialogTitle>
+              <p className="text-xs text-muted-foreground">{loadingMembers ? group.memberCount : members.length} {t("feed.members")}</p>
             </div>
           </div>
         </div>
 
-        {/* Members list */}
         <div className="p-2 overflow-y-auto flex-1">
-          {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No members yet.</p>
+          {loadingMembers ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground p-4">
+              <Loader2 size={12} className="animate-spin" /> {t("feed.loading")}
+            </div>
+          ) : membersError ? (
+            <p className="text-sm text-red-500 text-center py-6">{t("feed.failedLoadMembers")}</p>
+          ) : members.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">{t("feed.noMembersYet")}</p>
           ) : (
-            members.map(user => (
-              <div key={user.id} className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors">
-                {/* Clickable area → profile */}
-                <button onClick={() => onSelectUser(user)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={user.avatar ?? undefined} />
-                    <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">{user.apartment}</p>
-                  </div>
-                  <Badge variant={isSyndic(user.role) ? 'default' : 'secondary'} className="text-[10px] py-0 shrink-0">
-                    {user.role}
-                  </Badge>
-                </button>
-
-                {/* Remove button — appears on hover */}
-                <button
-                  onClick={() => onRemoveMember(user.id)}
-                  className="opacity-0 group-hover:opacity-100 shrink-0 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all"
-                >
-                  <Trash2 size={12} />
-                </button>
+            members.map(m => (
+              <div key={m.membershipId} className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={m.avatar ?? undefined} />
+                  <AvatarFallback className="text-xs">{getInitials(m.name ?? '?')}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{m.name ?? t("feed.unknown")}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{m.orgRole?.toLowerCase() ?? ''}</p>
+                </div>
+                <Badge variant="secondary" className="text-[10px] py-0 shrink-0">{m.groupRole}</Badge>
+                {canManageMembers && (
+                  <button
+                    onClick={() => removeMember.mutate(m.profileId)}
+                    className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+                  >
+                    {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
+                  </button>
+                )}
               </div>
             ))
           )}
         </div>
 
-        {/* Add member panel */}
         <div className="border-t shrink-0">
-          <button
-            onClick={() => setShowAdd(v => !v)}
-            className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
-          >
-            <UserPlus size={14} />
-            Add member
-            <span className="ml-auto text-muted-foreground text-[10px]">{availableUsers.length} available</span>
-          </button>
-
-          {showAdd && (
-            <div className="px-2 pb-2 max-h-[200px] overflow-y-auto border-t">
-              {availableUsers.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">All users are already members.</p>
-              ) : (
-                availableUsers.map(user => (
-                  <div key={user.id} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
-                    <Avatar className="h-7 w-7 shrink-0">
-                      <AvatarImage src={user.avatar ?? undefined} />
-                      <AvatarFallback className="text-[10px]">{getInitials(user.name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{user.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{user.apartment}</p>
-                    </div>
-                    <button
-                      onClick={() => onAddMember(user.id)}
-                      className="shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
-                    >
-                      <Plus size={12} />
-                    </button>
+          {canManageMembers && (
+            <button
+              onClick={() => setShowPicker(v => !v)}
+              className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
+            >
+              <UserPlus size={14} /> {t("feed.addMember")}
+              <span className="ml-auto text-muted-foreground text-[10px]">{available.length} {t("feed.available")}</span>
+            </button>
+          )}
+          {canManageMembers && showPicker && (
+            <div className="px-2 pb-2 max-h-[180px] overflow-y-auto border-t">
+              {available.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">{t("feed.allMembersAdded")}</p>
+              ) : available.map((p: ApiOrgProfile) => (
+                <div key={p.profileId} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
+                  <Avatar className="h-7 w-7 shrink-0">
+                    <AvatarImage src={p.image ?? undefined} />
+                    <AvatarFallback className="text-[10px]">{getInitials(p.name ?? '?')}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{p.name}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{p.orgRole?.toLowerCase()}</p>
                   </div>
-                ))
-              )}
+                  <button
+                    onClick={() => addMember.mutate(p.profileId)}
+                    disabled={addMember.isPending}
+                    className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors shrink-0"
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
-
       </DialogContent>
     </Dialog>
   )
 }
 
+// ── Comment List ──────────────────────────────────────────────────────────────
+
+function CommentList({ postId, canComment }: { postId: string; canComment: boolean }) {
+  const { t } = useTranslation()
+  const qc = useQueryClient()
+  const [newComment, setNewComment] = useState('')
+
+  const { data: comments = [], isLoading } = useQuery({
+    queryKey: ['feed-comments', postId],
+    queryFn: () => feedApi.getComments(postId),
+  })
+
+  const addComment = useMutation({
+    mutationFn: (content: string) => feedApi.createComment(postId, content),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['feed-comments', postId] })
+      qc.invalidateQueries({ queryKey: ['feed-posts'] })
+      setNewComment('')
+      toastCreated(t('success.commentAdded'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
+
+  return (
+    <div className="space-y-3 pt-1">
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+          <Loader2 size={12} className="animate-spin" /> {t("feed.loadingComments")}
+        </div>
+      ) : comments.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-1">{t("feed.noCommentsYet")}</p>
+      ) : (
+        comments.map((c: ApiComment) => (
+          <div key={c.id} className="flex items-start gap-2.5">
+            <Avatar className="h-7 w-7 shrink-0">
+              <AvatarImage src={c.authorAvatar ?? undefined} />
+              <AvatarFallback className="text-[10px]">{getInitials(c.authorName ?? '?')}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 rounded-lg bg-muted/40 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-xs font-semibold">{c.authorName ?? t("feed.unknown")}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true, locale: fr })}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed">{c.content}</p>
+            </div>
+          </div>
+        ))
+      )}
+      {canComment && (
+        <div className="flex items-start gap-2 pt-1">
+          <textarea
+            rows={1}
+            value={newComment}
+            onChange={e => setNewComment(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newComment.trim()) addComment.mutate(newComment.trim()) } }}
+            placeholder={t("feed.writeComment")}
+            className="flex-1 resize-none text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
+          />
+          <button
+            onClick={() => newComment.trim() && addComment.mutate(newComment.trim())}
+            disabled={!newComment.trim() || addComment.isPending}
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-primary text-white disabled:opacity-40 hover:bg-primary/90 transition-colors"
+          >
+            {addComment.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Post Card ─────────────────────────────────────────────────────────────────
 
-function PostCard({
-  post,
-  findUser,
-  onToggleLike,
-  onEdit,
-  onDelete,
-  onSelectUser,
-}: {
-  post: MockFeedPost
-  findUser: (name: string) => MockUser | undefined
-  onToggleLike: (id: string) => void
+function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticLike, onEdit, onDelete }: {
+  post: ApiPost
+  canEdit: boolean
+  canDelete: boolean
+  canLike: boolean
+  canComment: boolean
+  onOptimisticLike: (id: string) => void
   onEdit: (id: string, content: string) => void
   onDelete: (id: string) => void
-  onSelectUser: (user: MockUser) => void
 }) {
+  const { t } = useTranslation()
   const [showComments, setShowComments] = useState(false)
-  const [editMode, setEditMode]         = useState(false)
-  const [editContent, setEditContent]   = useState(post.content)
-
-  function handleSave() {
-    if (!editContent.trim()) return
-    onEdit(post.id, editContent.trim())
-    setEditMode(false)
-  }
-
-  function handleCancelEdit() {
-    setEditContent(post.content)
-    setEditMode(false)
-  }
-
-  function handleAuthorClick(name: string) {
-    const user = findUser(name)
-    if (user) onSelectUser(user)
-  }
+  const [editMode, setEditMode] = useState(false)
+  const [editContent, setEditContent] = useState(post.content)
 
   return (
     <div className="rounded-xl border bg-card p-4 space-y-3 group/card">
-
-      {/* Author row + action buttons */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 flex-1 min-w-0">
-          <button onClick={() => handleAuthorClick(post.authorName)} className="shrink-0 rounded-full focus:outline-none">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={post.avatar ?? undefined} />
-              <AvatarFallback className="text-xs">{getInitials(post.authorName)}</AvatarFallback>
-            </Avatar>
-          </button>
+          <Avatar className="h-9 w-9 shrink-0">
+            <AvatarImage src={post.authorAvatar ?? undefined} />
+            <AvatarFallback className="text-xs">{getInitials(post.authorName ?? '?')}</AvatarFallback>
+          </Avatar>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <button onClick={() => handleAuthorClick(post.authorName)} className="text-sm font-semibold hover:underline focus:outline-none">
-                {post.authorName}
-              </button>
-              <Badge variant={isSyndic(post.authorRole) ? 'default' : 'secondary'} className="text-[10px] py-0">
-                {post.authorRole}
+              <span className="text-sm font-semibold">{post.authorName ?? t("feed.unknown")}</span>
+              <Badge variant={post.authorGroupRole === 'ADMIN' ? 'default' : 'secondary'} className="text-[10px] py-0">
+                {post.authorGroupRole === 'ADMIN' ? 'Syndic' : 'Membre'}
               </Badge>
             </div>
             <p className="text-[11px] text-muted-foreground">
@@ -299,104 +364,101 @@ function PostCard({
             </p>
           </div>
         </div>
-
-        {/* Edit / Delete — visible on card hover */}
-        {!editMode && (
+        {!editMode && (canEdit || canDelete) && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
-            <button
-              onClick={() => { setEditContent(post.content); setEditMode(true) }}
-              className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Pencil size={13} />
-            </button>
-            <button
-              onClick={() => onDelete(post.id)}
-              className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <Trash2 size={13} />
-            </button>
+            {canEdit && (
+              <button onClick={() => { setEditContent(post.content); setEditMode(true) }} className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                <Pencil size={13} />
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => onDelete(post.id)} className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors">
+                <Trash2 size={13} />
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Content — normal or edit mode */}
       {editMode ? (
         <div className="space-y-2">
-          <textarea
-            autoFocus
-            value={editContent}
-            onChange={e => setEditContent(e.target.value)}
-            className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30"
-          />
+          <textarea autoFocus value={editContent} onChange={e => setEditContent(e.target.value)}
+            className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30" />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleCancelEdit}>Cancel</Button>
-            <Button size="sm" className="h-7 text-xs" disabled={!editContent.trim()} onClick={handleSave}>Save</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditContent(post.content); setEditMode(false) }}>{t("feed.cancel")}</Button>
+            <Button size="sm" className="h-7 text-xs" disabled={!editContent.trim()} onClick={() => { onEdit(post.id, editContent.trim()); setEditMode(false) }}>{t("feed.save")}</Button>
           </div>
         </div>
       ) : (
-        <p className="text-sm leading-relaxed whitespace-pre-line">{post.content}</p>
+        <div className="space-y-3">
+          <p className="text-sm leading-relaxed whitespace-pre-line">{post.content}</p>
+          {post.mediaUrl && post.mediaType === 'image' && (
+            <div className="rounded-lg overflow-hidden border bg-muted">
+              <img src={post.mediaUrl} alt="Post attachment" className="w-full max-h-96 object-contain" />
+            </div>
+          )}
+          {post.mediaUrl && post.mediaType === 'video' && (
+            <div className="rounded-lg overflow-hidden border bg-black">
+              <video src={post.mediaUrl} controls className="w-full max-h-96" />
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Actions */}
       {!editMode && (
         <div className="flex items-center gap-4 pt-2 border-t">
-          <button
-            onClick={() => onToggleLike(post.id)}
-            className={cn(
-              'flex items-center gap-1.5 text-xs transition-colors',
-              post.liked ? 'text-red-500' : 'text-muted-foreground hover:text-red-500',
-            )}
-          >
-            <Heart size={14} className={post.liked ? 'fill-red-500' : ''} />
-            {post.likes}
-          </button>
-          <button
-            onClick={() => post.comments.length > 0 && setShowComments(v => !v)}
-            className={cn(
-              'flex items-center gap-1.5 text-xs transition-colors',
-              post.comments.length > 0
-                ? 'text-muted-foreground hover:text-primary cursor-pointer'
-                : 'text-muted-foreground cursor-default',
-            )}
-          >
+          {canLike && (
+            <button onClick={() => onOptimisticLike(post.id)} className={cn('flex items-center gap-1.5 text-xs transition-colors', post.likedByMe ? 'text-red-500' : 'text-muted-foreground hover:text-red-500')}>
+              <Heart size={14} className={post.likedByMe ? 'fill-red-500' : ''} />
+              {post.likeCount}
+            </button>
+          )}
+          <button onClick={() => setShowComments(v => !v)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
             <MessageCircle size={14} />
-            {post.comments.length} commentaire{post.comments.length !== 1 ? 's' : ''}
+            {t("feed.comment")} ({post.commentCount})
           </button>
         </div>
       )}
 
-      {/* Inline comments */}
-      {showComments && !editMode && (
-        <div className="space-y-3 pt-1">
-          {post.comments.map(comment => (
-            <div key={comment.id} className="flex items-start gap-2.5">
-              <button
-                onClick={() => handleAuthorClick(comment.authorName)}
-                className="shrink-0 rounded-full focus:outline-none"
-              >
-                <Avatar className="h-7 w-7">
-                  <AvatarImage src={comment.avatar ?? undefined} />
-                  <AvatarFallback className="text-[10px]">{getInitials(comment.authorName)}</AvatarFallback>
-                </Avatar>
-              </button>
-              <div className="flex-1 rounded-lg bg-muted/40 px-3 py-2">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <button
-                    onClick={() => handleAuthorClick(comment.authorName)}
-                    className="text-xs font-semibold hover:underline focus:outline-none"
-                  >
-                    {comment.authorName}
-                  </button>
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: fr })}
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed">{comment.content}</p>
-              </div>
-            </div>
-          ))}
+      {showComments && !editMode && <CommentList postId={post.id} canComment={canComment} />}
+    </div>
+  )
+}
+
+// ── Group Card ────────────────────────────────────────────────────────────────
+
+function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRename, onDelete }: {
+  group: ApiGroup; isActive: boolean; canManage: boolean
+  onSelect: () => void; onViewMembers: () => void
+  onRename: () => void; onDelete: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className={cn('rounded-xl border bg-card p-3 flex items-center gap-3 transition-colors group/gcard', isActive && 'border-primary bg-primary/5')}>
+      <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={onSelect}>
+        <div className={cn('h-10 w-10 rounded-full flex items-center justify-center shrink-0', GROUP_COLORS[group.type])}>
+          {GROUP_ICONS[group.type]}
         </div>
-      )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{group.name}</p>
+          <p className="text-xs text-muted-foreground capitalize">{group.type} · {group.memberCount} {t("feed.members")}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        {canManage && (
+          <>
+            <button onClick={onRename} className="opacity-0 group-hover/gcard:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-all text-muted-foreground hover:text-primary">
+              <Pencil size={12} />
+            </button>
+            <button onClick={onDelete} className="opacity-0 group-hover/gcard:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-red-50 transition-all text-muted-foreground hover:text-red-500">
+              <Trash2 size={12} />
+            </button>
+          </>
+        )}
+        <button onClick={onViewMembers} className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground">
+          <ChevronRight size={14} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -404,209 +466,312 @@ function PostCard({
 // ── Feed Page ─────────────────────────────────────────────────────────────────
 
 export function Feed() {
-  const [newPost, setNewPost]                 = useState('')
-  const [selectedGroupId, setSelectedGroupId] = useState(mockGroups[0].id)
-  const [posts, setPosts]                     = useState(mockFeedPosts)
-  const [groups, setGroups]                   = useState(mockGroups)
-  const [groupMembers, setGroupMembers]       = useState<Record<string, string[]>>(mockGroupMembers)
+  const { t } = useTranslation()
+  const qc = useQueryClient()
+  const [newPost, setNewPost] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [showCreateGroup, setShowCreateGroup] = useState(false)
-  const [membersGroupId, setMembersGroupId]   = useState<string | null>(null)
-  const [profileUser, setProfileUser]         = useState<MockUser | null>(null)
-
-  const selectedGroup = groups.find(g => g.id === selectedGroupId)!
-  const filteredPosts = posts.filter(p => p.groupId === selectedGroupId)
-  const membersGroup  = groups.find(g => g.id === membersGroupId)
-
-  const currentMemberIds  = membersGroupId ? (groupMembers[membersGroupId] ?? []) : []
-  const membersGroupUsers = currentMemberIds.map(id => mockUsers.find(u => u.id === id)!).filter(Boolean)
-  const availableUsers    = mockUsers.filter(u => !currentMemberIds.includes(u.id))
-
-  const findUser = (name: string) => mockUsers.find(u => u.name === name)
-
-  // ── Post operations ──────────────────────────────────────────────────────
-
-  function createPost() {
-    if (!newPost.trim()) return
-    const post: MockFeedPost = {
-      id:         `p-${Date.now()}`,
-      groupId:    selectedGroupId,
-      authorName: CURRENT_USER.name,
-      authorRole: CURRENT_USER.role,
-      avatar:     CURRENT_USER.avatar,
-      content:    newPost.trim(),
-      createdAt:  new Date().toISOString(),
-      likes:      0,
-      liked:      false,
-      comments:   [],
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!UPLOAD_MEDIA_MIME.includes(file.type as any)) {
+      alert(`Invalid file type. Allowed: ${UPLOAD_MEDIA_MIME.join(', ')}`)
+      return
     }
-    setPosts(prev => [post, ...prev])
-    setNewPost('')
+    if (file.size > UPLOAD_MAX_SIZE_BYTES) {
+      alert(`File too large. Max size is ${UPLOAD_MAX_SIZE_LABEL}`)
+      return
+    }
+    setSelectedFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
   }
 
-  function editPost(id: string, content: string) {
-    setPosts(prev => prev.map(p => p.id === id ? { ...p, content } : p))
+  const clearFile = () => {
+    setSelectedFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  function deletePost(id: string) {
-    setPosts(prev => prev.filter(p => p.id !== id))
-  }
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [membersGroupId, setMembersGroupId] = useState<string | null>(null)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [renameGroup, setRenameGroup] = useState<ApiGroup | null>(null)
 
-  function toggleLike(postId: string) {
-    setPosts(prev =>
-      prev.map(p =>
-        p.id === postId
-          ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
-          : p,
-      ),
+  const { data: groupsResponse, isLoading: groupsLoading, isError: groupsError } = useQuery({
+    queryKey: ['feed-groups'],
+    queryFn: feedApi.getGroups,
+  })
+  const groups = groupsResponse?.groups ?? []
+
+  const ability = useMemo<FeedAbility | null>(() => {
+    if (!groupsResponse) return null
+    const { profileId, profileRole, groups: gs } = groupsResponse
+    const memberships: MembershipInfo[] = gs
+      .filter(g => g.memberProfileGroupId != null)
+      .map(g => ({
+        profileGroupId: g.memberProfileGroupId!,
+        groupId:        g.id,
+        role:           (g.memberRole ?? 'USER') as MembershipInfo['role'],
+      }))
+    return defineFeedAbility(profileRole as ProfileRole, profileId, memberships)
+  }, [groupsResponse])
+
+  const isSyndic = groupsResponse?.profileRole === ProfileRole.SYNDIC
+
+  const activeGroupId = selectedGroupId ?? groups[0]?.id ?? null
+  const selectedGroup = groups.find(g => g.id === activeGroupId) ?? null
+  const membersGroup = groups.find(g => g.id === membersGroupId) ?? null
+
+  const {
+    data: postsData,
+    isLoading: postsLoading,
+    isError: postsError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['feed-posts', activeGroupId],
+    queryFn: ({ pageParam }) => feedApi.getPosts(activeGroupId!, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: !!activeGroupId,
+  })
+  const posts: ApiPost[] = postsData?.pages.flatMap(p => p.posts) ?? []
+
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0.1 },
     )
-  }
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  // ── Group operations ─────────────────────────────────────────────────────
+  // ── Group mutations ───────────────────────────────────────────────────────
+  const createGroup = useMutation({
+    mutationFn: (name: string) => feedApi.createGroup(name),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['feed-groups'] })
+      setSelectedGroupId(data.id)
+      toastCreated(t('success.groupCreated'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
 
-  function handleCreateGroup(name: string) {
-    const id = `g-custom-${Date.now()}`
-    setGroups(prev => [...prev, { id, name, memberCount: 0, type: 'custom' }])
-    setGroupMembers(prev => ({ ...prev, [id]: [] }))
-    setSelectedGroupId(id)
-  }
+  const updateGroup = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => feedApi.updateGroup(id, name),
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ['feed-groups'] })
+      setRenameGroup(null)
+      toastUpdated(t('success.groupUpdated'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
 
-  function addMemberToGroup(userId: string) {
-    if (!membersGroupId) return
-    setGroupMembers(prev => ({ ...prev, [membersGroupId]: [...(prev[membersGroupId] ?? []), userId] }))
-    setGroups(prev => prev.map(g => g.id === membersGroupId ? { ...g, memberCount: g.memberCount + 1 } : g))
-  }
+  const deleteGroup = useMutation({
+    mutationFn: (id: string) => feedApi.deleteGroup(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ['feed-groups'] })
+      if (activeGroupId === id) setSelectedGroupId(null)
+      toastDeleted(t('success.groupDeleted'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
 
-  function removeMemberFromGroup(userId: string) {
-    if (!membersGroupId) return
-    setGroupMembers(prev => ({ ...prev, [membersGroupId]: (prev[membersGroupId] ?? []).filter(id => id !== userId) }))
-    setGroups(prev => prev.map(g => g.id === membersGroupId ? { ...g, memberCount: Math.max(0, g.memberCount - 1) } : g))
+  // ── Post mutations ────────────────────────────────────────────────────────
+  const createPost = useMutation({
+    mutationFn: async (content: string) => {
+      let mediaUrl: string | undefined
+      let mediaType: 'image' | 'video' | undefined
+      
+      if (selectedFile) {
+        const res = await api.upload<{ url: string }>('/api/upload?scope=feed', selectedFile)
+        mediaUrl = res.url
+        mediaType = mimeToMediaType(selectedFile.type)
+      }
+      
+      return feedApi.createPost(activeGroupId!, { content, mediaUrl, mediaType })
+    },
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] })
+      setNewPost('')
+      clearFile()
+      toastCreated(t('success.postCreated'))
+    },
+    onError: (err: any) => toastApiError(err),
+  })
+
+  const editPost = useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) => feedApi.updatePost(id, { content }),
+    onMutate: async ({ id, content }) => {
+      await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
+      const prev = qc.getQueryData(['feed-posts', activeGroupId])
+      qc.setQueryData(['feed-posts', activeGroupId], (old: typeof postsData) =>
+        old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.map(p => p.id === id ? { ...p, content } : p) })) } : old)
+      return { prev }
+    },
+    onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
+      if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
+      toastApiError(err)
+    },
+    onSuccess: () => toastUpdated(t('success.postUpdated')),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
+  })
+
+  const deletePost = useMutation({
+    mutationFn: (id: string) => feedApi.deletePost(id),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
+      const prev = qc.getQueryData(['feed-posts', activeGroupId])
+      qc.setQueryData(['feed-posts', activeGroupId], (old: typeof postsData) =>
+        old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.filter(p => p.id !== id) })) } : old)
+      return { prev }
+    },
+    onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
+      if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
+      toastApiError(err)
+    },
+    onSuccess: () => toastDeleted(t('success.postDeleted')),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
+  })
+
+  const likePost = useMutation<void, Error, { id: string; likedByMe: boolean }, { prev: unknown }>({
+    mutationFn: async ({ id, likedByMe }) => {
+      if (likedByMe) await feedApi.unlikePost(id); else await feedApi.likePost(id)
+    },
+    onMutate: async ({ id, likedByMe }) => {
+      await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
+      const prev = qc.getQueryData(['feed-posts', activeGroupId])
+      qc.setQueryData(['feed-posts', activeGroupId], (old: typeof postsData) =>
+        old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.map(p => p.id === id ? { ...p, likedByMe: !likedByMe, likeCount: likedByMe ? p.likeCount - 1 : p.likeCount + 1 } : p) })) } : old)
+      return { prev }
+    },
+    onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
+      if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
+      toastApiError(err)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
+  })
+
+  function handleToggleLike(postId: string) {
+    const post = posts.find(p => p.id === postId)
+    if (post) likePost.mutate({ id: postId, likedByMe: post.likedByMe })
   }
 
   return (
     <div className="flex flex-col min-h-full">
-      <TopBar title="Feed Management" subtitle={`Communauté — ${selectedGroup.name}`} />
-
+      <TopBar title={t("feed.manageMembers")} subtitle={selectedGroup ? `${t("feed.groupName")} — ${selectedGroup.name}` : t("feed.groupName")} />
       <div className="flex-1 flex gap-5 p-6 min-h-0">
 
-        {/* ── Main feed column ─────────────────────────────────────────── */}
+        {/* Main feed */}
         <div className="flex-1 min-w-0 space-y-4">
+          {activeGroupId && ability?.can('create', subject('FeedPost', { groupId: activeGroupId, authorId: '' })) && (
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-[11px] text-muted-foreground mb-2">
+                Posting to <span className="font-medium text-foreground">{selectedGroup?.name ?? '…'}</span>
+              </p>
+              <textarea value={newPost} onChange={e => setNewPost(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && e.metaKey && createPost.mutate(newPost.trim())}
+                placeholder={t("feed.whatAreYouThinking")} disabled={createPost.isPending}
+                className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30 disabled:opacity-60" />
+              
+              {previewUrl && selectedFile && (
+                <div className="relative mt-3 inline-block rounded-lg overflow-hidden border">
+                  {selectedFile.type.startsWith('image/') ? (
+                    <img src={previewUrl} alt="Preview" className="h-32 object-cover" />
+                  ) : (
+                    <video src={previewUrl} className="h-32 object-cover" />
+                  )}
+                  <button onClick={clearFile} className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
 
-          {/* Compose box */}
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-[11px] text-muted-foreground mb-2">
-              Posting to <span className="font-medium text-foreground">{selectedGroup.name}</span>
-            </p>
-            <textarea
-              value={newPost}
-              onChange={e => setNewPost(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && e.metaKey && createPost()}
-              placeholder="What are you thinking of?"
-              className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Image size={13} /> Photo
-                </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Video size={13} /> Video
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-1">
+                  <input type="file" ref={fileInputRef} className="hidden" accept={UPLOAD_MEDIA_MIME.join(',')} onChange={handleFileSelect} />
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => fileInputRef.current?.click()}><Image size={13} /> {t("feed.photoVideo")}</Button>
+                </div>
+                <Button size="sm" className="gap-1.5 text-xs" disabled={(!newPost.trim() && !selectedFile) || createPost.isPending} onClick={() => createPost.mutate(newPost.trim())}>
+                  {createPost.isPending && <Loader2 size={12} className="animate-spin" />} Post
                 </Button>
               </div>
-              <Button size="sm" className="gap-1.5 text-xs" disabled={!newPost.trim()} onClick={createPost}>
-                Post
-              </Button>
             </div>
-          </div>
+          )}
 
-          {/* Posts */}
-          {filteredPosts.length === 0 ? (
-            <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
-              No posts in this group yet.
+          {postsLoading ? (<><PostSkeleton /><PostSkeleton /><PostSkeleton /></>)
+            : postsError ? (<div className="rounded-xl border bg-card p-6 text-center text-sm text-red-500">{t("errors.codes.INTERNAL_ERROR")}</div>)
+            : posts.length === 0 ? (<div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">{t("feed.noPostsYet")}</div>)
+            : posts.map(post => (
+              <PostCard key={post.id} post={post}
+                canEdit={ability?.can('update', subject('FeedPost', { groupId: activeGroupId!, authorId: post.authorId })) ?? false}
+                canDelete={ability?.can('delete', subject('FeedPost', { groupId: activeGroupId!, authorId: post.authorId })) ?? false}
+                canLike={ability?.can('create', subject('FeedPostLike', { groupId: activeGroupId! })) ?? false}
+                canComment={ability?.can('create', subject('FeedComment', { groupId: activeGroupId!, authorProfileId: groupsResponse?.profileId ?? '' })) ?? false}
+                onOptimisticLike={handleToggleLike}
+                onEdit={(id, content) => editPost.mutate({ id, content })}
+                onDelete={id => deletePost.mutate(id)} />
+            ))}
+
+          {/* infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-1" />
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="animate-spin text-muted-foreground" />
             </div>
-          ) : (
-            filteredPosts.map(post => (
-              <PostCard
-                key={post.id}
-                post={post}
-                findUser={findUser}
-                onToggleLike={toggleLike}
-                onEdit={editPost}
-                onDelete={deletePost}
-                onSelectUser={setProfileUser}
-              />
-            ))
           )}
         </div>
 
-        {/* ── Groups sidebar ───────────────────────────────────────────── */}
+        {/* Groups sidebar */}
         <div className="w-64 shrink-0">
           <div className="flex items-center justify-between mb-3 px-1">
-            <p className="text-sm font-semibold">groups</p>
-            <button
-              onClick={() => setShowCreateGroup(true)}
-              className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
-            >
-              <Plus size={13} />
-            </button>
+            <p className="text-sm font-semibold">{t("feed.newGroup")}</p>
+            {isSyndic && (
+              <button onClick={() => setShowCreateGroup(true)} className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors">
+                <Plus size={13} />
+              </button>
+            )}
           </div>
-
           <div className="space-y-2">
-            {groups.map(group => (
-              <div
-                key={group.id}
-                className={cn(
-                  'rounded-xl border bg-card p-3 flex items-center gap-3 transition-colors',
-                  selectedGroupId === group.id && 'border-primary bg-primary/5',
-                )}
-              >
-                <div
-                  className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                  onClick={() => setSelectedGroupId(group.id)}
-                >
-                  <div className={cn('h-10 w-10 rounded-full flex items-center justify-center shrink-0', GROUP_COLORS[group.type])}>
-                    {GROUP_ICONS[group.type]}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{group.name}</p>
-                    <p className="text-xs text-muted-foreground">{group.memberCount} members</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMembersGroupId(group.id)}
-                  className="shrink-0 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            ))}
+            {groupsLoading ? (<><GroupSkeleton /><GroupSkeleton /><GroupSkeleton /></>)
+              : groupsError ? (<p className="text-xs text-red-500 px-1">{t("errors.codes.INTERNAL_ERROR")}</p>)
+              : groups.map(group => (
+                <GroupCard key={group.id} group={group} isActive={group.id === activeGroupId}
+                  canManage={isSyndic}
+                  onSelect={() => setSelectedGroupId(group.id)}
+                  onViewMembers={() => setMembersGroupId(group.id)}
+                  onRename={() => setRenameGroup(group)}
+                  onDelete={() => deleteGroup.mutate(group.id)} />
+              ))}
           </div>
         </div>
-
       </div>
 
-      {/* ── Modals ──────────────────────────────────────────────────────── */}
-
-      <CreateGroupDialog
-        open={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        onCreate={handleCreateGroup}
-      />
-
+      {/* Dialogs */}
+      <GroupNameDialog open={showCreateGroup} title={t("feed.createGroupBtn")} onClose={() => setShowCreateGroup(false)}
+        onSave={name => createGroup.mutate(name)} />
+      {renameGroup && (
+        <GroupNameDialog open title={`${t("feed.rename")} "${renameGroup.name}"`} initial={renameGroup.name}
+          onClose={() => setRenameGroup(null)}
+          onSave={name => updateGroup.mutate({ id: renameGroup.id, name })} />
+      )}
       {membersGroup && (
         <GroupMembersModal
           group={membersGroup}
-          members={membersGroupUsers}
-          availableUsers={availableUsers}
+          canManageMembers={isSyndic || membersGroup.memberRole === 'ADMIN'}
           onClose={() => setMembersGroupId(null)}
-          onSelectUser={user => { setMembersGroupId(null); setProfileUser(user) }}
-          onAddMember={addMemberToGroup}
-          onRemoveMember={removeMemberFromGroup}
         />
-      )}
-
-      {profileUser && (
-        <UserProfileModal user={profileUser} onClose={() => setProfileUser(null)} />
       )}
     </div>
   )

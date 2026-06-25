@@ -2,15 +2,24 @@
   "name": "@i9amati/shared",
   "version": "1.0.0",
   "main": "./dist/index.js",
+  "module": "./dist/esm/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.esm.json",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.0",
     "better-auth": "^1.6.19"
   }
 }

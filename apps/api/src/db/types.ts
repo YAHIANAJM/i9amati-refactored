@@ -24,7 +24,7 @@ export interface PublicUserTable {
   ban_reason: string | null
   ban_expires: Timestamp | null
   two_factor_enabled: boolean | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -32,7 +32,7 @@ export interface PublicSessionTable {
   id: string
   expires_at: Timestamp
   token: string
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
   ip_address: string | null
   user_agent: string | null
@@ -55,7 +55,7 @@ export interface PublicAccountTable {
   refresh_token_expires_at: Timestamp | null
   scope: string | null
   password: string | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -64,7 +64,7 @@ export interface PublicVerificationTable {
   identifier: string
   value: string
   expires_at: Timestamp
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -81,7 +81,7 @@ export interface PublicOrganizationTable {
   name: string
   slug: string
   logo: string | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -90,7 +90,7 @@ export interface PublicProfileTable {
   user_id: string
   organization_id: string
   role: 'SYNDIC' | 'OWNER' | 'TENANT' | 'STAFF'
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -100,7 +100,7 @@ export interface PublicInvitationTable {
   invited_by_id: string
   status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED'
   expires_at: Timestamp
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
 }
 
 export interface PublicLegalRegistrationResidenceTable {
@@ -115,7 +115,7 @@ export interface PublicSharedFacilityTable {
   name: string
   type: 'GARAGE' | 'PARKING' | 'POOL' | 'GARDEN' | 'PLAYGROUND' | 'EQUIPMENT_ROOM' | 'OTHER'
   description: string | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -133,7 +133,7 @@ export interface PublicDocTable {
   parent_id: string | null
   name: string
   created_by: string
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -157,7 +157,7 @@ export interface ResidenceTable {
   status: 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE'
   image: string | null
   description: string | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -171,7 +171,7 @@ export interface BuildingTable {
   description: string | null
   residence_id: string
   quote_part: number | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -187,7 +187,7 @@ export interface ApartmentTable {
   building_id: string
   owner_profile_id: string | null  // → public.profiles.id (DB FK in migration SQL)
   shareholders: ColumnType<unknown, unknown, unknown> // jsonb
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -202,7 +202,7 @@ export interface PaymentTable {
   description: string | null
   apartment_id: string
   paid_by: string  // → public.profiles.id (DB FK in migration SQL)
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -213,7 +213,7 @@ export interface ComplaintTable {
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   apartment_id: string
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -230,7 +230,7 @@ export interface MeetingTable {
   residence_id: string | null
   building_id: string | null
   convocation_sent_at: Timestamp | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -245,7 +245,7 @@ export interface AgendaItemTable {
   abstention: number
   result: 'ADOPTED' | 'REJECTED' | null
   sort_order: number
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -257,7 +257,7 @@ export interface MeetingAttendeeTable {
   apartment: string
   rsvp: 'ACCEPTED' | 'DECLINED' | 'PENDING'
   present: boolean
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -273,7 +273,7 @@ export interface GroupTable {
   slug: string
   residence_id: string | null
   building_id: string | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -287,8 +287,10 @@ export interface ProfileGroupTable {
 export interface FeedPostTable {
   id: Generated<string>
   content: string
+  media_url: string | null
+  media_type: 'image' | 'video' | null
   author_id: string  // → profile_groups.id
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -298,7 +300,14 @@ export interface FeedCommentTable {
   author_profile_id: string  // → public.profiles.id (DB FK in migration SQL)
   post_id: string
   parent_id: string | null
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
+}
+
+export interface FeedPostLikeTable {
+  id: Generated<string>
+  post_id: string           // → feed_posts.id (ON DELETE CASCADE)
+  profile_group_id: string  // → _profile_groups.id (the member who liked)
+  created_at: ColumnType<Date, Date | string | undefined, never>
 }
 
 export interface DocumentTable {
@@ -309,7 +318,7 @@ export interface DocumentTable {
   path: string | null
   size: number | null
   uploaded_by: string  // → public.profiles.id (DB FK in migration SQL)
-  uploaded_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  uploaded_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
 
@@ -363,7 +372,7 @@ export interface NotificationTable {
   profile_id: string  // → public.profiles.id (DB FK in migration SQL)
   context: ColumnType<unknown, unknown, unknown> // json
   events: ColumnType<unknown, unknown, unknown>  // json append-only log
-  created_at: ColumnType<Timestamp, Timestamp | undefined, Timestamp>
+  created_at: ColumnType<Date, Date | string | undefined, never>
   expires_at: Timestamp | null
 }
 
@@ -373,7 +382,7 @@ export interface NotificationTable {
 
 export interface Database {
   // public schema — auth + org layer
-  'public.users': PublicUserTable
+  'public.user': PublicUserTable
   'public.session': PublicSessionTable
   'public.account': PublicAccountTable
   'public.verification': PublicVerificationTable
@@ -400,6 +409,7 @@ export interface Database {
   groups: GroupTable
   _profile_groups: ProfileGroupTable
   feed_posts: FeedPostTable
+  feed_post_likes: FeedPostLikeTable
   feed_comments: FeedCommentTable
   documents: DocumentTable
   document_access: DocumentAccessTable
@@ -426,6 +436,7 @@ export type Complaint    = Selectable<ComplaintTable>
 export type Meeting      = Selectable<MeetingTable>
 export type Group        = Selectable<GroupTable>
 export type FeedPost     = Selectable<FeedPostTable>
+export type FeedPostLike = Selectable<FeedPostLikeTable>
 export type Notification = Selectable<NotificationTable>
 
 export type NewResidence = Insertable<ResidenceTable>

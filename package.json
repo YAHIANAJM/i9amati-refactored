@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "docker compose up -d postgres && turbo run dev",
+    "dev": "docker compose up -d postgres minio minio-init && turbo run dev",
     "dev:web": "npm --workspace apps/web run dev",
     "dev:api": "npm --workspace apps/api run dev",
     "dev:mobile": "npm --workspace apps/mobile run start",

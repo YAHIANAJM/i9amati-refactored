@@ -10,6 +10,7 @@ export type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'BAD_REQUEST'
   | 'INTERNAL_ERROR'
+  | (string & {})
 
 // ── Base class ────────────────────────────────────────────────────────────────
 
