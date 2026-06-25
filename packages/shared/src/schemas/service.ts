@@ -51,6 +51,8 @@ export const UpdateContractSchema = z.object({
     .max(1000, { message: 'validation.description.tooLong' }).nullable().optional(),
   amount: z.number({ invalid_type_error: 'validation.amount.mustBeNumber' })
     .min(0, { message: 'validation.amount.negative' }).optional(),
+  amount_paid: z.number({ invalid_type_error: 'validation.amount.mustBeNumber' })
+    .min(0, { message: 'validation.amount.negative' }).optional(),
   start_date: z.string({ invalid_type_error: 'validation.date.format' })
     .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).nullable().optional(),
   end_date: z.string({ invalid_type_error: 'validation.date.format' })

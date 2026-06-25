@@ -307,14 +307,17 @@ router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContra
       'Contract',
     )
 
-    if (body.amount !== undefined && body.amount < Number(contract.amount_paid)) {
-      throw new AppError(409, 'conflict.amountBelowPaid', 'CONFLICT')
+    const effectiveAmount = body.amount      ?? Number(contract.amount)
+    const effectivePaid   = body.amount_paid ?? Number(contract.amount_paid)
+    if (effectivePaid > effectiveAmount) {
+      throw new AppError(409, 'conflict.paidExceedsAmount', 'CONFLICT')
     }
 
-    const updates: { name?: string; description?: string | null; amount?: number; start_date?: string | null; end_date?: string | null; status?: string } = {}
+    const updates: { name?: string; description?: string | null; amount?: number; amount_paid?: number; start_date?: string | null; end_date?: string | null; status?: string } = {}
     if (body.name        !== undefined) updates.name        = body.name
     if (body.description !== undefined) updates.description = body.description
     if (body.amount      !== undefined) updates.amount      = body.amount
+    if (body.amount_paid !== undefined) updates.amount_paid = body.amount_paid
     if (body.start_date  !== undefined) updates.start_date  = body.start_date
     if (body.end_date    !== undefined) updates.end_date    = body.end_date
     if (body.status      !== undefined) updates.status      = body.status

@@ -172,8 +172,9 @@ export const ar = {
     paymentRecorded:       "تم تسجيل الدفعة",
   },
   conflict: {
-    amountBelowPaid:  "لا يمكن تخفيض مبلغ العقد إلى أقل من المبلغ المدفوع بالفعل",
-    alreadyFullyPaid: "تم تسديد هذا العقد بالكامل بالفعل",
+    amountBelowPaid:   "لا يمكن تخفيض مبلغ العقد إلى أقل من المبلغ المدفوع بالفعل",
+    alreadyFullyPaid:  "تم تسديد هذا العقد بالكامل بالفعل",
+    paidExceedsAmount: "لا يمكن أن يتجاوز المبلغ المدفوع إجمالي مبلغ العقد",
   },
   validation: {
     name:         { required: "الاسم مطلوب",                    tooLong:      "الاسم طويل جداً (الحد الأقصى 100 حرف)" },

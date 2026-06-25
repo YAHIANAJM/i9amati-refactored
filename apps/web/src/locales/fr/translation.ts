@@ -172,8 +172,9 @@ export const fr = {
     paymentRecorded:       "Paiement enregistré",
   },
   conflict: {
-    amountBelowPaid:  "Impossible de réduire le montant du contrat en dessous du montant déjà payé",
-    alreadyFullyPaid: "Ce contrat a déjà été intégralement payé",
+    amountBelowPaid:   "Impossible de réduire le montant du contrat en dessous du montant déjà payé",
+    alreadyFullyPaid:  "Ce contrat a déjà été intégralement payé",
+    paidExceedsAmount: "Le montant payé ne peut pas dépasser le montant total du contrat",
   },
   validation: {
     name:         { required: "Le nom est obligatoire",            tooLong:      "Nom trop long (max 100 caractères)" },
