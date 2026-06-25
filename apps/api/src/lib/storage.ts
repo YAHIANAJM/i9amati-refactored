@@ -14,3 +14,8 @@ export const PUBLIC_URL = process.env.MINIO_PUBLIC_URL ?? 'http://localhost:9000
 export function objectUrl(key: string): string {
   return `${PUBLIC_URL}/${BUCKET}/${key}`
 }
+
+// Use for private objects (documents/*). TTL in seconds, default 1 hour.
+export function presignedUrl(key: string, ttlSeconds = 3600): Promise<string> {
+  return minioClient.presignedGetObject(BUCKET, key, ttlSeconds)
+}
