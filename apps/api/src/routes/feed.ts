@@ -259,7 +259,7 @@ router.get('/groups/:groupId/members', async (req: Request, res, next) => {
     const profileIds = pgRows.map(r => r.profile_id)
     const profileRows = await db
       .selectFrom('public.profiles as prof')
-      .innerJoin('public.users as u', 'prof.user_id', 'u.id')
+      .innerJoin('public.user as u', 'prof.user_id', 'u.id')
       .where('prof.id', 'in', profileIds)
       .select(['prof.id as profile_id', 'u.name', 'u.image', 'prof.role as orgRole'])
       .execute()
@@ -397,7 +397,7 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
 
       db
         .selectFrom('public.profiles as prof')
-        .innerJoin('public.users as u', 'prof.user_id', 'u.id')
+        .innerJoin('public.user as u', 'prof.user_id', 'u.id')
         .where('prof.id', 'in', authorProfileIds)
         .select(['prof.id as profile_id', 'u.name', 'u.image'])
         .execute(),
@@ -546,7 +546,7 @@ router.get('/posts/:postId/comments', async (req: Request, res, next) => {
     const authorProfileIds = [...new Set(comments.map(c => c.author_profile_id))]
     const authorRows = await db
       .selectFrom('public.profiles as prof')
-      .innerJoin('public.users as u', 'prof.user_id', 'u.id')
+      .innerJoin('public.user as u', 'prof.user_id', 'u.id')
       .where('prof.id', 'in', authorProfileIds)
       .select(['prof.id as profile_id', 'u.name', 'u.image'])
       .execute()
@@ -745,7 +745,7 @@ router.get('/org-profiles', async (req: Request, res, next) => {
 
     const profiles = await db
       .selectFrom('public.profiles as prof')
-      .innerJoin('public.users as u', 'prof.user_id', 'u.id')
+      .innerJoin('public.user as u', 'prof.user_id', 'u.id')
       .where('prof.organization_id', '=', activeOrganizationId)
       .select(['prof.id as profileId', 'u.name', 'u.image', 'prof.role as orgRole'])
       .orderBy('u.name', 'asc')

@@ -132,12 +132,18 @@ function GroupMembersModal({
 
   const addMember = useMutation({
     mutationFn: (profileId: string) => feedApi.addGroupMember(group.id, profileId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+      qc.invalidateQueries({ queryKey: ['feed-groups'] }),
+    ]),
   })
 
   const removeMember = useMutation({
     mutationFn: (profileId: string) => feedApi.removeGroupMember(group.id, profileId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+      qc.invalidateQueries({ queryKey: ['feed-groups'] }),
+    ]),
   })
 
   return (

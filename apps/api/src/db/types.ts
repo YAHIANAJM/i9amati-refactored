@@ -380,7 +380,7 @@ export interface NotificationTable {
 
 export interface Database {
   // public schema — auth + org layer
-  'public.users': PublicUserTable
+  'public.user': PublicUserTable
   'public.session': PublicSessionTable
   'public.account': PublicAccountTable
   'public.verification': PublicVerificationTable

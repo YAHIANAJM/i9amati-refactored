@@ -371,7 +371,7 @@ async function sendConvocationEmails(
   if (!userIds.length) return
 
   const users = await db
-    .selectFrom('public.users')
+    .selectFrom('public.user')
     .select(['id', 'email', 'name', 'first_name', 'last_name'])
     .where('id', 'in', userIds)
     .execute()

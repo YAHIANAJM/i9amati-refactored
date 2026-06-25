@@ -8,7 +8,7 @@ const pool = new Pool({
 })
 
 // Single shared Kysely instance for the entire app.
-// - Public schema tables: query as  db.selectFrom('public.users')
+// - Public schema tables: query as  db.selectFrom('public.user')
 // - Tenant schema tables: query as  db.withSchema(orgSlug).selectFrom('residences')
 export const db = new Kysely<Database>({
   dialect: new PostgresDialect({ pool }),
