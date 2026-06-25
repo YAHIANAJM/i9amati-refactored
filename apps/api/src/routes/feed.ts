@@ -32,7 +32,7 @@ async function getPostWithGroup(tenantDb: TenantDB, postId: string) {
     .selectFrom('feed_posts as fp')
     .innerJoin('_profile_groups as pg', 'fp.author_id', 'pg.id')
     .where('fp.id', '=', postId)
-    .select(['fp.id', 'fp.content', 'fp.author_id', 'fp.created_at', 'fp.updated_at',
+    .select(['fp.id', 'fp.content', 'fp.media_url', 'fp.media_type', 'fp.author_id', 'fp.created_at', 'fp.updated_at',
              'pg.group_id', 'pg.profile_id as author_profile_id'])
     .executeTakeFirst()
 }
@@ -407,7 +407,7 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
       .selectFrom('feed_posts as fp')
       .innerJoin('_profile_groups as pg', 'fp.author_id', 'pg.id')
       .where('pg.group_id', '=', groupId)
-      .select(['fp.id', 'fp.content', 'fp.author_id', 'fp.created_at', 'fp.updated_at',
+      .select(['fp.id', 'fp.content', 'fp.media_url', 'fp.media_type', 'fp.author_id', 'fp.created_at', 'fp.updated_at',
                'pg.profile_id as author_profile_id', 'pg.role as author_group_role'])
       .orderBy('fp.created_at', 'desc')
       .limit(limit + 1)
@@ -475,6 +475,8 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
       posts: posts.map(p => ({
         id:              p.id,
         content:         p.content,
+        mediaUrl:        p.media_url,
+        mediaType:       p.media_type,
         createdAt:       p.created_at,
         updatedAt:       p.updated_at,
         authorId:        p.author_id,
@@ -494,13 +496,17 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
 
 // ── POST /feed/groups/:groupId/posts ──────────────────────────────────────────
 
-const CreatePostSchema = z.object({ content: z.string().min(1).max(5000) })
+const CreatePostSchema = z.object({
+  content: z.string().min(1).max(5000),
+  mediaUrl: z.string().url().max(1000).optional(),
+  mediaType: z.enum(['image', 'video']).optional(),
+})
 
 router.post('/groups/:groupId/posts', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
     const { groupId } = req.params
-    const { content } = CreatePostSchema.parse(req.body)
+    const { content, mediaUrl, mediaType } = CreatePostSchema.parse(req.body)
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
@@ -519,7 +525,13 @@ router.post('/groups/:groupId/posts', async (req: Request, res, next) => {
     const id = crypto.randomUUID()
     await tenantDb
       .insertInto('feed_posts')
-      .values({ id, content, author_id: profileGroupId, updated_at: new Date() })
+      .values({
+        id, content,
+        media_url: mediaUrl ?? null,
+        media_type: mediaType ?? null,
+        author_id: profileGroupId,
+        updated_at: new Date()
+      })
       .execute()
 
     res.status(201).json({ id })
@@ -528,13 +540,17 @@ router.post('/groups/:groupId/posts', async (req: Request, res, next) => {
 
 // ── PATCH /feed/posts/:postId ─────────────────────────────────────────────────
 
-const UpdatePostSchema = z.object({ content: z.string().min(1).max(5000) })
+const UpdatePostSchema = z.object({
+  content: z.string().min(1).max(5000),
+  mediaUrl: z.string().url().max(1000).optional().nullable(),
+  mediaType: z.enum(['image', 'video']).optional().nullable(),
+})
 
 router.patch('/posts/:postId', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
     const { postId } = req.params
-    const { content } = UpdatePostSchema.parse(req.body)
+    const { content, mediaUrl, mediaType } = UpdatePostSchema.parse(req.body)
 
     const post = await getPostWithGroup(tenantDb, postId)
     if (!post) throw new AppError(404, 'Post not found')
@@ -548,7 +564,12 @@ router.patch('/posts/:postId', async (req: Request, res, next) => {
 
     await tenantDb
       .updateTable('feed_posts')
-      .set({ content, updated_at: new Date() })
+      .set({
+        content,
+        ...(mediaUrl !== undefined && { media_url: mediaUrl }),
+        ...(mediaType !== undefined && { media_type: mediaType }),
+        updated_at: new Date()
+      })
       .where('id', '=', postId)
       .execute()
 

@@ -62,12 +62,18 @@ export const feedApi = {
   },
 
   // Post CRUD
-  async createPost(groupId: string, content: string): Promise<{ id: string }> {
-    return api.post(`/api/feed/groups/${groupId}/posts`, { content })
+  async createPost(
+    groupId: string,
+    payload: { content: string; mediaUrl?: string | null; mediaType?: 'image' | 'video' | null }
+  ): Promise<{ id: string }> {
+    return api.post(`/api/feed/groups/${groupId}/posts`, payload)
   },
 
-  async updatePost(postId: string, content: string): Promise<{ id: string }> {
-    return api.patch(`/api/feed/posts/${postId}`, { content })
+  async updatePost(
+    postId: string,
+    payload: { content: string; mediaUrl?: string | null; mediaType?: 'image' | 'video' | null }
+  ): Promise<{ id: string }> {
+    return api.patch(`/api/feed/posts/${postId}`, payload)
   },
 
   async deletePost(postId: string): Promise<void> {

@@ -287,6 +287,8 @@ export interface ProfileGroupTable {
 export interface FeedPostTable {
   id: Generated<string>
   content: string
+  media_url: string | null
+  media_type: 'image' | 'video' | null
   author_id: string  // → profile_groups.id
   created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp

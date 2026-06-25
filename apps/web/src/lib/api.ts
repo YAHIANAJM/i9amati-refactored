@@ -19,4 +19,18 @@ export const api = {
   post:   <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST',  body: body !== undefined ? JSON.stringify(body) : undefined }),
   patch:  <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string)                => request<T>(path, { method: 'DELETE' }),
+  upload: async <T>(path: string, file: File, fieldName = 'file') => {
+    const fd = new FormData()
+    fd.append(fieldName, file)
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      body: fd,
+      credentials: 'include',
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error ?? `HTTP ${res.status}`)
+    }
+    return res.json() as Promise<T>
+  },
 }

@@ -1,7 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
-import { defineFeedAbility, subject, ProfileRole } from '@i9amati/shared'
+import {
+  defineFeedAbility, subject, ProfileRole,
+  UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, UPLOAD_MEDIA_MIME, mimeToMediaType
+} from '@i9amati/shared'
 import type { FeedAbility, MembershipInfo } from '@i9amati/shared'
+import { api } from '@/lib/api'
 import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -368,7 +372,19 @@ function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticL
           </div>
         </div>
       ) : (
-        <p className="text-sm leading-relaxed whitespace-pre-line">{post.content}</p>
+        <div className="space-y-3">
+          <p className="text-sm leading-relaxed whitespace-pre-line">{post.content}</p>
+          {post.mediaUrl && post.mediaType === 'image' && (
+            <div className="rounded-lg overflow-hidden border bg-muted">
+              <img src={post.mediaUrl} alt="Post attachment" className="w-full max-h-96 object-contain" />
+            </div>
+          )}
+          {post.mediaUrl && post.mediaType === 'video' && (
+            <div className="rounded-lg overflow-hidden border bg-black">
+              <video src={post.mediaUrl} controls className="w-full max-h-96" />
+            </div>
+          )}
+        </div>
       )}
 
       {!editMode && (
@@ -433,6 +449,32 @@ function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRena
 export function Feed() {
   const qc = useQueryClient()
   const [newPost, setNewPost] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!UPLOAD_MEDIA_MIME.includes(file.type as any)) {
+      alert(`Invalid file type. Allowed: ${UPLOAD_MEDIA_MIME.join(', ')}`)
+      return
+    }
+    if (file.size > UPLOAD_MAX_SIZE_BYTES) {
+      alert(`File too large. Max size is ${UPLOAD_MAX_SIZE_LABEL}`)
+      return
+    }
+    setSelectedFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+  }
+
+  const clearFile = () => {
+    setSelectedFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [membersGroupId, setMembersGroupId] = useState<string | null>(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
@@ -519,12 +561,27 @@ export function Feed() {
 
   // ── Post mutations ────────────────────────────────────────────────────────
   const createPost = useMutation({
-    mutationFn: (content: string) => feedApi.createPost(activeGroupId!, content),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }); setNewPost('') },
+    mutationFn: async (content: string) => {
+      let mediaUrl: string | undefined
+      let mediaType: 'image' | 'video' | undefined
+      
+      if (selectedFile) {
+        const res = await api.upload<{ url: string }>('/api/upload?scope=feed', selectedFile)
+        mediaUrl = res.url
+        mediaType = mimeToMediaType(selectedFile.type)
+      }
+      
+      return feedApi.createPost(activeGroupId!, { content, mediaUrl, mediaType })
+    },
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] })
+      setNewPost('')
+      clearFile()
+    },
   })
 
   const editPost = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) => feedApi.updatePost(id, content),
+    mutationFn: ({ id, content }: { id: string; content: string }) => feedApi.updatePost(id, { content }),
     onMutate: async ({ id, content }) => {
       await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
       const prev = qc.getQueryData(['feed-posts', activeGroupId])
@@ -585,12 +642,26 @@ export function Feed() {
                 onKeyDown={e => e.key === 'Enter' && e.metaKey && createPost.mutate(newPost.trim())}
                 placeholder="What are you thinking of?" disabled={createPost.isPending}
                 className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30 disabled:opacity-60" />
+              
+              {previewUrl && selectedFile && (
+                <div className="relative mt-3 inline-block rounded-lg overflow-hidden border">
+                  {selectedFile.type.startsWith('image/') ? (
+                    <img src={previewUrl} alt="Preview" className="h-32 object-cover" />
+                  ) : (
+                    <video src={previewUrl} className="h-32 object-cover" />
+                  )}
+                  <button onClick={clearFile} className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground"><Image size={13} /> Photo</Button>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground"><Video size={13} /> Video</Button>
+                  <input type="file" ref={fileInputRef} className="hidden" accept={UPLOAD_MEDIA_MIME.join(',')} onChange={handleFileSelect} />
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => fileInputRef.current?.click()}><Image size={13} /> Photo/Video</Button>
                 </div>
-                <Button size="sm" className="gap-1.5 text-xs" disabled={!newPost.trim() || createPost.isPending} onClick={() => createPost.mutate(newPost.trim())}>
+                <Button size="sm" className="gap-1.5 text-xs" disabled={(!newPost.trim() && !selectedFile) || createPost.isPending} onClick={() => createPost.mutate(newPost.trim())}>
                   {createPost.isPending && <Loader2 size={12} className="animate-spin" />} Post
                 </Button>
               </div>

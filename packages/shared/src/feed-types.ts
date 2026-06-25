@@ -22,6 +22,8 @@ export interface FeedGroupsResponse {
 export interface FeedPost {
   id: string
   content: string
+  mediaUrl: string | null
+  mediaType: 'image' | 'video' | null
   createdAt: string
   updatedAt: string
   authorId: string
