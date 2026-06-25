@@ -171,6 +171,10 @@ export const ar = {
     contractDeleted:       "تم حذف العقد",
     paymentRecorded:       "تم تسجيل الدفعة",
   },
+  conflict: {
+    amountBelowPaid:  "لا يمكن تخفيض مبلغ العقد إلى أقل من المبلغ المدفوع بالفعل",
+    alreadyFullyPaid: "تم تسديد هذا العقد بالكامل بالفعل",
+  },
   validation: {
     name:         { required: "الاسم مطلوب",                    tooLong:      "الاسم طويل جداً (الحد الأقصى 100 حرف)" },
     contractName: { required: "اسم العقد مطلوب",                 tooLong:      "اسم العقد طويل جداً (الحد الأقصى 200 حرف)" },

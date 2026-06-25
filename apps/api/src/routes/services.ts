@@ -308,10 +308,7 @@ router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContra
     )
 
     if (body.amount !== undefined && body.amount < Number(contract.amount_paid)) {
-      throw new AppError(409,
-        `Cannot reduce contract amount below amount already paid (${contract.amount_paid})`,
-        'CONFLICT',
-      )
+      throw new AppError(409, 'conflict.amountBelowPaid', 'CONFLICT')
     }
 
     const updates: { name?: string; description?: string | null; amount?: number; start_date?: string | null; end_date?: string | null; status?: string } = {}
@@ -374,7 +371,7 @@ router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceCon
     )
 
     const remaining = Number(contract.amount) - Number(contract.amount_paid)
-    if (remaining <= 0) throw new AppError(409, 'Contract is already fully paid', 'CONFLICT')
+    if (remaining <= 0) throw new AppError(409, 'conflict.alreadyFullyPaid', 'CONFLICT')
 
     const newPaid = Math.min(
       Number(contract.amount_paid) + body.amount,

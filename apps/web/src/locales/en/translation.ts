@@ -171,6 +171,10 @@ export const en = {
     contractDeleted:       "Contract removed",
     paymentRecorded:       "Payment recorded",
   },
+  conflict: {
+    amountBelowPaid:  "Cannot reduce the contract amount below the amount already paid",
+    alreadyFullyPaid: "This contract has already been fully paid",
+  },
   validation: {
     name:         { required: "Name is required",           tooLong:      "Name is too long (max 100 characters)" },
     contractName: { required: "Contract name is required",  tooLong:      "Contract name is too long (max 200 characters)" },
