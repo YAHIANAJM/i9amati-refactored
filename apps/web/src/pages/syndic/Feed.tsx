@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { 
   toastCreated, toastUpdated, toastDeleted, toastApiError, toastSuccess 
 } from '@/components/toast'
+import { useTranslation } from 'react-i18next'
 import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -84,6 +85,7 @@ function GroupNameDialog({
   onSave: (name: string) => void
   initial?: string; title: string
 }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(initial ?? '')
   function handle() {
     if (!name.trim()) return
@@ -100,12 +102,12 @@ function GroupNameDialog({
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handle()}
-            placeholder="Group name…"
+            placeholder={t("feed.groupName")}
             className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
           />
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" disabled={!name.trim()} onClick={handle}>Save</Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>{t("feed.cancel")}</Button>
+            <Button size="sm" disabled={!name.trim()} onClick={handle}>{t("feed.save")}</Button>
           </div>
         </div>
       </DialogContent>
@@ -120,6 +122,7 @@ function GroupMembersModal({
 }: {
   group: ApiGroup; canManageMembers: boolean; onClose: () => void
 }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [showPicker, setShowPicker] = useState(false)
 
@@ -144,9 +147,9 @@ function GroupMembersModal({
         qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
         qc.invalidateQueries({ queryKey: ['feed-groups'] }),
       ])
-      toastSuccess('Member added')
+      toastSuccess(t('success.memberAdded'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to add member'),
+    onError: (err: any) => toastApiError(err),
   })
 
   const removeMember = useMutation({
@@ -156,9 +159,9 @@ function GroupMembersModal({
         qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
         qc.invalidateQueries({ queryKey: ['feed-groups'] }),
       ])
-      toastDeleted('Member removed')
+      toastDeleted(t('success.memberRemoved'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to remove member'),
+    onError: (err: any) => toastApiError(err),
   })
 
   return (
@@ -171,7 +174,7 @@ function GroupMembersModal({
             </div>
             <div>
               <DialogTitle className="text-sm font-semibold">{group.name}</DialogTitle>
-              <p className="text-xs text-muted-foreground">{loadingMembers ? group.memberCount : members.length} members</p>
+              <p className="text-xs text-muted-foreground">{loadingMembers ? group.memberCount : members.length} {t("feed.members")}</p>
             </div>
           </div>
         </div>
@@ -179,12 +182,12 @@ function GroupMembersModal({
         <div className="p-2 overflow-y-auto flex-1">
           {loadingMembers ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground p-4">
-              <Loader2 size={12} className="animate-spin" /> Loading…
+              <Loader2 size={12} className="animate-spin" /> {t("feed.loading")}
             </div>
           ) : membersError ? (
-            <p className="text-sm text-red-500 text-center py-6">Failed to load members.</p>
+            <p className="text-sm text-red-500 text-center py-6">{t("feed.failedLoadMembers")}</p>
           ) : members.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No members yet.</p>
+            <p className="text-sm text-muted-foreground text-center py-6">{t("feed.noMembersYet")}</p>
           ) : (
             members.map(m => (
               <div key={m.membershipId} className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors">
@@ -193,7 +196,7 @@ function GroupMembersModal({
                   <AvatarFallback className="text-xs">{getInitials(m.name ?? '?')}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{m.name ?? 'Unknown'}</p>
+                  <p className="text-sm font-medium truncate">{m.name ?? t("feed.unknown")}</p>
                   <p className="text-xs text-muted-foreground capitalize">{m.orgRole?.toLowerCase() ?? ''}</p>
                 </div>
                 <Badge variant="secondary" className="text-[10px] py-0 shrink-0">{m.groupRole}</Badge>
@@ -216,14 +219,14 @@ function GroupMembersModal({
               onClick={() => setShowPicker(v => !v)}
               className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
             >
-              <UserPlus size={14} /> Add member
-              <span className="ml-auto text-muted-foreground text-[10px]">{available.length} available</span>
+              <UserPlus size={14} /> {t("feed.addMember")}
+              <span className="ml-auto text-muted-foreground text-[10px]">{available.length} {t("feed.available")}</span>
             </button>
           )}
           {canManageMembers && showPicker && (
             <div className="px-2 pb-2 max-h-[180px] overflow-y-auto border-t">
               {available.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">All members already added.</p>
+                <p className="text-xs text-muted-foreground text-center py-3">{t("feed.allMembersAdded")}</p>
               ) : available.map((p: ApiOrgProfile) => (
                 <div key={p.profileId} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors">
                   <Avatar className="h-7 w-7 shrink-0">
@@ -254,6 +257,7 @@ function GroupMembersModal({
 // ── Comment List ──────────────────────────────────────────────────────────────
 
 function CommentList({ postId, canComment }: { postId: string; canComment: boolean }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [newComment, setNewComment] = useState('')
 
@@ -268,19 +272,19 @@ function CommentList({ postId, canComment }: { postId: string; canComment: boole
       qc.invalidateQueries({ queryKey: ['feed-comments', postId] })
       qc.invalidateQueries({ queryKey: ['feed-posts'] })
       setNewComment('')
-      toastCreated('Comment added')
+      toastCreated(t('success.commentAdded'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to add comment'),
+    onError: (err: any) => toastApiError(err),
   })
 
   return (
     <div className="space-y-3 pt-1">
       {isLoading ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-          <Loader2 size={12} className="animate-spin" /> Loading comments…
+          <Loader2 size={12} className="animate-spin" /> {t("feed.loadingComments")}
         </div>
       ) : comments.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-1">No comments yet.</p>
+        <p className="text-xs text-muted-foreground py-1">{t("feed.noCommentsYet")}</p>
       ) : (
         comments.map((c: ApiComment) => (
           <div key={c.id} className="flex items-start gap-2.5">
@@ -290,7 +294,7 @@ function CommentList({ postId, canComment }: { postId: string; canComment: boole
             </Avatar>
             <div className="flex-1 rounded-lg bg-muted/40 px-3 py-2">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-xs font-semibold">{c.authorName ?? 'Unknown'}</span>
+                <span className="text-xs font-semibold">{c.authorName ?? t("feed.unknown")}</span>
                 <span className="text-[10px] text-muted-foreground">
                   {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true, locale: fr })}
                 </span>
@@ -307,7 +311,7 @@ function CommentList({ postId, canComment }: { postId: string; canComment: boole
             value={newComment}
             onChange={e => setNewComment(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newComment.trim()) addComment.mutate(newComment.trim()) } }}
-            placeholder="Write a comment…"
+            placeholder={t("feed.writeComment")}
             className="flex-1 resize-none text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
           />
           <button
@@ -335,6 +339,7 @@ function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticL
   onEdit: (id: string, content: string) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const [showComments, setShowComments] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editContent, setEditContent] = useState(post.content)
@@ -349,7 +354,7 @@ function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticL
           </Avatar>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold">{post.authorName ?? 'Unknown'}</span>
+              <span className="text-sm font-semibold">{post.authorName ?? t("feed.unknown")}</span>
               <Badge variant={post.authorGroupRole === 'ADMIN' ? 'default' : 'secondary'} className="text-[10px] py-0">
                 {post.authorGroupRole === 'ADMIN' ? 'Syndic' : 'Membre'}
               </Badge>
@@ -380,8 +385,8 @@ function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticL
           <textarea autoFocus value={editContent} onChange={e => setEditContent(e.target.value)}
             className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30" />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditContent(post.content); setEditMode(false) }}>Cancel</Button>
-            <Button size="sm" className="h-7 text-xs" disabled={!editContent.trim()} onClick={() => { onEdit(post.id, editContent.trim()); setEditMode(false) }}>Save</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditContent(post.content); setEditMode(false) }}>{t("feed.cancel")}</Button>
+            <Button size="sm" className="h-7 text-xs" disabled={!editContent.trim()} onClick={() => { onEdit(post.id, editContent.trim()); setEditMode(false) }}>{t("feed.save")}</Button>
           </div>
         </div>
       ) : (
@@ -410,7 +415,7 @@ function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticL
           )}
           <button onClick={() => setShowComments(v => !v)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
             <MessageCircle size={14} />
-            {post.commentCount} commentaire{post.commentCount !== 1 ? 's' : ''}
+            {t("feed.comment")} ({post.commentCount})
           </button>
         </div>
       )}
@@ -427,6 +432,7 @@ function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRena
   onSelect: () => void; onViewMembers: () => void
   onRename: () => void; onDelete: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className={cn('rounded-xl border bg-card p-3 flex items-center gap-3 transition-colors group/gcard', isActive && 'border-primary bg-primary/5')}>
       <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={onSelect}>
@@ -435,7 +441,7 @@ function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRena
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{group.name}</p>
-          <p className="text-xs text-muted-foreground capitalize">{group.type} · {group.memberCount} members</p>
+          <p className="text-xs text-muted-foreground capitalize">{group.type} · {group.memberCount} {t("feed.members")}</p>
         </div>
       </div>
       <div className="flex items-center gap-0.5 shrink-0">
@@ -460,6 +466,7 @@ function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRena
 // ── Feed Page ─────────────────────────────────────────────────────────────────
 
 export function Feed() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [newPost, setNewPost] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -556,9 +563,9 @@ export function Feed() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['feed-groups'] })
       setSelectedGroupId(data.id)
-      toastCreated('Group created')
+      toastCreated(t('success.groupCreated'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to create group'),
+    onError: (err: any) => toastApiError(err),
   })
 
   const updateGroup = useMutation({
@@ -566,9 +573,9 @@ export function Feed() {
     onSuccess: () => { 
       qc.invalidateQueries({ queryKey: ['feed-groups'] })
       setRenameGroup(null)
-      toastUpdated('Group updated')
+      toastUpdated(t('success.groupUpdated'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to update group'),
+    onError: (err: any) => toastApiError(err),
   })
 
   const deleteGroup = useMutation({
@@ -576,9 +583,9 @@ export function Feed() {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ['feed-groups'] })
       if (activeGroupId === id) setSelectedGroupId(null)
-      toastDeleted('Group deleted')
+      toastDeleted(t('success.groupDeleted'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to delete group'),
+    onError: (err: any) => toastApiError(err),
   })
 
   // ── Post mutations ────────────────────────────────────────────────────────
@@ -599,9 +606,9 @@ export function Feed() {
       qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] })
       setNewPost('')
       clearFile()
-      toastCreated('Post published')
+      toastCreated(t('success.postCreated'))
     },
-    onError: (err: any) => toastApiError(err, 'Failed to publish post'),
+    onError: (err: any) => toastApiError(err),
   })
 
   const editPost = useMutation({
@@ -615,9 +622,9 @@ export function Feed() {
     },
     onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
       if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
-      toastApiError(err, 'Failed to update post')
+      toastApiError(err)
     },
-    onSuccess: () => toastUpdated('Post updated'),
+    onSuccess: () => toastUpdated(t('success.postUpdated')),
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
@@ -632,9 +639,9 @@ export function Feed() {
     },
     onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
       if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
-      toastApiError(err, 'Failed to delete post')
+      toastApiError(err)
     },
-    onSuccess: () => toastDeleted('Post deleted'),
+    onSuccess: () => toastDeleted(t('success.postDeleted')),
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
@@ -651,7 +658,7 @@ export function Feed() {
     },
     onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
       if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
-      toastApiError(err, 'Failed to like post')
+      toastApiError(err)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
@@ -663,7 +670,7 @@ export function Feed() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <TopBar title="Feed Management" subtitle={selectedGroup ? `Communauté — ${selectedGroup.name}` : 'Communauté'} />
+      <TopBar title={t("feed.manageMembers")} subtitle={selectedGroup ? `${t("feed.groupName")} — ${selectedGroup.name}` : t("feed.groupName")} />
       <div className="flex-1 flex gap-5 p-6 min-h-0">
 
         {/* Main feed */}
@@ -675,7 +682,7 @@ export function Feed() {
               </p>
               <textarea value={newPost} onChange={e => setNewPost(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && e.metaKey && createPost.mutate(newPost.trim())}
-                placeholder="What are you thinking of?" disabled={createPost.isPending}
+                placeholder={t("feed.whatAreYouThinking")} disabled={createPost.isPending}
                 className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30 disabled:opacity-60" />
               
               {previewUrl && selectedFile && (
@@ -694,7 +701,7 @@ export function Feed() {
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center gap-1">
                   <input type="file" ref={fileInputRef} className="hidden" accept={UPLOAD_MEDIA_MIME.join(',')} onChange={handleFileSelect} />
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => fileInputRef.current?.click()}><Image size={13} /> Photo/Video</Button>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => fileInputRef.current?.click()}><Image size={13} /> {t("feed.photoVideo")}</Button>
                 </div>
                 <Button size="sm" className="gap-1.5 text-xs" disabled={(!newPost.trim() && !selectedFile) || createPost.isPending} onClick={() => createPost.mutate(newPost.trim())}>
                   {createPost.isPending && <Loader2 size={12} className="animate-spin" />} Post
@@ -704,8 +711,8 @@ export function Feed() {
           )}
 
           {postsLoading ? (<><PostSkeleton /><PostSkeleton /><PostSkeleton /></>)
-            : postsError ? (<div className="rounded-xl border bg-card p-6 text-center text-sm text-red-500">Failed to load posts.</div>)
-            : posts.length === 0 ? (<div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">No posts in this group yet.</div>)
+            : postsError ? (<div className="rounded-xl border bg-card p-6 text-center text-sm text-red-500">{t("errors.codes.INTERNAL_ERROR")}</div>)
+            : posts.length === 0 ? (<div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">{t("feed.noPostsYet")}</div>)
             : posts.map(post => (
               <PostCard key={post.id} post={post}
                 canEdit={ability?.can('update', subject('FeedPost', { groupId: activeGroupId!, authorId: post.authorId })) ?? false}
@@ -729,7 +736,7 @@ export function Feed() {
         {/* Groups sidebar */}
         <div className="w-64 shrink-0">
           <div className="flex items-center justify-between mb-3 px-1">
-            <p className="text-sm font-semibold">groups</p>
+            <p className="text-sm font-semibold">{t("feed.newGroup")}</p>
             {isSyndic && (
               <button onClick={() => setShowCreateGroup(true)} className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors">
                 <Plus size={13} />
@@ -738,7 +745,7 @@ export function Feed() {
           </div>
           <div className="space-y-2">
             {groupsLoading ? (<><GroupSkeleton /><GroupSkeleton /><GroupSkeleton /></>)
-              : groupsError ? (<p className="text-xs text-red-500 px-1">Failed to load groups.</p>)
+              : groupsError ? (<p className="text-xs text-red-500 px-1">{t("errors.codes.INTERNAL_ERROR")}</p>)
               : groups.map(group => (
                 <GroupCard key={group.id} group={group} isActive={group.id === activeGroupId}
                   canManage={isSyndic}
@@ -752,10 +759,10 @@ export function Feed() {
       </div>
 
       {/* Dialogs */}
-      <GroupNameDialog open={showCreateGroup} title="Create a group" onClose={() => setShowCreateGroup(false)}
+      <GroupNameDialog open={showCreateGroup} title={t("feed.createGroupBtn")} onClose={() => setShowCreateGroup(false)}
         onSave={name => createGroup.mutate(name)} />
       {renameGroup && (
-        <GroupNameDialog open title={`Rename "${renameGroup.name}"`} initial={renameGroup.name}
+        <GroupNameDialog open title={`${t("feed.rename")} "${renameGroup.name}"`} initial={renameGroup.name}
           onClose={() => setRenameGroup(null)}
           onSave={name => updateGroup.mutate({ id: renameGroup.id, name })} />
       )}
