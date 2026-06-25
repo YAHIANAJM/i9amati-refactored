@@ -23,6 +23,7 @@ type Subjects =
   | 'FeedPostLike' | TaggedFeedLike
   | 'Group'
   | 'GroupMember'  | TaggedGroupMember
+  | 'FeedAnalytics'  // read: SYNDIC only (covered by manage all)
   | 'all'
 
 export type FeedAbility = MongoAbility<[Actions, Subjects]>

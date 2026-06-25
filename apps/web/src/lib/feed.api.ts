@@ -3,11 +3,12 @@ import { deriveGroupType } from '@i9amati/shared'
 import type {
   FeedGroup, FeedGroupsResponse, FeedPost, FeedComment,
   FeedMember, FeedOrgProfile, GroupType,
+  FeedAnalyticsResponse,
 } from '@i9amati/shared'
 
 // ── Re-export shared types under their Api* aliases used throughout the web app
 
-export type { GroupType }
+export type { GroupType, FeedAnalyticsResponse }
 export type ApiGroup      = FeedGroup
 export type ApiPost       = FeedPost
 export type ApiComment    = FeedComment
@@ -149,5 +150,11 @@ export const feedApi = {
   async getOrgProfiles(): Promise<ApiOrgProfile[]> {
     const data = await api.get<{ profiles: ApiOrgProfile[] }>('/api/feed/org-profiles')
     return data.profiles
+  },
+
+  // ── Analytics (SYNDIC only) ─────────────────────────────────────────────────
+
+  async getAnalytics(): Promise<FeedAnalyticsResponse> {
+    return api.get<FeedAnalyticsResponse>('/api/feed/analytics')
   },
 }

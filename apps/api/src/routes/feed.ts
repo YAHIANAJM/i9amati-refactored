@@ -830,6 +830,195 @@ router.delete('/posts/:postId/like', async (req: Request, res, next) => {
   } catch (err) { next(err) }
 })
 
+// ── GET /feed/analytics ───────────────────────────────────────────────────────
+// SYNDIC-only: aggregated feed engagement metrics for the analytics dashboard.
+
+router.get('/analytics', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileRole, profileId } = req as AuthRequest
+    // Pass empty memberships — analytics access depends only on platform role (SYNDIC),
+    // not on group-level memberships, so we skip the DB round-trip.
+    const ability = defineFeedAbility(profileRole, profileId, [])
+    if (ability.cannot('read', 'FeedAnalytics')) throw new AppError(403, 'Forbidden', 'ERROR_ANALYTICS_FORBIDDEN')
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    const [
+      postCount,
+      likeCount,
+      commentCount,
+      memberCount,
+      groupRows,
+      groupMemberCounts,
+      groupPostCounts,
+      groupLikeCounts,
+      groupCommentCounts,
+      timeline,
+      topPostRows,
+      memberPostCounts,
+      memberCommentCounts,
+    ] = await Promise.all([
+      tenantDb.selectFrom('feed_posts')
+        .select(sql<string>`COUNT(*)`.as('c'))
+        .executeTakeFirstOrThrow(),
+
+      tenantDb.selectFrom('feed_post_likes')
+        .select(sql<string>`COUNT(*)`.as('c'))
+        .executeTakeFirstOrThrow(),
+
+      tenantDb.selectFrom('feed_comments')
+        .select(sql<string>`COUNT(*)`.as('c'))
+        .executeTakeFirstOrThrow(),
+
+      tenantDb.selectFrom('_profile_groups')
+        .select(sql<string>`COUNT(DISTINCT profile_id)`.as('c'))
+        .executeTakeFirstOrThrow(),
+
+      tenantDb.selectFrom('groups').select(['id', 'name']).execute(),
+
+      tenantDb
+        .selectFrom('_profile_groups')
+        .groupBy('group_id')
+        .select(['group_id', sql<string>`COUNT(*)`.as('c')])
+        .execute(),
+
+      tenantDb
+        .selectFrom('_profile_groups as pg')
+        .innerJoin('feed_posts as fp', 'fp.author_id', 'pg.id')
+        .groupBy('pg.group_id')
+        .select(['pg.group_id', sql<string>`COUNT(fp.id)`.as('c')])
+        .execute(),
+
+      tenantDb
+        .selectFrom('_profile_groups as pg')
+        .innerJoin('feed_posts as fp', 'fp.author_id', 'pg.id')
+        .innerJoin('feed_post_likes as fpl', 'fpl.post_id', 'fp.id')
+        .groupBy('pg.group_id')
+        .select(['pg.group_id', sql<string>`COUNT(fpl.id)`.as('c')])
+        .execute(),
+
+      tenantDb
+        .selectFrom('_profile_groups as pg')
+        .innerJoin('feed_posts as fp', 'fp.author_id', 'pg.id')
+        .innerJoin('feed_comments as fc', 'fc.post_id', 'fp.id')
+        .groupBy('pg.group_id')
+        .select(['pg.group_id', sql<string>`COUNT(fc.id)`.as('c')])
+        .execute(),
+
+      tenantDb
+        .selectFrom('feed_posts')
+        .where('created_at', '>=', since)
+        .select([
+          sql<string>`DATE(created_at)`.as('day'),
+          sql<string>`COUNT(*)`.as('c'),
+        ])
+        .groupBy(sql`DATE(created_at)`)
+        .orderBy(sql`DATE(created_at)`, 'asc')
+        .execute(),
+
+      tenantDb
+        .selectFrom('feed_posts as fp')
+        .leftJoin('feed_post_likes as fpl', 'fpl.post_id', 'fp.id')
+        .innerJoin('_profile_groups as pg', 'fp.author_id', 'pg.id')
+        .groupBy(['fp.id', 'fp.content', 'pg.profile_id'])
+        .select([
+          'fp.id',
+          'fp.content',
+          sql<string>`COUNT(fpl.id)`.as('likeCount'),
+          'pg.profile_id as authorProfileId',
+        ])
+        .orderBy(sql`COUNT(fpl.id)`, 'desc')
+        .limit(5)
+        .execute(),
+
+      tenantDb
+        .selectFrom('_profile_groups as pg')
+        .innerJoin('feed_posts as fp', 'fp.author_id', 'pg.id')
+        .groupBy('pg.profile_id')
+        .select(['pg.profile_id', sql<string>`COUNT(fp.id)`.as('c')])
+        .execute(),
+
+      tenantDb
+        .selectFrom('feed_comments')
+        .groupBy('author_profile_id')
+        .select(['author_profile_id', sql<string>`COUNT(*)`.as('c')])
+        .execute(),
+    ])
+
+    // Build top-6 members by total activity (posts + comments)
+    const activityMap = new Map<string, { postCount: number; commentCount: number }>()
+    for (const r of memberPostCounts) {
+      activityMap.set(r.profile_id, { postCount: Number(r.c), commentCount: 0 })
+    }
+    for (const r of memberCommentCounts) {
+      const a = activityMap.get(r.author_profile_id)
+      if (a) a.commentCount = Number(r.c)
+      else activityMap.set(r.author_profile_id, { postCount: 0, commentCount: Number(r.c) })
+    }
+    const topMemberEntries = [...activityMap.entries()]
+      .map(([profileId, a]) => ({ profileId, ...a }))
+      .sort((a, b) => (b.postCount + b.commentCount) - (a.postCount + a.commentCount))
+      .slice(0, 6)
+
+    // Single lookup for all author names/avatars needed (top posts + top members)
+    const neededProfileIds = [
+      ...new Set([
+        ...topPostRows.map(r => r.authorProfileId),
+        ...topMemberEntries.map(e => e.profileId),
+      ]),
+    ]
+    const authorRows = neededProfileIds.length > 0
+      ? await db
+          .selectFrom('public.profiles as prof')
+          .innerJoin('public.user as u', 'prof.user_id', 'u.id')
+          .where('prof.id', 'in', neededProfileIds)
+          .select(['prof.id as profile_id', 'u.name', 'u.image'])
+          .execute()
+      : []
+    const authorMap = Object.fromEntries(authorRows.map(a => [a.profile_id, a]))
+
+    // Build per-group stat maps
+    const memberCountMap  = Object.fromEntries(groupMemberCounts.map(r => [r.group_id, Number(r.c)]))
+    const postCountMap    = Object.fromEntries(groupPostCounts.map(r => [r.group_id, Number(r.c)]))
+    const likeCountMap    = Object.fromEntries(groupLikeCounts.map(r => [r.group_id, Number(r.c)]))
+    const commentCountMap = Object.fromEntries(groupCommentCounts.map(r => [r.group_id, Number(r.c)]))
+
+    res.json({
+      profileRole,
+      summary: {
+        totalPosts:    Number(postCount.c),
+        totalLikes:    Number(likeCount.c),
+        totalComments: Number(commentCount.c),
+        totalMembers:  Number(memberCount.c),
+      },
+      groupStats: groupRows.map(g => ({
+        id:           g.id,
+        name:         g.name,
+        memberCount:  memberCountMap[g.id]  ?? 0,
+        postCount:    postCountMap[g.id]    ?? 0,
+        likeCount:    likeCountMap[g.id]    ?? 0,
+        commentCount: commentCountMap[g.id] ?? 0,
+      })),
+      // date strings in 'YYYY-MM-DD' format, last 30 days
+      timeline: timeline.map(r => ({ date: String(r.day), count: Number(r.c) })),
+      topPosts: topPostRows.map(r => ({
+        id:           r.id,
+        content:      r.content,
+        likeCount:    Number(r.likeCount),
+        authorName:   authorMap[r.authorProfileId]?.name  ?? null,
+        authorAvatar: authorMap[r.authorProfileId]?.image ?? null,
+      })),
+      topMembers: topMemberEntries.map(e => ({
+        profileId:    e.profileId,
+        name:         authorMap[e.profileId]?.name  ?? null,
+        avatar:       authorMap[e.profileId]?.image ?? null,
+        postCount:    e.postCount,
+        commentCount: e.commentCount,
+      })),
+    })
+  } catch (err) { next(err) }
+})
+
 // ── GET /feed/org-profiles ────────────────────────────────────────────────────
 // Returns all profiles in this org — used by the member picker when adding members to a group.
 

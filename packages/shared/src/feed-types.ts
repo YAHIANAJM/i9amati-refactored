@@ -63,8 +63,67 @@ export interface FeedOrgProfile {
   image: string | null
 }
 
+/** Paginated response from GET /feed/groups/:groupId/posts */
+export interface FeedPostsPage {
+  posts:      FeedPost[]
+  hasMore:    boolean
+  nextCursor: string | null
+}
+
 export function deriveGroupType(g: { building_id: string | null; residence_id: string | null }): GroupType {
   if (g.building_id) return 'building'
   if (g.residence_id) return 'residence'
   return 'custom'
+}
+
+// ── Feed Analytics ────────────────────────────────────────────────────────────
+
+export interface FeedAnalyticsSummary {
+  totalPosts:    number
+  totalLikes:    number
+  totalComments: number
+  totalMembers:  number
+}
+
+export interface FeedAnalyticsGroupStat {
+  id:           string
+  name:         string
+  memberCount:  number
+  postCount:    number
+  likeCount:    number
+  commentCount: number
+}
+
+/** One day bucket in the posts-over-time timeline. date is 'YYYY-MM-DD'. */
+export interface FeedAnalyticsTimelinePoint {
+  date:  string
+  count: number
+}
+
+export interface FeedAnalyticsTopPost {
+  id:           string
+  content:      string
+  likeCount:    number
+  authorName:   string | null
+  authorAvatar: string | null
+}
+
+export interface FeedAnalyticsTopMember {
+  profileId:    string
+  name:         string | null
+  avatar:       string | null
+  postCount:    number
+  commentCount: number
+}
+
+export interface FeedAnalyticsResponse {
+  profileRole: string
+  summary:     FeedAnalyticsSummary
+  groupStats:  FeedAnalyticsGroupStat[]
+  /** Posts per day over the last 30 days, sorted ascending. */
+  timeline:    FeedAnalyticsTimelinePoint[]
+  /** Top 5 posts by like count. */
+  topPosts:    FeedAnalyticsTopPost[]
+  /** Top 6 members by total activity (posts + comments). */
+  topMembers:  FeedAnalyticsTopMember[]
 }

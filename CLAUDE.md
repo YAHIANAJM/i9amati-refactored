@@ -17,7 +17,7 @@ npm workspaces monorepo orchestrated by Turbo:
 
 ## Commands
 
-Primary dev command (starts PostgreSQL via Docker, then all apps via Turbo):
+Primary dev command (starts PostgreSQL + MinIO via Docker, then all apps via Turbo):
 ```bash
 npm run dev
 ```
@@ -46,6 +46,8 @@ npm --workspace apps/api run db:seed                    # run seed.ts
 
 Local PostgreSQL (Docker): `docker compose up -d postgres` — credentials: user/password, db: i9amati, port 5432.
 
+Local MinIO (Docker): `docker compose up -d minio minio-init` — S3-compatible object storage, port 9000 (API) / 9001 (console). Default credentials: minioadmin/minioadmin. `minio-init` creates the `i9amati` bucket with public download policy on first start.
+
 ## Database Architecture (Kysely + Schema-per-Tenant)
 
 The API uses **Kysely** (not Prisma) with a raw `pg` connection pool. There is no ORM — all queries are typed via Kysely's query builder.
@@ -68,6 +70,8 @@ Migration files live in `apps/api/migrations/public/` and `apps/api/migrations/t
 - `/api/meetings` — meeting CRUD
 - `/api/notifications` — notification list/read
 - `/api/chatbot` — LangGraph chatbot endpoint
+- `/api/feed` — community feed: groups, posts, comments, likes (CASL-authorized)
+- `/api/upload` — file upload to MinIO; `POST /api/upload?scope=feed|profile|documents|residences` with `multipart/form-data`, field `file`; returns `{ url, key }`
 - `/health` — liveness probe
 
 **Auth** (`src/auth.ts`): `betterAuth()` instance with plugins: `admin`, `twoFactor`, `emailOTP`, `magicLink`. Optional social providers (Google, Facebook) when their env vars are set. User model adds `firstName`, `lastName`, `phone`, `platformRole`, `verifiedAt`. Session adds `activeOrganizationId` and `profileId` (auto-populated on session create via `databaseHooks`).
@@ -80,7 +84,7 @@ Migration files live in `apps/api/migrations/public/` and `apps/api/migrations/t
 ```ts
 router.use(authenticate)
 router.get('/', async (req: Request, res, next) => {
-  const { tenantDb, profileId, activeOrganizationId } = req as AuthRequest
+  const { tenantDb, profileId, profileRole, activeOrganizationId } = req as AuthRequest
   // tenantDb is already scoped to the org's schema via withSchema(orgSlug)
   // use tenantDb for all domain tables, db for public.* tables
 })
@@ -98,6 +102,18 @@ enum ProfileRole { SYNDIC, OWNER, TENANT, STAFF }  // profiles.role — per-org
 Import as `import { PlatformRole, ProfileRole } from '@i9amati/shared'`.
 
 Note: `requirePermission` middleware is a no-op stub — per-resource permission enforcement is not yet implemented.
+
+**Feed authorization** uses CASL instead. `packages/shared/src/feed-ability.ts` exports `defineFeedAbility(profileRole, profileId, memberships)` which returns a CASL `MongoAbility`. Feed routes call this directly:
+
+```ts
+import { defineFeedAbility, subject } from '@i9amati/shared'
+const ability = defineFeedAbility(profileRole, profileId, memberships)
+if (ability.cannot('delete', subject('FeedPost', { groupId, authorId }))) throw new AppError(403, '...')
+```
+
+`MembershipInfo` represents a `_profile_groups` row: `{ profileGroupId, groupId, role: 'USER' | 'ADMIN' | 'RIGHT_HAND' }`. SYNDIC has unrestricted access. `feed_posts.author_id` is an FK to `_profile_groups.id`, not `profiles.id` directly.
+
+**`@i9amati/shared`** also exports upload config constants (`UPLOAD_IMAGE_MIME`, `UPLOAD_MEDIA_MIME`, `UPLOAD_MAX_SIZE_BYTES`, `mimeToMediaType`, etc.) from `upload-config.ts`.
 
 ## Chatbot Architecture (LangGraph + Groq + RAG)
 
@@ -123,6 +139,8 @@ START → sanitize → safetyCheck → (conditional)
 **Page split**: each domain has two pages — a **dashboard** (`pages/syndic/dashboards/`) with analytics/Recharts, and a **management page** (`pages/syndic/`) with full CRUD UI. Route prefix `dash/` = dashboard variant (e.g. `/syndic/dash/payments` → `PaymentsDash.tsx`; `/syndic/payments` → `Payments.tsx`).
 
 **Data**: `src/data/mock/` — the web app currently uses local mock data typed against `@i9amati/shared`. API integration is in progress; `@tanstack/react-query` is available for server state when connecting to the API.
+
+**i18n**: `src/lib/i18n.ts` configures `i18next` with three locales (Arabic, English, French) loaded from `src/locales/{ar,en,fr}/translation.ts`. Default language is Arabic. Use `useTranslation()` from `react-i18next` to access translated strings.
 
 **Path alias**: `@/` resolves to `apps/web/src/` (configured in `vite.config.ts`).
 
@@ -150,9 +168,20 @@ BETTER_AUTH_SECRET=             # Secret for Better Auth session signing (min 32
 BETTER_AUTH_URL=                # Better Auth base URL (e.g. http://localhost:4000/api/auth)
 BETTER_AUTH_TRUSTED_ORIGINS=    # Comma-separated allowed origins (e.g. http://localhost:5173)
 GROQ_API_KEY=                   # Groq API key for the chatbot
-CLOUDINARY_CLOUD_NAME=          # Cloudinary for file uploads
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
+# MinIO (S3-compatible file storage) — defaults work with local Docker:
+MINIO_ENDPOINT=                 # MinIO host (default: localhost)
+MINIO_PORT=                     # MinIO port (default: 9000)
+MINIO_USE_SSL=                  # true in production (default: false)
+MINIO_ACCESS_KEY=               # MinIO access key (default: minioadmin)
+MINIO_SECRET_KEY=               # MinIO secret key (default: minioadmin)
+MINIO_BUCKET=                   # Bucket name (default: i9amati)
+MINIO_PUBLIC_URL=               # Public base URL for object links (default: http://localhost:9000)
+# SMTP mailer — convocation emails for meetings; omit to skip sending:
+SMTP_HOST=
+SMTP_PORT=
+SMTP_SECURE=                    # true for TLS (default: false)
+SMTP_USER=
+SMTP_PASS=
 PORT=                           # API port (default: 4000)
 # Optional social providers (omit to disable):
 GOOGLE_CLIENT_ID=

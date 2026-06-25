@@ -17,6 +17,7 @@ export const ar = {
       ERROR_POST_NOT_FOUND: "المنشور غير موجود",
       ERROR_COMMENT_NOT_FOUND: "التعليق غير موجود",
       ERROR_PARENT_COMMENT_NOT_FOUND: "التعليق الأساسي غير موجود",
+      ERROR_ANALYTICS_FORBIDDEN: "إحصاءات الفيد متاحة للسنديك فقط",
       NOT_FOUND: "تحقق من البيانات وحاول مرة أخرى",
       UNAUTHORIZED: "يرجى تسجيل الدخول أولاً",
       FORBIDDEN: "ليس لديك صلاحية لهذا الإجراء",
@@ -40,6 +41,8 @@ export const ar = {
     generic: "تمت العملية بنجاح"
   },
   feed: {
+    pageTitle: "الفيد المجتمعي",
+    pageSubtitle: "تواصل مع مجتمعك",
     groupName: "اسم المجموعة...",
     cancel: "إلغاء",
     save: "حفظ",
@@ -57,6 +60,7 @@ export const ar = {
     post: "نشر",
     photoVideo: "صورة / فيديو",
     whatAreYouThinking: "بم تفكر؟",
+    postingTo: "نشر إلى",
     noGroupsYet: "لا توجد مجموعات بعد.",
     createGroup: "قم بإنشاء مجموعة لبدء التواصل مع مجتمعك.",
     createGroupBtn: "إنشاء مجموعة",
@@ -77,7 +81,50 @@ export const ar = {
     selectMedia: "اختر صورة أو فيديو",
     removeMedia: "إزالة المرفق",
     unsupportedFile: "نوع الملف غير مدعوم أو حجمه كبير جدًا",
-    publishing: "جاري النشر..."
+    publishing: "جاري النشر...",
+    groupsLoadError: "فشل تحميل المجموعات.",
+    postsLoadError: "فشل تحميل المنشورات.",
+    syndicBadge: "السنديك",
+    memberBadge: "عضو",
+    groups: "المجموعات",
+    selectGroup: "اختر مجموعة",
+    selectGroupDesc: "اختر مجموعة من الشريط الجانبي لعرض المنشورات والتفاعل.",
+    beFirstToPost: "كن أول من ينشر في هذه المجموعة!"
+  },
+  feedAnalytics: {
+    title: "تحليلات الفيد",
+    subtitle: "الانخراط والنشاط المجتمعي",
+    loading: "جاري تحميل الإحصاءات...",
+    kpi: {
+      publications: "منشورات",
+      totalLikes: "إجمالي الإعجابات",
+      comments: "تعليقات",
+      members: "أعضاء",
+      avgEngagement: "متوسط التفاعل"
+    },
+    charts: {
+      activityByGroup: "النشاط حسب المجموعة",
+      activityOverTime: "النشاط عبر الزمن (30 يوماً)",
+      posts: "منشورات",
+      likes: "إعجابات",
+      comments: "تعليقات",
+      publications: "منشورات",
+      postsDistribution: "توزيع المنشورات"
+    },
+    topPosts: {
+      title: "أفضل المنشورات",
+      none: "لا توجد منشورات بعد."
+    },
+    topMembers: {
+      title: "الأعضاء الأكثر نشاطاً",
+      none: "لا يوجد نشاط بعد."
+    },
+    error: {
+      title: "خطأ في التحميل",
+      desc: "تعذر تحميل البيانات. حاول مرة أخرى لاحقاً.",
+      forbiddenTitle: "وصول محدود",
+      forbiddenDesc: "إحصاءات الفيد متاحة للسنديك فقط."
+    }
   }
 } as const
 
