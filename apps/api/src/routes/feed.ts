@@ -377,6 +377,16 @@ router.delete('/groups/:groupId/members/:profileId', async (req: Request, res, n
     const ability     = defineFeedAbility(profileRole, requesterId, memberships)
     if (ability.cannot('delete', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
 
+    const targetProfile = await db
+      .selectFrom('public.profiles')
+      .select('role')
+      .where('id', '=', targetProfileId)
+      .executeTakeFirst()
+
+    if (targetProfile?.role === ProfileRole.SYNDIC) {
+      throw new AppError(400, 'Cannot remove a syndic from the group')
+    }
+
     await tenantDb
       .deleteFrom('_profile_groups')
       .where('group_id', '=', groupId)
