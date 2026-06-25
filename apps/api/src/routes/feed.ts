@@ -77,14 +77,40 @@ router.get('/groups', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
 
+    // SYNDIC is always a member of every group — ensure their _profile_groups rows exist
+    // for all groups before the main query (bulk-insert any missing rows in one shot).
+    if (profileRole === ProfileRole.SYNDIC) {
+      const [allGroupIds, existingPgGroupIds] = await Promise.all([
+        tenantDb.selectFrom('groups').select('id').execute().then(rs => rs.map(r => r.id)),
+        tenantDb
+          .selectFrom('_profile_groups')
+          .select('group_id')
+          .where('profile_id', '=', profileId)
+          .execute()
+          .then(rs => new Set(rs.map(r => r.group_id))),
+      ])
+      const missing = allGroupIds.filter(gid => !existingPgGroupIds.has(gid))
+      if (missing.length > 0) {
+        await tenantDb
+          .insertInto('_profile_groups')
+          .values(missing.map(groupId => ({
+            id:         crypto.randomUUID(),
+            group_id:   groupId,
+            profile_id: profileId,
+            role:       'ADMIN' as const,
+          })))
+          .execute()
+      }
+    }
+
     // Single query: count all members per group via LEFT JOIN on pg,
     // plus the current user's own membership row via a separate aliased join.
-    // SYNDIC sees all groups (leftJoin on my_pg); others see only their groups (innerJoin).
+    // SYNDIC: rows guaranteed above so innerJoin; others: innerJoin scopes to their groups.
     const groups = profileRole === ProfileRole.SYNDIC
       ? await tenantDb
           .selectFrom('groups as g')
           .leftJoin('_profile_groups as pg', 'pg.group_id', 'g.id')
-          .leftJoin('_profile_groups as my_pg', join =>
+          .innerJoin('_profile_groups as my_pg', join =>
             join.onRef('my_pg.group_id', '=', 'g.id').on('my_pg.profile_id', '=', profileId),
           )
           .groupBy(['g.id', 'my_pg.id', 'my_pg.role'])
@@ -151,6 +177,9 @@ router.post('/groups', async (req: Request, res, next) => {
         updated_at:   new Date(),
       })
       .execute()
+
+    // SYNDIC is always a member — create their membership row immediately
+    await ensureSyndicMembership(tenantDb, profileId, id)
 
     res.status(201).json({ id, slug })
   } catch (err) { next(err) }
