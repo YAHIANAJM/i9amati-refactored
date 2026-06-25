@@ -839,7 +839,7 @@ router.get('/analytics', async (req: Request, res, next) => {
     // Pass empty memberships — analytics access depends only on platform role (SYNDIC),
     // not on group-level memberships, so we skip the DB round-trip.
     const ability = defineFeedAbility(profileRole, profileId, [])
-    if (ability.cannot('read', 'FeedAnalytics')) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
+    if (ability.cannot('read', 'FeedAnalytics')) throw new AppError(403, 'Forbidden', 'ERROR_ANALYTICS_FORBIDDEN')
 
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 

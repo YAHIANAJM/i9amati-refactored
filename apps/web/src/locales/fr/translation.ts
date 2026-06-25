@@ -17,6 +17,7 @@ export const fr = {
       ERROR_POST_NOT_FOUND: "Publication introuvable",
       ERROR_COMMENT_NOT_FOUND: "Commentaire introuvable",
       ERROR_PARENT_COMMENT_NOT_FOUND: "Commentaire parent introuvable",
+      ERROR_ANALYTICS_FORBIDDEN: "Les statistiques du feed sont réservées au syndic",
       NOT_FOUND: "Vérifiez les données et réessayez",
       UNAUTHORIZED: "Veuillez vous connecter d'abord",
       FORBIDDEN: "Vous n'avez pas l'autorisation pour cette action",
@@ -40,6 +41,8 @@ export const fr = {
     generic: "Action réussie"
   },
   feed: {
+    pageTitle: "Feed communautaire",
+    pageSubtitle: "Communiquez avec votre communauté",
     groupName: "Nom du groupe…",
     cancel: "Annuler",
     save: "Enregistrer",
@@ -57,6 +60,7 @@ export const fr = {
     post: "Publier",
     photoVideo: "Photo / Vidéo",
     whatAreYouThinking: "À quoi pensez-vous ?",
+    postingTo: "Publier dans",
     noGroupsYet: "Aucun groupe pour le moment.",
     createGroup: "Créez un groupe pour commencer à communiquer avec votre communauté.",
     createGroupBtn: "Créer un groupe",
@@ -77,7 +81,50 @@ export const fr = {
     selectMedia: "Sélectionner une image ou une vidéo",
     removeMedia: "Retirer le fichier",
     unsupportedFile: "Type de fichier non pris en charge ou trop volumineux",
-    publishing: "Publication en cours..."
+    publishing: "Publication en cours...",
+    groupsLoadError: "Impossible de charger les groupes.",
+    postsLoadError: "Impossible de charger les publications.",
+    syndicBadge: "Syndic",
+    memberBadge: "Membre",
+    groups: "Groupes",
+    selectGroup: "Sélectionner un groupe",
+    selectGroupDesc: "Choisissez un groupe dans la barre latérale pour voir et publier.",
+    beFirstToPost: "Soyez le premier à publier dans ce groupe !"
+  },
+  feedAnalytics: {
+    title: "Feed Analytics",
+    subtitle: "Engagement et activité communautaire",
+    loading: "Chargement des statistiques…",
+    kpi: {
+      publications: "Publications",
+      totalLikes: "Total Likes",
+      comments: "Commentaires",
+      members: "Membres",
+      avgEngagement: "Engagement moyen"
+    },
+    charts: {
+      activityByGroup: "Activité par groupe",
+      activityOverTime: "Activité dans le temps (30 jours)",
+      posts: "Posts",
+      likes: "Likes",
+      comments: "Commentaires",
+      publications: "Publications",
+      postsDistribution: "Répartition des posts"
+    },
+    topPosts: {
+      title: "Top publications",
+      none: "Aucune publication pour l'instant."
+    },
+    topMembers: {
+      title: "Membres les plus actifs",
+      none: "Aucune activité pour l'instant."
+    },
+    error: {
+      title: "Erreur de chargement",
+      desc: "Impossible de charger les données. Réessayez plus tard.",
+      forbiddenTitle: "Accès restreint",
+      forbiddenDesc: "Les statistiques du feed sont uniquement accessibles au syndic."
+    }
   }
 } as const
 

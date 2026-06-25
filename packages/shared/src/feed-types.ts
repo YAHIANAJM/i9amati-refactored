@@ -63,6 +63,13 @@ export interface FeedOrgProfile {
   image: string | null
 }
 
+/** Paginated response from GET /feed/groups/:groupId/posts */
+export interface FeedPostsPage {
+  posts:      FeedPost[]
+  hasMore:    boolean
+  nextCursor: string | null
+}
+
 export function deriveGroupType(g: { building_id: string | null; residence_id: string | null }): GroupType {
   if (g.building_id) return 'building'
   if (g.residence_id) return 'residence'
