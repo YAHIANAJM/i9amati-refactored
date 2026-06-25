@@ -131,6 +131,20 @@ export function Services() {
     onSuccess: () => toastDeleted(t('services.contractDeleted')),
   })
 
+  const attachContractFile = useMutation({
+    mutationFn: ({ serviceId, contractId, file }: { serviceId: string; contractId: string; file: File }) =>
+      servicesApi.attachFile(serviceId, contractId, file),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services'] }),
+    onError: (err: unknown) => toastApiError(err),
+  })
+
+  const removeContractFile = useMutation({
+    mutationFn: ({ serviceId, contractId, docId }: { serviceId: string; contractId: string; docId: string }) =>
+      servicesApi.removeFile(serviceId, contractId, docId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services'] }),
+    onError: (err: unknown) => toastApiError(err),
+  })
+
   const recordPayment = useMutation({
     mutationFn: ({ serviceId, contractId, amount }: { serviceId: string; contractId: string; amount: number }) =>
       servicesApi.recordPayment(serviceId, contractId, amount),
@@ -152,10 +166,10 @@ export function Services() {
   function handleServiceSubmit(data: { name: string; type: string; phone: string; email: string }) {
     const payload = {
       name: data.name,
-      type: data.type || undefined,
+      type: data.type || null,
       contact_info: (data.phone || data.email)
         ? { phone: data.phone || undefined, email: data.email || undefined }
-        : undefined,
+        : null,
     }
     if (serviceDialog.service) {
       updateService.mutate({ id: serviceDialog.service.id, ...payload })
@@ -170,10 +184,10 @@ export function Services() {
   }) {
     const payload = {
       name:        data.name,
-      description: data.description || undefined,
+      description: data.description || null,
       amount:      data.amount,
-      start_date:  data.start_date || undefined,
-      end_date:    data.end_date || undefined,
+      start_date:  data.start_date || null,
+      end_date:    data.end_date || null,
       status:      data.status,
     }
     if (contractDialog.contract && contractDialog.service) {
@@ -186,6 +200,14 @@ export function Services() {
   function handlePaymentSubmit(amount: number) {
     if (!paymentDialog.service || !paymentDialog.contract) return
     recordPayment.mutate({ serviceId: paymentDialog.service.id, contractId: paymentDialog.contract.id, amount })
+  }
+
+  function handleAttachFile(service: ApiService, contract: ApiServiceContract, file: File) {
+    attachContractFile.mutate({ serviceId: service.id, contractId: contract.id, file })
+  }
+
+  function handleRemoveFile(service: ApiService, contract: ApiServiceContract, docId: string) {
+    removeContractFile.mutate({ serviceId: service.id, contractId: contract.id, docId })
   }
 
   const isServicePending  = createService.isPending || updateService.isPending
@@ -218,6 +240,8 @@ export function Services() {
           onEditContract={(service, contract) => setContractDialog({ open: true, service, contract })}
           onDeleteContract={(service, contract) => deleteContract.mutate({ serviceId: service.id, contractId: contract.id })}
           onRecordPayment={(service, contract) => setPaymentDialog({ open: true, service, contract })}
+          onAttachFile={handleAttachFile}
+          onRemoveFile={handleRemoveFile}
         />
       </div>
 

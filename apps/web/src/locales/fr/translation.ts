@@ -154,6 +154,7 @@ export const fr = {
     remaining:             "Restant",
     paymentProgress:       "Progression des paiements",
     recordPayment:         "Enregistrer paiement",
+    attachFile:            "Joindre fichier",
     paymentAmount:         "Montant payé",
     noContractsYet:        "Aucun contrat pour le moment.",
     noServicesYet:         "Aucun prestataire pour le moment.",

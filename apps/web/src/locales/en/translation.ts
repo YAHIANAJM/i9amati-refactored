@@ -154,6 +154,7 @@ export const en = {
     remaining:             "Remaining",
     paymentProgress:       "Payment progress",
     recordPayment:         "Record payment",
+    attachFile:            "Attach file",
     paymentAmount:         "Amount paid",
     noContractsYet:        "No contracts yet.",
     noServicesYet:         "No service providers yet.",

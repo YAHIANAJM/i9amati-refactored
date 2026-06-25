@@ -154,6 +154,7 @@ export const ar = {
     remaining:             "المتبقي",
     paymentProgress:       "تقدم الدفع",
     recordPayment:         "تسجيل دفعة",
+    attachFile:            "إرفاق ملف",
     paymentAmount:         "المبلغ المدفوع",
     noContractsYet:        "لا توجد عقود بعد.",
     noServicesYet:         "لا يوجد مزودو خدمات بعد.",
