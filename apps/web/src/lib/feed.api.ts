@@ -1,10 +1,15 @@
 import { api } from './api'
-import { deriveGroupType } from '@i9amati/shared'
+import { deriveGroupType, UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, mimeToMediaType } from '@i9amati/shared'
 import type {
   FeedGroup, FeedGroupsResponse, FeedPost, FeedComment,
   FeedMember, FeedOrgProfile, GroupType,
-  FeedAnalyticsResponse,
+  FeedAnalyticsResponse, UploadMediaType,
 } from '@i9amati/shared'
+
+const BASE = import.meta.env.VITE_API_URL || ''
+
+export { UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, mimeToMediaType }
+export type { UploadMediaType }
 
 // ── Re-export shared types under their Api* aliases used throughout the web app
 
@@ -143,6 +148,27 @@ export const feedApi = {
 
   async removeGroupMember(groupId: string, profileId: string): Promise<void> {
     return api.delete(`/api/feed/groups/${groupId}/members/${profileId}`)
+  },
+
+  // ── File upload ─────────────────────────────────────────────────────────────
+
+  async uploadMedia(file: File, scope = 'feed'): Promise<{ url: string; key: string }> {
+    if (file.size > UPLOAD_MAX_SIZE_BYTES) {
+      throw new Error(`File exceeds the ${UPLOAD_MAX_SIZE_LABEL} limit`)
+    }
+    const form = new FormData()
+    form.append('file', file)
+    // Do NOT set Content-Type — browser sets it with the correct multipart boundary
+    const res = await fetch(`${BASE}/api/upload?scope=${scope}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`)
+    }
+    return res.json()
   },
 
   // ── Org profiles (for member picker) ───────────────────────────────────────

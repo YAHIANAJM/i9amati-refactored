@@ -343,6 +343,7 @@ export interface ServiceTable {
   id: Generated<string>
   name: string
   slug: string
+  type: string | null
   contact_info: ColumnType<unknown, unknown, unknown> | null // json
 }
 
@@ -364,6 +365,11 @@ export interface ServiceContractTable {
   service_id: string
   name: string
   description: string | null
+  amount: ColumnType<number, number | undefined, number>
+  amount_paid: ColumnType<number, number | undefined, number>
+  start_date: string | null
+  end_date: string | null
+  status: ColumnType<string, string | undefined, string>
 }
 
 export interface ServiceResidenceTable {

@@ -3,19 +3,16 @@ import multer from 'multer'
 import { authenticate } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
 import { minioClient, BUCKET, objectUrl } from '../lib/storage'
+import { UPLOAD_ALL_MIME, UPLOAD_MAX_SIZE_BYTES } from '@i9amati/shared'
 
 const router = Router()
 router.use(authenticate)
 
-const ALLOWED_MIME = new Set([
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-  'video/mp4', 'video/quicktime',
-  'application/pdf',
-])
+const ALLOWED_MIME = new Set<string>(UPLOAD_ALL_MIME)
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: UPLOAD_MAX_SIZE_BYTES },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME.has(file.mimetype)) cb(null, true)
     else cb(new AppError(415, `File type not allowed: ${file.mimetype}`))

@@ -16,6 +16,7 @@ import chatbotRouter from './routes/chatbot'
 import feedRouter from './routes/feed'
 import uploadRouter from './routes/upload'
 import unionRouter from './routes/union'
+import servicesRouter from './routes/services'
 import { errorHandler } from './middleware/errorHandler'
 import { db } from './db/db'
 
@@ -36,17 +37,18 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }))
 
 app.all('/api/auth/*', toNodeHandler(auth))
 
-app.use('/api/me',            meRouter)
-app.use('/api/setup',         setupRouter)
-app.use('/api/residences',    residencesRouter)
-app.use('/api/buildings',     buildingsRouter)
-app.use('/api/apartments',   apartmentsRouter)
-app.use('/api/meetings',     meetingsRouter)
+app.use('/api/me', meRouter)
+app.use('/api/setup', setupRouter)
+app.use('/api/residences', residencesRouter)
+app.use('/api/buildings', buildingsRouter)
+app.use('/api/apartments', apartmentsRouter)
+app.use('/api/meetings', meetingsRouter)
 app.use('/api/notifications', notificationsRouter)
-app.use('/api/chatbot',      chatbotRouter)
-app.use('/api/feed',        feedRouter)
-app.use('/api/upload',      uploadRouter)
-app.use('/api/union',       unionRouter)
+app.use('/api/chatbot', chatbotRouter)
+app.use('/api/feed', feedRouter)
+app.use('/api/upload', uploadRouter)
+app.use('/api/union', unionRouter)
+app.use('/api/services', servicesRouter)
 
 app.use(errorHandler)
 
