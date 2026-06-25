@@ -1,16 +1,58 @@
+import { lazy, Suspense } from 'react'
 import type React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { SyndicLayout }   from '@/components/layout/SyndicLayout'
-import { authClient }     from '@/lib/auth-client'
-import { Toaster }        from '@/components/toast'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { SyndicLayout } from '@/components/layout/SyndicLayout'
+import { authClient }   from '@/lib/auth-client'
+import { Toaster }      from '@/components/toast'
 
-import { Home }           from '@/pages/Home'
-import { Privacy }        from '@/pages/Privacy'
-import { DataDeletion }   from '@/pages/DataDeletion'
-import { AuthLayout }     from '@/pages/auth/AuthLayout'
-import { Login }          from '@/pages/auth/Login'
-import { Register }       from '@/pages/auth/Register'
-import { Setup }          from '@/pages/auth/Setup'
+// ── Eagerly loaded (needed on first paint) ────────────────────────────────────
+import { Home }        from '@/pages/Home'
+import { Privacy }     from '@/pages/Privacy'
+import { DataDeletion} from '@/pages/DataDeletion'
+import { AuthLayout }  from '@/pages/auth/AuthLayout'
+import { Login }       from '@/pages/auth/Login'
+import { Register }    from '@/pages/auth/Register'
+import { Setup }       from '@/pages/auth/Setup'
+
+// ── Lazily loaded syndic pages ────────────────────────────────────────────────
+const Dashboard     = lazy(() => import('@/pages/syndic/Dashboard').then(m => ({ default: m.Dashboard })))
+const ApartmentsDash= lazy(() => import('@/pages/syndic/dashboards/ApartmentsDash').then(m => ({ default: m.ApartmentsDash })))
+const PaymentsDash  = lazy(() => import('@/pages/syndic/dashboards/PaymentsDash').then(m => ({ default: m.PaymentsDash })))
+const MeetingsDash  = lazy(() => import('@/pages/syndic/dashboards/MeetingsDash').then(m => ({ default: m.MeetingsDash })))
+const AccountingDash= lazy(() => import('@/pages/syndic/dashboards/AccountingDash').then(m => ({ default: m.AccountingDash })))
+const FeedDash      = lazy(() => import('@/pages/syndic/dashboards/FeedDash').then(m => ({ default: m.FeedDash })))
+const ServicesDash  = lazy(() => import('@/pages/syndic/dashboards/ServicesDash').then(m => ({ default: m.ServicesDash })))
+const UnionDash     = lazy(() => import('@/pages/syndic/dashboards/UnionDash').then(m => ({ default: m.UnionDash })))
+const ChatbotDash   = lazy(() => import('@/pages/syndic/dashboards/ChatbotDash').then(m => ({ default: m.ChatbotDash })))
+
+const Association   = lazy(() => import('@/pages/syndic/Association').then(m => ({ default: m.Association })))
+const Payments      = lazy(() => import('@/pages/syndic/Payments').then(m => ({ default: m.Payments })))
+const Documents     = lazy(() => import('@/pages/syndic/Documents').then(m => ({ default: m.Documents })))
+const Meetings      = lazy(() => import('@/pages/syndic/Meetings').then(m => ({ default: m.Meetings })))
+const Accounting    = lazy(() => import('@/pages/syndic/Accounting').then(m => ({ default: m.Accounting })))
+const Feed          = lazy(() => import('@/pages/syndic/Feed').then(m => ({ default: m.Feed })))
+const Services      = lazy(() => import('@/pages/syndic/Services').then(m => ({ default: m.Services })))
+const Alerts        = lazy(() => import('@/pages/syndic/Alerts').then(m => ({ default: m.Alerts })))
+const UnionMembers  = lazy(() => import('@/pages/syndic/UnionMembers').then(m => ({ default: m.UnionMembers })))
+const Profile       = lazy(() => import('@/pages/syndic/Profile').then(m => ({ default: m.Profile })))
+const Residences    = lazy(() => import('@/pages/syndic/Residences').then(m => ({ default: m.Residences })))
+const Chat          = lazy(() => import('@/pages/syndic/Chat').then(m => ({ default: m.Chat })))
+
+function PageLoader() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="w-7 h-7 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+    </div>
+  )
+}
+
+function SuspenseLayout() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Outlet />
+    </Suspense>
+  )
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = authClient.useSession()
@@ -25,89 +67,65 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!session) return <Navigate to="/auth/login" replace />
 
-  // New user — has account but no org yet (social login or fresh email signup)
-  // activeOrganizationId is an additional session field not in Better Auth's strict type
   const activeOrgId = (session.session as any).activeOrganizationId
   if (!activeOrgId) return <Navigate to="/auth/setup" replace />
 
   return <>{children}</>
 }
 
-// ── Dashboard analytics pages ──
-import { Dashboard }      from '@/pages/syndic/Dashboard'
-import { ApartmentsDash } from '@/pages/syndic/dashboards/ApartmentsDash'
-import { PaymentsDash }   from '@/pages/syndic/dashboards/PaymentsDash'
-import { MeetingsDash }   from '@/pages/syndic/dashboards/MeetingsDash'
-import { AccountingDash } from '@/pages/syndic/dashboards/AccountingDash'
-import { FeedDash }       from '@/pages/syndic/dashboards/FeedDash'
-import { ServicesDash }   from '@/pages/syndic/dashboards/ServicesDash'
-import { UnionDash }      from '@/pages/syndic/dashboards/UnionDash'
-import { ChatbotDash }    from '@/pages/syndic/dashboards/ChatbotDash'
-
-// ── Functional pages ──
-import { Association }    from '@/pages/syndic/Association'
-import { Payments }       from '@/pages/syndic/Payments'
-import { Documents }      from '@/pages/syndic/Documents'
-import { Meetings }       from '@/pages/syndic/Meetings'
-import { Accounting }     from '@/pages/syndic/Accounting'
-import { Feed }           from '@/pages/syndic/Feed'
-import { Services }       from '@/pages/syndic/Services'
-import { Alerts }         from '@/pages/syndic/Alerts'
-import { UnionMembers }   from '@/pages/syndic/UnionMembers'
-import { Profile }        from '@/pages/syndic/Profile'
-import { Residences }     from '@/pages/syndic/Residences'
-import { Chat }           from '@/pages/syndic/Chat'
-
 export default function App() {
   return (
     <>
-    <Toaster />
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/privacy"       element={<Privacy />} />
-      <Route path="/data-deletion" element={<DataDeletion />} />
-      <Route path="/auth" element={<AuthLayout />}>
-        <Route path="login"    element={<Login />} />
-        <Route path="register" element={<Register />} />
-        <Route path="setup"    element={<Setup />} />
-      </Route>
-      <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
+      <Toaster />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/privacy"       element={<Privacy />} />
+        <Route path="/data-deletion" element={<DataDeletion />} />
+        <Route path="/auth" element={<AuthLayout />}>
+          <Route path="login"    element={<Login />} />
+          <Route path="register" element={<Register />} />
+          <Route path="setup"    element={<Setup />} />
+        </Route>
+        <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
+          <Route element={<SuspenseLayout />}>
 
-        {/* ── DASHBOARDS section ── */}
-        <Route index                      element={<Dashboard />} />
-        <Route path="dash/apartments"     element={<ApartmentsDash />} />
-        <Route path="dash/payments"       element={<PaymentsDash />} />
-        <Route path="dash/meetings"       element={<MeetingsDash />} />
-        <Route path="dash/accounting"     element={<AccountingDash />} />
-        <Route path="dash/feed"           element={<FeedDash />} />
-        <Route path="dash/services"       element={<ServicesDash />} />
-        <Route path="dash/union"          element={<UnionDash />} />
-        <Route path="dash/chatbot"        element={<ChatbotDash />} />
+            {/* ── DASHBOARDS ── */}
+            <Route index                  element={<Dashboard />} />
+            <Route path="dash/apartments" element={<ApartmentsDash />} />
+            <Route path="dash/payments"   element={<PaymentsDash />} />
+            <Route path="dash/meetings"   element={<MeetingsDash />} />
+            <Route path="dash/accounting" element={<AccountingDash />} />
+            <Route path="dash/feed"       element={<FeedDash />} />
+            <Route path="dash/services"   element={<ServicesDash />} />
+            <Route path="dash/union"      element={<UnionDash />} />
+            <Route path="dash/chatbot"    element={<ChatbotDash />} />
 
-        {/* ── GENERAL ── */}
-        <Route path="profile"             element={<Profile />} />
+            {/* ── GENERAL ── */}
+            <Route path="profile"         element={<Profile />} />
+            <Route path="settings"        element={<Profile />} />
 
-        {/* ── MANAGEMENT ── */}
-        <Route path="association"           element={<Association />} />
-        <Route path="payments"            element={<Payments />} />
-        <Route path="documents"           element={<Documents />} />
-        <Route path="meetings"            element={<Meetings />} />
-        <Route path="accounting"          element={<Accounting />} />
+            {/* ── MANAGEMENT ── */}
+            <Route path="association"     element={<Association />} />
+            <Route path="payments"        element={<Payments />} />
+            <Route path="documents"       element={<Documents />} />
+            <Route path="meetings"        element={<Meetings />} />
+            <Route path="accounting"      element={<Accounting />} />
 
-        {/* ── COMMUNITY ── */}
-        <Route path="feed"                element={<Feed />} />
-        <Route path="services"            element={<Services />} />
-        <Route path="alerts"              element={<Alerts />} />
+            {/* ── COMMUNITY ── */}
+            <Route path="feed"            element={<Feed />} />
+            <Route path="services"        element={<Services />} />
+            <Route path="alerts"          element={<Alerts />} />
 
-        {/* ── UNION ── */}
-        <Route path="union-members"       element={<UnionMembers />} />
+            {/* ── UNION ── */}
+            <Route path="union-members"   element={<UnionMembers />} />
 
-        {/* ── Settings ── */}
-        <Route path="settings"            element={<Profile />} />
-        <Route path="residences"          element={<Residences />} />
-        <Route path="chat"                element={<Chat />} />
-      </Route>
-    </Routes>
+            {/* ── SETTINGS ── */}
+            <Route path="residences"      element={<Residences />} />
+            <Route path="chat"            element={<Chat />} />
+
+          </Route>
+        </Route>
+      </Routes>
     </>
   )
 }
