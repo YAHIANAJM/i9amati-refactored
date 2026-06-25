@@ -1,11 +1,12 @@
-import { Router, Request } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
 import type { Selectable } from 'kysely'
 import { authenticate } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
-import { ProfileRole } from '@i9amati/shared'
+import { defineServiceAbility } from '@i9amati/shared'
+import type { ServiceActions, ServiceSubjects } from '@i9amati/shared'
 import type { ServiceContractTable, ServiceTable } from '../db/types'
 
 type ContractRow = Selectable<ServiceContractTable>
@@ -13,6 +14,18 @@ type ServiceRow  = Selectable<ServiceTable>
 
 const router = Router()
 router.use(authenticate)
+
+// ── Permission guard ──────────────────────────────────────────────────────────
+
+function guard(action: ServiceActions, subject: ServiceSubjects) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const { profileRole } = req as AuthRequest
+    const ability = defineServiceAbility(profileRole)
+    next(ability.cannot(action, subject) ? new AppError(403, 'ERROR_FORBIDDEN') : undefined)
+  }
+}
+
+// ── Formatters ────────────────────────────────────────────────────────────────
 
 function toSlug(name: string): string {
   return name
@@ -93,10 +106,9 @@ const CreateServiceSchema = z.object({
   }).optional(),
 })
 
-router.post('/', async (req: Request, res, next) => {
+router.post('/', guard('create', 'Service'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const body = CreateServiceSchema.safeParse(req.body)
     if (!body.success) throw new AppError(400, 'VALIDATION_ERROR')
@@ -134,10 +146,9 @@ const UpdateServiceSchema = z.object({
   }).nullable().optional(),
 })
 
-router.patch('/:serviceId', async (req: Request, res, next) => {
+router.patch('/:serviceId', guard('update', 'Service'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const body = UpdateServiceSchema.safeParse(req.body)
     if (!body.success) throw new AppError(400, 'VALIDATION_ERROR')
@@ -184,10 +195,9 @@ router.patch('/:serviceId', async (req: Request, res, next) => {
 
 // ── DELETE /api/services/:serviceId ───────────────────────────────────────────
 
-router.delete('/:serviceId', async (req: Request, res, next) => {
+router.delete('/:serviceId', guard('delete', 'Service'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const service = await tenantDb
       .selectFrom('services')
@@ -196,7 +206,6 @@ router.delete('/:serviceId', async (req: Request, res, next) => {
       .executeTakeFirst()
     if (!service) throw new AppError(404, 'NOT_FOUND')
 
-    // Cascade: delete check_in_out, service_residences, service_contracts, schedules, then service
     await tenantDb.deleteFrom('service_check_in_out').where('service_id', '=', service.id).execute()
     const contracts = await tenantDb
       .selectFrom('service_contracts')
@@ -230,10 +239,9 @@ const CreateContractSchema = z.object({
   status:      z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']).optional(),
 })
 
-router.post('/:serviceId/contracts', async (req: Request, res, next) => {
+router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const body = CreateContractSchema.safeParse(req.body)
     if (!body.success) throw new AppError(400, 'VALIDATION_ERROR')
@@ -254,7 +262,7 @@ router.post('/:serviceId/contracts', async (req: Request, res, next) => {
         service_id:  service.id,
         name,
         description: description ?? null,
-        amount:      amount,
+        amount,
         amount_paid: 0,
         start_date:  start_date ?? null,
         end_date:    end_date ?? null,
@@ -280,10 +288,9 @@ const UpdateContractSchema = z.object({
   status:      z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']).optional(),
 })
 
-router.patch('/:serviceId/contracts/:contractId', async (req: Request, res, next) => {
+router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const body = UpdateContractSchema.safeParse(req.body)
     if (!body.success) throw new AppError(400, 'VALIDATION_ERROR')
@@ -321,10 +328,9 @@ router.patch('/:serviceId/contracts/:contractId', async (req: Request, res, next
 
 // ── DELETE /api/services/:serviceId/contracts/:contractId ─────────────────────
 
-router.delete('/:serviceId/contracts/:contractId', async (req: Request, res, next) => {
+router.delete('/:serviceId/contracts/:contractId', guard('delete', 'ServiceContract'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const contract = await tenantDb
       .selectFrom('service_contracts')
@@ -355,10 +361,9 @@ const RecordPaymentSchema = z.object({
   amount: z.number().positive(),
 })
 
-router.post('/:serviceId/contracts/:contractId/pay', async (req: Request, res, next) => {
+router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'ERROR_FORBIDDEN')
+    const { tenantDb } = req as AuthRequest
 
     const body = RecordPaymentSchema.safeParse(req.body)
     if (!body.success) throw new AppError(400, 'VALIDATION_ERROR')
