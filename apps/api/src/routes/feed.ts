@@ -157,7 +157,7 @@ router.post('/groups', async (req: Request, res, next) => {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
-    if (ability.cannot('create', 'Group')) throw new AppError(403, 'Forbidden')
+    if (ability.cannot('create', 'Group')) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
 
     const { name, residenceId, buildingId } = CreateGroupSchema.parse(req.body)
 
@@ -213,13 +213,13 @@ router.patch('/groups/:groupId', async (req: Request, res, next) => {
     const { groupId } = req.params
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
-    if (ability.cannot('update', 'Group')) throw new AppError(403, 'Forbidden')
+    if (ability.cannot('update', 'Group')) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
 
     const { name } = UpdateGroupSchema.parse(req.body)
 
     const group = await tenantDb
       .selectFrom('groups').select('id').where('id', '=', groupId).executeTakeFirst()
-    if (!group) throw new AppError(404, 'Group not found')
+    if (!group) throw new AppError(404, 'Group not found', 'ERROR_GROUP_NOT_FOUND')
 
     await tenantDb
       .updateTable('groups')
@@ -239,11 +239,11 @@ router.delete('/groups/:groupId', async (req: Request, res, next) => {
     const { groupId } = req.params
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
-    if (ability.cannot('delete', 'Group')) throw new AppError(403, 'Forbidden')
+    if (ability.cannot('delete', 'Group')) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
 
     const group = await tenantDb
       .selectFrom('groups').select('id').where('id', '=', groupId).executeTakeFirst()
-    if (!group) throw new AppError(404, 'Group not found')
+    if (!group) throw new AppError(404, 'Group not found', 'ERROR_GROUP_NOT_FOUND')
 
     // _profile_groups rows are deleted first to avoid FK violation from feed_posts
     // (feed_posts.author_id → _profile_groups.id). Feed posts/comments/likes have
@@ -300,7 +300,7 @@ router.get('/groups/:groupId/members', async (req: Request, res, next) => {
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
-    if (ability.cannot('read', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
+    if (ability.cannot('read', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
 
     const pgRows = await tenantDb
       .selectFrom('_profile_groups')
@@ -345,7 +345,7 @@ router.post('/groups/:groupId/members', async (req: Request, res, next) => {
 
     const memberships = await getMemberships(tenantDb, requesterId)
     const ability     = defineFeedAbility(profileRole, requesterId, memberships)
-    if (ability.cannot('create', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
+    if (ability.cannot('create', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
 
     const existing = await tenantDb
       .selectFrom('_profile_groups')
@@ -375,7 +375,7 @@ router.delete('/groups/:groupId/members/:profileId', async (req: Request, res, n
 
     const memberships = await getMemberships(tenantDb, requesterId)
     const ability     = defineFeedAbility(profileRole, requesterId, memberships)
-    if (ability.cannot('delete', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
+    if (ability.cannot('delete', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
 
     const targetProfile = await db
       .selectFrom('public.profiles')
@@ -384,7 +384,7 @@ router.delete('/groups/:groupId/members/:profileId', async (req: Request, res, n
       .executeTakeFirst()
 
     if (targetProfile?.role === ProfileRole.SYNDIC) {
-      throw new AppError(400, 'Cannot remove a syndic from the group')
+      throw new AppError(400, 'Cannot remove a syndic from the group', 'ERROR_CANNOT_REMOVE_SYNDIC')
     }
 
     await tenantDb
@@ -410,7 +410,7 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('read', subject('FeedPost', { groupId, authorId: '' }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     let postsQuery = tenantDb
@@ -522,7 +522,7 @@ router.post('/groups/:groupId/posts', async (req: Request, res, next) => {
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('create', subject('FeedPost', { groupId, authorId: '' }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     const profileGroupId =
@@ -530,7 +530,7 @@ router.post('/groups/:groupId/posts', async (req: Request, res, next) => {
         ? await ensureSyndicMembership(tenantDb, profileId, groupId)
         : memberships.find(m => m.groupId === groupId)?.profileGroupId
 
-    if (!profileGroupId) throw new AppError(400, 'Not a member of this group')
+    if (!profileGroupId) throw new AppError(400, 'Not a member of this group', 'ERROR_NOT_MEMBER')
 
     const id = crypto.randomUUID()
     await tenantDb
@@ -563,13 +563,13 @@ router.patch('/posts/:postId', async (req: Request, res, next) => {
     const { content, mediaUrl, mediaType } = UpdatePostSchema.parse(req.body)
 
     const post = await getPostWithGroup(tenantDb, postId)
-    if (!post) throw new AppError(404, 'Post not found')
+    if (!post) throw new AppError(404, 'Post not found', 'ERROR_POST_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('update', subject('FeedPost', { groupId: post.group_id, authorId: post.author_id }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     await tenantDb
@@ -595,13 +595,13 @@ router.delete('/posts/:postId', async (req: Request, res, next) => {
     const { postId } = req.params
 
     const post = await getPostWithGroup(tenantDb, postId)
-    if (!post) throw new AppError(404, 'Post not found')
+    if (!post) throw new AppError(404, 'Post not found', 'ERROR_POST_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('delete', subject('FeedPost', { groupId: post.group_id, authorId: post.author_id }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     // feed_post_likes and feed_comments cascade-delete via FK ON DELETE CASCADE
@@ -619,13 +619,13 @@ router.get('/posts/:postId/comments', async (req: Request, res, next) => {
     const { postId } = req.params
 
     const post = await getPostWithGroup(tenantDb, postId)
-    if (!post) throw new AppError(404, 'Post not found')
+    if (!post) throw new AppError(404, 'Post not found', 'ERROR_POST_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('read', subject('FeedComment', { groupId: post.group_id, authorProfileId: '' }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     const comments = await tenantDb
@@ -676,13 +676,13 @@ router.post('/posts/:postId/comments', async (req: Request, res, next) => {
     const { content, parentId } = CreateCommentSchema.parse(req.body)
 
     const post = await getPostWithGroup(tenantDb, postId)
-    if (!post) throw new AppError(404, 'Post not found')
+    if (!post) throw new AppError(404, 'Post not found', 'ERROR_POST_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('create', subject('FeedComment', { groupId: post.group_id, authorProfileId: profileId }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     if (parentId) {
@@ -692,7 +692,7 @@ router.post('/posts/:postId/comments', async (req: Request, res, next) => {
         .where('id', '=', parentId)
         .where('post_id', '=', postId)
         .executeTakeFirst()
-      if (!parent) throw new AppError(400, 'Parent comment not found in this post')
+      if (!parent) throw new AppError(400, 'Parent comment not found in this post', 'ERROR_PARENT_COMMENT_NOT_FOUND')
     }
 
     const id = crypto.randomUUID()
@@ -716,13 +716,13 @@ router.patch('/comments/:commentId', async (req: Request, res, next) => {
     const { content } = UpdateCommentSchema.parse(req.body)
 
     const comment = await getCommentWithGroup(tenantDb, commentId)
-    if (!comment) throw new AppError(404, 'Comment not found')
+    if (!comment) throw new AppError(404, 'Comment not found', 'ERROR_COMMENT_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('update', subject('FeedComment', { groupId: comment.group_id, authorProfileId: comment.author_profile_id }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     await tenantDb
@@ -743,13 +743,13 @@ router.delete('/comments/:commentId', async (req: Request, res, next) => {
     const { commentId } = req.params
 
     const comment = await getCommentWithGroup(tenantDb, commentId)
-    if (!comment) throw new AppError(404, 'Comment not found')
+    if (!comment) throw new AppError(404, 'Comment not found', 'ERROR_COMMENT_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('delete', subject('FeedComment', { groupId: comment.group_id, authorProfileId: comment.author_profile_id }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     await tenantDb.deleteFrom('feed_comments').where('id', '=', commentId).execute()
@@ -766,13 +766,13 @@ router.post('/posts/:postId/like', async (req: Request, res, next) => {
     const { postId } = req.params
 
     const post = await getPostWithGroup(tenantDb, postId)
-    if (!post) throw new AppError(404, 'Post not found')
+    if (!post) throw new AppError(404, 'Post not found', 'ERROR_POST_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('create', subject('FeedPostLike', { groupId: post.group_id }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     const profileGroupId =
@@ -780,7 +780,7 @@ router.post('/posts/:postId/like', async (req: Request, res, next) => {
         ? await ensureSyndicMembership(tenantDb, profileId, post.group_id)
         : memberships.find(m => m.groupId === post.group_id)?.profileGroupId
 
-    if (!profileGroupId) throw new AppError(400, 'Not a member of this group')
+    if (!profileGroupId) throw new AppError(400, 'Not a member of this group', 'ERROR_NOT_MEMBER')
 
     const existing = await tenantDb
       .selectFrom('feed_post_likes')
@@ -808,17 +808,17 @@ router.delete('/posts/:postId/like', async (req: Request, res, next) => {
     const { postId } = req.params
 
     const post = await getPostWithGroup(tenantDb, postId)
-    if (!post) throw new AppError(404, 'Post not found')
+    if (!post) throw new AppError(404, 'Post not found', 'ERROR_POST_NOT_FOUND')
 
     const memberships = await getMemberships(tenantDb, profileId)
     const ability     = defineFeedAbility(profileRole, profileId, memberships)
 
     if (ability.cannot('delete', subject('FeedPostLike', { groupId: post.group_id }))) {
-      throw new AppError(403, 'Forbidden')
+      throw new AppError(403, 'Forbidden', 'ERROR_FORBIDDEN')
     }
 
     const membership = memberships.find(m => m.groupId === post.group_id)
-    if (!membership) throw new AppError(400, 'Not a member of this group')
+    if (!membership) throw new AppError(400, 'Not a member of this group', 'ERROR_NOT_MEMBER')
 
     await tenantDb
       .deleteFrom('feed_post_likes')
