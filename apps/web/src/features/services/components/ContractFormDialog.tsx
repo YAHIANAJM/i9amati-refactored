@@ -1,0 +1,149 @@
+import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Loader2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import type { ApiServiceContract, ServiceContractStatus } from '@/lib/services.api'
+
+const STATUSES: ServiceContractStatus[] = ['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']
+
+interface ContractFormDialogProps {
+  open:       boolean
+  contract:   ApiServiceContract | null
+  isPending:  boolean
+  onClose:    () => void
+  onSubmit:   (data: {
+    name:        string
+    description: string
+    amount:      number
+    start_date:  string
+    end_date:    string
+    status:      ServiceContractStatus
+  }) => void
+}
+
+export function ContractFormDialog({ open, contract, isPending, onClose, onSubmit }: ContractFormDialogProps) {
+  const { t } = useTranslation()
+  const [name,        setName]        = useState('')
+  const [description, setDescription] = useState('')
+  const [amount,      setAmount]      = useState('')
+  const [startDate,   setStartDate]   = useState('')
+  const [endDate,     setEndDate]     = useState('')
+  const [status,      setStatus]      = useState<ServiceContractStatus>('PENDING')
+
+  useEffect(() => {
+    if (open) {
+      setName(contract?.name ?? '')
+      setDescription(contract?.description ?? '')
+      setAmount(contract?.amount !== undefined ? String(contract.amount) : '')
+      setStartDate(contract?.start_date ?? '')
+      setEndDate(contract?.end_date ?? '')
+      setStatus(contract?.status ?? 'PENDING')
+    }
+  }, [open, contract])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const parsed = parseFloat(amount)
+    if (!name.trim() || isNaN(parsed) || parsed < 0) return
+    onSubmit({
+      name:        name.trim(),
+      description: description.trim(),
+      amount:      parsed,
+      start_date:  startDate,
+      end_date:    endDate,
+      status,
+    })
+  }
+
+  const isEdit = !!contract
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-md p-6">
+        <DialogTitle className="text-base font-semibold mb-4">
+          {isEdit ? t('services.editContract') : t('services.addContract')}
+        </DialogTitle>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">{t('services.contractName')} *</label>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">{t('services.description')}</label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="w-full resize-none text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">{t('services.amount')} *</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                required
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">{t('services.status')}</label>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value as ServiceContractStatus)}
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+              >
+                {STATUSES.map(s => (
+                  <option key={s} value={s}>{t(`services.status_${s}`)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">{t('services.startDate')}</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">{t('services.endDate')}</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              {t('services.cancel')}
+            </Button>
+            <Button type="submit" size="sm" disabled={!name.trim() || !amount || isPending}>
+              {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
+              {t('services.save')}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
