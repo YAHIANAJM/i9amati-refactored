@@ -17,7 +17,7 @@ import {
 } from '@i9amati/shared'
 import type { ServiceActions, ServiceSubjects } from '@i9amati/shared'
 import type { ServiceContractTable, ServiceTable } from '../db/types'
-import { minioClient, BUCKET, objectUrl } from '../lib/storage'
+import { minioClient, BUCKET, presignedUrl } from '../lib/storage'
 
 type ContractRow = Selectable<ServiceContractTable>
 type ServiceRow  = Selectable<ServiceTable>
@@ -66,7 +66,7 @@ function toSlug(name: string): string {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-function fmtContract(c: ContractRow, files: FileRow[] = []) {
+async function fmtContract(c: ContractRow, files: FileRow[] = []) {
   return {
     id:          c.id,
     service_id:  c.service_id,
@@ -77,19 +77,19 @@ function fmtContract(c: ContractRow, files: FileRow[] = []) {
     start_date:  c.start_date ?? null,
     end_date:    c.end_date ?? null,
     status:      c.status,
-    files:       files.map(f => ({
+    files: await Promise.all(files.map(async f => ({
       id:          f.id,
       name:        f.name,
       size:        f.size ?? null,
-      url:         f.path ? objectUrl(f.path) : null,
+      url:         f.path ? await presignedUrl(f.path) : null,
       uploaded_at: f.uploaded_at instanceof Date
         ? f.uploaded_at.toISOString()
         : String(f.uploaded_at),
-    })),
+    }))),
   }
 }
 
-function fmtService(
+async function fmtService(
   s:               ServiceRow,
   contracts:       ContractRow[],
   filesByContract: Map<string, FileRow[]> = new Map(),
@@ -100,7 +100,7 @@ function fmtService(
     slug:         s.slug,
     type:         s.type ?? null,
     contact_info: (s.contact_info as { phone?: string; email?: string } | null) ?? null,
-    contracts:    contracts.map(c => fmtContract(c, filesByContract.get(c.id) ?? [])),
+    contracts:    await Promise.all(contracts.map(c => fmtContract(c, filesByContract.get(c.id) ?? []))),
   }
 }
 
@@ -153,9 +153,9 @@ router.get('/', async (req: Request, res, next) => {
     return res.json({
       profileId,
       profileRole,
-      services: services.map(s =>
+      services: await Promise.all(services.map(s =>
         fmtService(s, contractsByService.get(s.id) ?? [], filesByContract),
-      ),
+      )),
     })
   } catch (err) {
     next(err)
@@ -181,7 +181,7 @@ router.post('/', guard('create', 'Service'), async (req: Request, res, next) => 
       .returningAll()
       .executeTakeFirstOrThrow()
 
-    return res.status(201).json(fmtService(service, []))
+    return res.status(201).json(await fmtService(service, []))
   } catch (err) {
     next(err)
   }
@@ -207,7 +207,7 @@ router.patch('/:serviceId', guard('update', 'Service'), async (req: Request, res
     if (Object.keys(updates).length === 0) {
       const contracts = await tenantDb.selectFrom('service_contracts')
         .selectAll().where('service_id', '=', service.id).execute()
-      return res.json(fmtService(service, contracts))
+      return res.json(await fmtService(service, contracts))
     }
 
     const updated = await tenantDb
@@ -218,7 +218,7 @@ router.patch('/:serviceId', guard('update', 'Service'), async (req: Request, res
     const contracts = await tenantDb.selectFrom('service_contracts')
       .selectAll().where('service_id', '=', updated.id).execute()
 
-    return res.json(fmtService(updated, contracts))
+    return res.json(await fmtService(updated, contracts))
   } catch (err) {
     next(err)
   }
@@ -287,7 +287,7 @@ router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (
       .returningAll()
       .executeTakeFirstOrThrow()
 
-    return res.status(201).json(fmtContract(contract))
+    return res.status(201).json(await fmtContract(contract))
   } catch (err) {
     next(err)
   }
@@ -322,14 +322,14 @@ router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContra
     if (body.end_date    !== undefined) updates.end_date    = body.end_date
     if (body.status      !== undefined) updates.status      = body.status
 
-    if (Object.keys(updates).length === 0) return res.json(fmtContract(contract))
+    if (Object.keys(updates).length === 0) return res.json(await fmtContract(contract))
 
     const updated = await tenantDb
       .updateTable('service_contracts').set(updates)
       .where('id', '=', req.params.contractId)
       .returningAll().executeTakeFirstOrThrow()
 
-    return res.json(fmtContract(updated))
+    return res.json(await fmtContract(updated))
   } catch (err) {
     next(err)
   }
@@ -387,7 +387,7 @@ router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceCon
       .where('id', '=', contract.id)
       .returningAll().executeTakeFirstOrThrow()
 
-    return res.json(fmtContract(updated))
+    return res.json(await fmtContract(updated))
   } catch (err) {
     next(err)
   }
@@ -440,7 +440,7 @@ router.post('/:serviceId/contracts/:contractId/files', guard('update', 'ServiceC
       id:          docId,
       name:        body.name,
       size:        body.size ?? null,
-      url:         objectUrl(body.key),
+      url:         await presignedUrl(body.key),
       uploaded_at: new Date().toISOString(),
     })
   } catch (err) {
