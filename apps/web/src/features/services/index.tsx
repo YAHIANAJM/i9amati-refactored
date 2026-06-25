@@ -179,13 +179,14 @@ export function Services() {
   }
 
   function handleContractSubmit(data: {
-    name: string; description: string; amount: number
+    name: string; description: string; amount: number; amount_paid?: number
     start_date: string; end_date: string; status: ServiceContractStatus
   }) {
     const payload = {
       name:        data.name,
       description: data.description || null,
       amount:      data.amount,
+      amount_paid: data.amount_paid,
       start_date:  data.start_date || null,
       end_date:    data.end_date || null,
       status:      data.status,

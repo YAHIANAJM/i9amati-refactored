@@ -75,12 +75,13 @@ export const servicesApi = {
   },
 
   async updateContract(serviceId: string, contractId: string, payload: {
-    name?:        string
-    description?: string | null
-    amount?:      number
-    start_date?:  string | null
-    end_date?:    string | null
-    status?:      ServiceContractStatus
+    name?:         string
+    description?:  string | null
+    amount?:       number
+    amount_paid?:  number
+    start_date?:   string | null
+    end_date?:     string | null
+    status?:       ServiceContractStatus
   }): Promise<ApiServiceContract> {
     return api.patch(`/api/services/${serviceId}/contracts/${contractId}`, payload)
   },
