@@ -77,18 +77,41 @@ router.get('/groups', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
 
-    const groups = profileRole === ProfileRole.SYNDIC
-      ? await tenantDb.selectFrom('groups').selectAll().orderBy('created_at', 'asc').execute()
-      : await tenantDb
-          .selectFrom('groups as g')
-          .innerJoin('_profile_groups as pg', 'g.id', 'pg.group_id')
-          .where('pg.profile_id', '=', profileId)
-          .select(['g.id', 'g.name', 'g.slug', 'g.residence_id', 'g.building_id',
-                   'g.created_at', 'pg.role as memberRole'])
-          .orderBy('g.created_at', 'asc')
-          .execute()
+    let groups
+    if (profileRole === ProfileRole.SYNDIC) {
+      const rawGroups = await tenantDb
+        .selectFrom('groups')
+        .selectAll()
+        .orderBy('created_at', 'asc')
+        .execute()
 
-    res.json({ groups })
+      // Fetch SYNDIC's own _profile_groups rows (created by ensureSyndicMembership)
+      const pgRows = rawGroups.length > 0
+        ? await tenantDb
+            .selectFrom('_profile_groups')
+            .select(['group_id', 'id', 'role'])
+            .where('profile_id', '=', profileId)
+            .execute()
+        : []
+      const pgByGroup = Object.fromEntries(pgRows.map(r => [r.group_id, r]))
+
+      groups = rawGroups.map(g => ({
+        ...g,
+        memberRole:          pgByGroup[g.id]?.role ?? null,
+        memberProfileGroupId: pgByGroup[g.id]?.id  ?? null,
+      }))
+    } else {
+      groups = await tenantDb
+        .selectFrom('groups as g')
+        .innerJoin('_profile_groups as pg', 'g.id', 'pg.group_id')
+        .where('pg.profile_id', '=', profileId)
+        .select(['g.id', 'g.name', 'g.slug', 'g.residence_id', 'g.building_id',
+                 'g.created_at', 'pg.role as memberRole', 'pg.id as memberProfileGroupId'])
+        .orderBy('g.created_at', 'asc')
+        .execute()
+    }
+
+    res.json({ groups, profileId, profileRole })
   } catch (err) { next(err) }
 })
 

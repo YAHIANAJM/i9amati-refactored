@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { defineFeedAbility, subject, ProfileRole } from '@i9amati/shared'
+import type { FeedAbility, MembershipInfo } from '@i9amati/shared'
 import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -13,7 +15,7 @@ import {
 import {
   feedApi,
   type ApiGroup, type ApiPost, type ApiComment,
-  type ApiMember, type ApiOrgProfile, type GroupType,
+  type ApiMember, type ApiOrgProfile, type GroupType, type GroupsResponse,
 } from '@/lib/feed.api'
 import { cn, getInitials } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
@@ -107,9 +109,9 @@ function GroupNameDialog({
 // ── Group Members Modal ───────────────────────────────────────────────────────
 
 function GroupMembersModal({
-  group, onClose,
+  group, canManageMembers, onClose,
 }: {
-  group: ApiGroup; onClose: () => void
+  group: ApiGroup; canManageMembers: boolean; onClose: () => void
 }) {
   const qc = useQueryClient()
   const [showPicker, setShowPicker] = useState(false)
@@ -172,26 +174,30 @@ function GroupMembersModal({
                   <p className="text-xs text-muted-foreground capitalize">{m.orgRole?.toLowerCase() ?? ''}</p>
                 </div>
                 <Badge variant="secondary" className="text-[10px] py-0 shrink-0">{m.groupRole}</Badge>
-                <button
-                  onClick={() => removeMember.mutate(m.profileId)}
-                  className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
-                >
-                  {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
-                </button>
+                {canManageMembers && (
+                  <button
+                    onClick={() => removeMember.mutate(m.profileId)}
+                    className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+                  >
+                    {removeMember.isPending ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
+                  </button>
+                )}
               </div>
             ))
           )}
         </div>
 
         <div className="border-t shrink-0">
-          <button
-            onClick={() => setShowPicker(v => !v)}
-            className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
-          >
-            <UserPlus size={14} /> Add member
-            <span className="ml-auto text-muted-foreground text-[10px]">{available.length} available</span>
-          </button>
-          {showPicker && (
+          {canManageMembers && (
+            <button
+              onClick={() => setShowPicker(v => !v)}
+              className="w-full flex items-center gap-2 px-4 py-3 text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
+            >
+              <UserPlus size={14} /> Add member
+              <span className="ml-auto text-muted-foreground text-[10px]">{available.length} available</span>
+            </button>
+          )}
+          {canManageMembers && showPicker && (
             <div className="px-2 pb-2 max-h-[180px] overflow-y-auto border-t">
               {available.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-3">All members already added.</p>
@@ -224,7 +230,7 @@ function GroupMembersModal({
 
 // ── Comment List ──────────────────────────────────────────────────────────────
 
-function CommentList({ postId, myProfileId }: { postId: string; myProfileId?: string }) {
+function CommentList({ postId, canComment }: { postId: string; canComment: boolean }) {
   const qc = useQueryClient()
   const [newComment, setNewComment] = useState('')
 
@@ -269,31 +275,37 @@ function CommentList({ postId, myProfileId }: { postId: string; myProfileId?: st
           </div>
         ))
       )}
-      <div className="flex items-start gap-2 pt-1">
-        <textarea
-          rows={1}
-          value={newComment}
-          onChange={e => setNewComment(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newComment.trim()) addComment.mutate(newComment.trim()) } }}
-          placeholder="Write a comment…"
-          className="flex-1 resize-none text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
-        />
-        <button
-          onClick={() => newComment.trim() && addComment.mutate(newComment.trim())}
-          disabled={!newComment.trim() || addComment.isPending}
-          className="h-8 w-8 flex items-center justify-center rounded-full bg-primary text-white disabled:opacity-40 hover:bg-primary/90 transition-colors"
-        >
-          {addComment.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-        </button>
-      </div>
+      {canComment && (
+        <div className="flex items-start gap-2 pt-1">
+          <textarea
+            rows={1}
+            value={newComment}
+            onChange={e => setNewComment(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (newComment.trim()) addComment.mutate(newComment.trim()) } }}
+            placeholder="Write a comment…"
+            className="flex-1 resize-none text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
+          />
+          <button
+            onClick={() => newComment.trim() && addComment.mutate(newComment.trim())}
+            disabled={!newComment.trim() || addComment.isPending}
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-primary text-white disabled:opacity-40 hover:bg-primary/90 transition-colors"
+          >
+            {addComment.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Post Card ─────────────────────────────────────────────────────────────────
 
-function PostCard({ post, onOptimisticLike, onEdit, onDelete }: {
+function PostCard({ post, canEdit, canDelete, canLike, canComment, onOptimisticLike, onEdit, onDelete }: {
   post: ApiPost
+  canEdit: boolean
+  canDelete: boolean
+  canLike: boolean
+  canComment: boolean
   onOptimisticLike: (id: string) => void
   onEdit: (id: string, content: string) => void
   onDelete: (id: string) => void
@@ -322,14 +334,18 @@ function PostCard({ post, onOptimisticLike, onEdit, onDelete }: {
             </p>
           </div>
         </div>
-        {!editMode && (
+        {!editMode && (canEdit || canDelete) && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
-            <button onClick={() => { setEditContent(post.content); setEditMode(true) }} className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-              <Pencil size={13} />
-            </button>
-            <button onClick={() => onDelete(post.id)} className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors">
-              <Trash2 size={13} />
-            </button>
+            {canEdit && (
+              <button onClick={() => { setEditContent(post.content); setEditMode(true) }} className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                <Pencil size={13} />
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => onDelete(post.id)} className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors">
+                <Trash2 size={13} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -349,10 +365,12 @@ function PostCard({ post, onOptimisticLike, onEdit, onDelete }: {
 
       {!editMode && (
         <div className="flex items-center gap-4 pt-2 border-t">
-          <button onClick={() => onOptimisticLike(post.id)} className={cn('flex items-center gap-1.5 text-xs transition-colors', post.likedByMe ? 'text-red-500' : 'text-muted-foreground hover:text-red-500')}>
-            <Heart size={14} className={post.likedByMe ? 'fill-red-500' : ''} />
-            {post.likeCount}
-          </button>
+          {canLike && (
+            <button onClick={() => onOptimisticLike(post.id)} className={cn('flex items-center gap-1.5 text-xs transition-colors', post.likedByMe ? 'text-red-500' : 'text-muted-foreground hover:text-red-500')}>
+              <Heart size={14} className={post.likedByMe ? 'fill-red-500' : ''} />
+              {post.likeCount}
+            </button>
+          )}
           <button onClick={() => setShowComments(v => !v)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
             <MessageCircle size={14} />
             {post.commentCount} commentaire{post.commentCount !== 1 ? 's' : ''}
@@ -360,15 +378,15 @@ function PostCard({ post, onOptimisticLike, onEdit, onDelete }: {
         </div>
       )}
 
-      {showComments && !editMode && <CommentList postId={post.id} />}
+      {showComments && !editMode && <CommentList postId={post.id} canComment={canComment} />}
     </div>
   )
 }
 
 // ── Group Card ────────────────────────────────────────────────────────────────
 
-function GroupCard({ group, isActive, onSelect, onViewMembers, onRename, onDelete }: {
-  group: ApiGroup; isActive: boolean
+function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRename, onDelete }: {
+  group: ApiGroup; isActive: boolean; canManage: boolean
   onSelect: () => void; onViewMembers: () => void
   onRename: () => void; onDelete: () => void
 }) {
@@ -384,12 +402,16 @@ function GroupCard({ group, isActive, onSelect, onViewMembers, onRename, onDelet
         </div>
       </div>
       <div className="flex items-center gap-0.5 shrink-0">
-        <button onClick={onRename} className="opacity-0 group-hover/gcard:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-all text-muted-foreground hover:text-primary">
-          <Pencil size={12} />
-        </button>
-        <button onClick={onDelete} className="opacity-0 group-hover/gcard:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-red-50 transition-all text-muted-foreground hover:text-red-500">
-          <Trash2 size={12} />
-        </button>
+        {canManage && (
+          <>
+            <button onClick={onRename} className="opacity-0 group-hover/gcard:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-all text-muted-foreground hover:text-primary">
+              <Pencil size={12} />
+            </button>
+            <button onClick={onDelete} className="opacity-0 group-hover/gcard:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-red-50 transition-all text-muted-foreground hover:text-red-500">
+              <Trash2 size={12} />
+            </button>
+          </>
+        )}
         <button onClick={onViewMembers} className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground">
           <ChevronRight size={14} />
         </button>
@@ -408,10 +430,26 @@ export function Feed() {
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [renameGroup, setRenameGroup] = useState<ApiGroup | null>(null)
 
-  const { data: groups = [], isLoading: groupsLoading, isError: groupsError } = useQuery({
+  const { data: groupsResponse, isLoading: groupsLoading, isError: groupsError } = useQuery({
     queryKey: ['feed-groups'],
     queryFn: feedApi.getGroups,
   })
+  const groups = groupsResponse?.groups ?? []
+
+  const ability = useMemo<FeedAbility | null>(() => {
+    if (!groupsResponse) return null
+    const { profileId, profileRole, groups: gs } = groupsResponse
+    const memberships: MembershipInfo[] = gs
+      .filter(g => g.memberProfileGroupId != null)
+      .map(g => ({
+        profileGroupId: g.memberProfileGroupId!,
+        groupId:        g.id,
+        role:           (g.memberRole ?? 'USER') as MembershipInfo['role'],
+      }))
+    return defineFeedAbility(profileRole as ProfileRole, profileId, memberships)
+  }, [groupsResponse])
+
+  const isSyndic = groupsResponse?.profileRole === ProfileRole.SYNDIC
 
   const activeGroupId = selectedGroupId ?? groups[0]?.id ?? null
   const selectedGroup = groups.find(g => g.id === activeGroupId) ?? null
@@ -505,30 +543,36 @@ export function Feed() {
 
         {/* Main feed */}
         <div className="flex-1 min-w-0 space-y-4">
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-[11px] text-muted-foreground mb-2">
-              Posting to <span className="font-medium text-foreground">{selectedGroup?.name ?? '…'}</span>
-            </p>
-            <textarea value={newPost} onChange={e => setNewPost(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && e.metaKey && createPost.mutate(newPost.trim())}
-              placeholder="What are you thinking of?" disabled={!activeGroupId || createPost.isPending}
-              className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30 disabled:opacity-60" />
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground"><Image size={13} /> Photo</Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground"><Video size={13} /> Video</Button>
+          {activeGroupId && ability?.can('create', subject('FeedPost', { groupId: activeGroupId, authorId: '' })) && (
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-[11px] text-muted-foreground mb-2">
+                Posting to <span className="font-medium text-foreground">{selectedGroup?.name ?? '…'}</span>
+              </p>
+              <textarea value={newPost} onChange={e => setNewPost(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && e.metaKey && createPost.mutate(newPost.trim())}
+                placeholder="What are you thinking of?" disabled={createPost.isPending}
+                className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px] bg-muted/30 disabled:opacity-60" />
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground"><Image size={13} /> Photo</Button>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground"><Video size={13} /> Video</Button>
+                </div>
+                <Button size="sm" className="gap-1.5 text-xs" disabled={!newPost.trim() || createPost.isPending} onClick={() => createPost.mutate(newPost.trim())}>
+                  {createPost.isPending && <Loader2 size={12} className="animate-spin" />} Post
+                </Button>
               </div>
-              <Button size="sm" className="gap-1.5 text-xs" disabled={!newPost.trim() || !activeGroupId || createPost.isPending} onClick={() => createPost.mutate(newPost.trim())}>
-                {createPost.isPending && <Loader2 size={12} className="animate-spin" />} Post
-              </Button>
             </div>
-          </div>
+          )}
 
           {postsLoading ? (<><PostSkeleton /><PostSkeleton /><PostSkeleton /></>)
             : postsError ? (<div className="rounded-xl border bg-card p-6 text-center text-sm text-red-500">Failed to load posts.</div>)
             : posts.length === 0 ? (<div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">No posts in this group yet.</div>)
             : posts.map(post => (
               <PostCard key={post.id} post={post}
+                canEdit={ability?.can('update', subject('FeedPost', { groupId: activeGroupId!, authorId: post.authorId })) ?? false}
+                canDelete={ability?.can('delete', subject('FeedPost', { groupId: activeGroupId!, authorId: post.authorId })) ?? false}
+                canLike={ability?.can('create', subject('FeedPostLike', { groupId: activeGroupId! })) ?? false}
+                canComment={ability?.can('create', subject('FeedComment', { groupId: activeGroupId!, authorProfileId: groupsResponse?.profileId ?? '' })) ?? false}
                 onOptimisticLike={handleToggleLike}
                 onEdit={(id, content) => editPost.mutate({ id, content })}
                 onDelete={id => deletePost.mutate(id)} />
@@ -539,15 +583,18 @@ export function Feed() {
         <div className="w-64 shrink-0">
           <div className="flex items-center justify-between mb-3 px-1">
             <p className="text-sm font-semibold">groups</p>
-            <button onClick={() => setShowCreateGroup(true)} className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors">
-              <Plus size={13} />
-            </button>
+            {isSyndic && (
+              <button onClick={() => setShowCreateGroup(true)} className="h-6 w-6 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors">
+                <Plus size={13} />
+              </button>
+            )}
           </div>
           <div className="space-y-2">
             {groupsLoading ? (<><GroupSkeleton /><GroupSkeleton /><GroupSkeleton /></>)
               : groupsError ? (<p className="text-xs text-red-500 px-1">Failed to load groups.</p>)
               : groups.map(group => (
                 <GroupCard key={group.id} group={group} isActive={group.id === activeGroupId}
+                  canManage={isSyndic}
                   onSelect={() => setSelectedGroupId(group.id)}
                   onViewMembers={() => setMembersGroupId(group.id)}
                   onRename={() => setRenameGroup(group)}
@@ -565,7 +612,13 @@ export function Feed() {
           onClose={() => setRenameGroup(null)}
           onSave={name => updateGroup.mutate({ id: renameGroup.id, name })} />
       )}
-      {membersGroup && <GroupMembersModal group={membersGroup} onClose={() => setMembersGroupId(null)} />}
+      {membersGroup && (
+        <GroupMembersModal
+          group={membersGroup}
+          canManageMembers={isSyndic || membersGroup.memberRole === 'ADMIN'}
+          onClose={() => setMembersGroupId(null)}
+        />
+      )}
     </div>
   )
 }

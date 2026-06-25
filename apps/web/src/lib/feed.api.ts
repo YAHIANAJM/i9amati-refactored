@@ -11,8 +11,16 @@ export interface ApiGroup {
   residence_id: string | null
   building_id: string | null
   created_at: string
+  memberRole: string | null
+  memberProfileGroupId: string | null
   /** Derived client-side from building_id / residence_id */
   type: GroupType
+}
+
+export interface GroupsResponse {
+  profileId: string
+  profileRole: string
+  groups: ApiGroup[]
 }
 
 export interface ApiPost {
@@ -67,6 +75,8 @@ interface RawGroup {
   residence_id: string | null
   building_id: string | null
   created_at: string
+  memberRole: string | null
+  memberProfileGroupId: string | null
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -81,9 +91,13 @@ function deriveGroupType(g: RawGroup): GroupType {
 
 export const feedApi = {
   // Groups
-  async getGroups(): Promise<ApiGroup[]> {
-    const data = await api.get<{ groups: RawGroup[] }>('/api/feed/groups')
-    return data.groups.map(g => ({ ...g, type: deriveGroupType(g) }))
+  async getGroups(): Promise<GroupsResponse> {
+    const data = await api.get<{ groups: RawGroup[]; profileId: string; profileRole: string }>('/api/feed/groups')
+    return {
+      profileId:   data.profileId,
+      profileRole: data.profileRole,
+      groups:      data.groups.map(g => ({ ...g, type: deriveGroupType(g) })),
+    }
   },
 
   // Posts (cursor-based pagination)
