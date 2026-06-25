@@ -150,7 +150,7 @@ function GroupMembersModal({
             </div>
             <div>
               <DialogTitle className="text-sm font-semibold">{group.name}</DialogTitle>
-              <p className="text-xs text-muted-foreground">{members.length} members</p>
+              <p className="text-xs text-muted-foreground">{loadingMembers ? group.memberCount : members.length} members</p>
             </div>
           </div>
         </div>
@@ -398,7 +398,7 @@ function GroupCard({ group, isActive, canManage, onSelect, onViewMembers, onRena
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{group.name}</p>
-          <p className="text-xs text-muted-foreground capitalize">{group.type}</p>
+          <p className="text-xs text-muted-foreground capitalize">{group.type} · {group.memberCount} members</p>
         </div>
       </div>
       <div className="flex items-center gap-0.5 shrink-0">

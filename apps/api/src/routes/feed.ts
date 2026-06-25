@@ -77,39 +77,40 @@ router.get('/groups', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
 
-    let groups
-    if (profileRole === ProfileRole.SYNDIC) {
-      const rawGroups = await tenantDb
-        .selectFrom('groups')
-        .selectAll()
-        .orderBy('created_at', 'asc')
-        .execute()
-
-      // Fetch SYNDIC's own _profile_groups rows (created by ensureSyndicMembership)
-      const pgRows = rawGroups.length > 0
-        ? await tenantDb
-            .selectFrom('_profile_groups')
-            .select(['group_id', 'id', 'role'])
-            .where('profile_id', '=', profileId)
-            .execute()
-        : []
-      const pgByGroup = Object.fromEntries(pgRows.map(r => [r.group_id, r]))
-
-      groups = rawGroups.map(g => ({
-        ...g,
-        memberRole:          pgByGroup[g.id]?.role ?? null,
-        memberProfileGroupId: pgByGroup[g.id]?.id  ?? null,
-      }))
-    } else {
-      groups = await tenantDb
-        .selectFrom('groups as g')
-        .innerJoin('_profile_groups as pg', 'g.id', 'pg.group_id')
-        .where('pg.profile_id', '=', profileId)
-        .select(['g.id', 'g.name', 'g.slug', 'g.residence_id', 'g.building_id',
-                 'g.created_at', 'pg.role as memberRole', 'pg.id as memberProfileGroupId'])
-        .orderBy('g.created_at', 'asc')
-        .execute()
-    }
+    // Single query: count all members per group via LEFT JOIN on pg,
+    // plus the current user's own membership row via a separate aliased join.
+    // SYNDIC sees all groups (leftJoin on my_pg); others see only their groups (innerJoin).
+    const groups = profileRole === ProfileRole.SYNDIC
+      ? await tenantDb
+          .selectFrom('groups as g')
+          .leftJoin('_profile_groups as pg', 'pg.group_id', 'g.id')
+          .leftJoin('_profile_groups as my_pg', join =>
+            join.onRef('my_pg.group_id', '=', 'g.id').on('my_pg.profile_id', '=', profileId),
+          )
+          .groupBy(['g.id', 'my_pg.id', 'my_pg.role'])
+          .select([
+            'g.id', 'g.name', 'g.slug', 'g.residence_id', 'g.building_id', 'g.created_at',
+            'my_pg.role as memberRole',
+            'my_pg.id as memberProfileGroupId',
+            sql<string>`count(pg.id)`.as('memberCount'),
+          ])
+          .orderBy('g.created_at', 'asc')
+          .execute()
+      : await tenantDb
+          .selectFrom('groups as g')
+          .innerJoin('_profile_groups as my_pg', join =>
+            join.onRef('my_pg.group_id', '=', 'g.id').on('my_pg.profile_id', '=', profileId),
+          )
+          .leftJoin('_profile_groups as pg', 'pg.group_id', 'g.id')
+          .groupBy(['g.id', 'my_pg.id', 'my_pg.role'])
+          .select([
+            'g.id', 'g.name', 'g.slug', 'g.residence_id', 'g.building_id', 'g.created_at',
+            'my_pg.role as memberRole',
+            'my_pg.id as memberProfileGroupId',
+            sql<string>`count(pg.id)`.as('memberCount'),
+          ])
+          .orderBy('g.created_at', 'asc')
+          .execute()
 
     res.json({ groups, profileId, profileRole })
   } catch (err) { next(err) }
@@ -127,8 +128,10 @@ const CreateGroupSchema = z.object({
 
 router.post('/groups', async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'Forbidden')
+    const { tenantDb, profileId, profileRole } = req as AuthRequest
+    const memberships = await getMemberships(tenantDb, profileId)
+    const ability     = defineFeedAbility(profileRole, profileId, memberships)
+    if (ability.cannot('create', 'Group')) throw new AppError(403, 'Forbidden')
 
     const { name, residenceId, buildingId } = CreateGroupSchema.parse(req.body)
 
@@ -159,9 +162,11 @@ const UpdateGroupSchema = z.object({ name: z.string().min(1).max(120) })
 
 router.patch('/groups/:groupId', async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
+    const { tenantDb, profileId, profileRole } = req as AuthRequest
     const { groupId } = req.params
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'Forbidden')
+    const memberships = await getMemberships(tenantDb, profileId)
+    const ability     = defineFeedAbility(profileRole, profileId, memberships)
+    if (ability.cannot('update', 'Group')) throw new AppError(403, 'Forbidden')
 
     const { name } = UpdateGroupSchema.parse(req.body)
 
@@ -183,9 +188,11 @@ router.patch('/groups/:groupId', async (req: Request, res, next) => {
 
 router.delete('/groups/:groupId', async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole } = req as AuthRequest
+    const { tenantDb, profileId, profileRole } = req as AuthRequest
     const { groupId } = req.params
-    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'Forbidden')
+    const memberships = await getMemberships(tenantDb, profileId)
+    const ability     = defineFeedAbility(profileRole, profileId, memberships)
+    if (ability.cannot('delete', 'Group')) throw new AppError(403, 'Forbidden')
 
     const group = await tenantDb
       .selectFrom('groups').select('id').where('id', '=', groupId).executeTakeFirst()
@@ -237,16 +244,9 @@ router.get('/groups/:groupId/members', async (req: Request, res, next) => {
     const { tenantDb, profileId, profileRole } = req as AuthRequest
     const { groupId } = req.params
 
-    // Verify requester is a member of this group (or SYNDIC)
-    if (profileRole !== ProfileRole.SYNDIC) {
-      const membership = await tenantDb
-        .selectFrom('_profile_groups')
-        .select('id')
-        .where('group_id', '=', groupId)
-        .where('profile_id', '=', profileId)
-        .executeTakeFirst()
-      if (!membership) throw new AppError(403, 'Forbidden')
-    }
+    const memberships = await getMemberships(tenantDb, profileId)
+    const ability     = defineFeedAbility(profileRole, profileId, memberships)
+    if (ability.cannot('read', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
 
     const pgRows = await tenantDb
       .selectFrom('_profile_groups')
@@ -289,16 +289,9 @@ router.post('/groups/:groupId/members', async (req: Request, res, next) => {
     const { groupId } = req.params
     const { profileId: targetProfileId } = AddMemberSchema.parse(req.body)
 
-    // SYNDIC or group ADMIN can add members
-    if (profileRole !== ProfileRole.SYNDIC) {
-      const myMembership = await tenantDb
-        .selectFrom('_profile_groups')
-        .select('role')
-        .where('group_id', '=', groupId)
-        .where('profile_id', '=', requesterId)
-        .executeTakeFirst()
-      if (!myMembership || myMembership.role !== 'ADMIN') throw new AppError(403, 'Forbidden')
-    }
+    const memberships = await getMemberships(tenantDb, requesterId)
+    const ability     = defineFeedAbility(profileRole, requesterId, memberships)
+    if (ability.cannot('create', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
 
     const existing = await tenantDb
       .selectFrom('_profile_groups')
@@ -326,16 +319,9 @@ router.delete('/groups/:groupId/members/:profileId', async (req: Request, res, n
     const { tenantDb, profileId: requesterId, profileRole } = req as AuthRequest
     const { groupId, profileId: targetProfileId } = req.params
 
-    // SYNDIC or group ADMIN can remove members
-    if (profileRole !== ProfileRole.SYNDIC) {
-      const myMembership = await tenantDb
-        .selectFrom('_profile_groups')
-        .select('role')
-        .where('group_id', '=', groupId)
-        .where('profile_id', '=', requesterId)
-        .executeTakeFirst()
-      if (!myMembership || myMembership.role !== 'ADMIN') throw new AppError(403, 'Forbidden')
-    }
+    const memberships = await getMemberships(tenantDb, requesterId)
+    const ability     = defineFeedAbility(profileRole, requesterId, memberships)
+    if (ability.cannot('delete', subject('GroupMember', { groupId }))) throw new AppError(403, 'Forbidden')
 
     await tenantDb
       .deleteFrom('_profile_groups')

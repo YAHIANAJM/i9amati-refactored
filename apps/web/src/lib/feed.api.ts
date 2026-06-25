@@ -1,72 +1,21 @@
 import { api } from './api'
+import { deriveGroupType } from '@i9amati/shared'
+import type {
+  FeedGroup, FeedGroupsResponse, FeedPost, FeedComment,
+  FeedMember, FeedOrgProfile, GroupType,
+} from '@i9amati/shared'
 
-// ── Response types ────────────────────────────────────────────────────────────
+// ── Re-export shared types under their Api* aliases used throughout the web app
 
-export type GroupType = 'residence' | 'building' | 'custom'
+export type { GroupType }
+export type ApiGroup      = FeedGroup
+export type ApiPost       = FeedPost
+export type ApiComment    = FeedComment
+export type ApiMember     = FeedMember
+export type ApiOrgProfile = FeedOrgProfile
+export type GroupsResponse = FeedGroupsResponse
 
-export interface ApiGroup {
-  id: string
-  name: string
-  slug: string
-  residence_id: string | null
-  building_id: string | null
-  created_at: string
-  memberRole: string | null
-  memberProfileGroupId: string | null
-  /** Derived client-side from building_id / residence_id */
-  type: GroupType
-}
-
-export interface GroupsResponse {
-  profileId: string
-  profileRole: string
-  groups: ApiGroup[]
-}
-
-export interface ApiPost {
-  id: string
-  content: string
-  createdAt: string
-  updatedAt: string
-  authorId: string
-  authorProfileId: string
-  authorGroupRole: string
-  authorName: string | null
-  authorAvatar: string | null
-  likeCount: number
-  likedByMe: boolean
-  commentCount: number
-}
-
-export interface ApiComment {
-  id: string
-  content: string
-  postId: string
-  parentId: string | null
-  authorProfileId: string
-  authorName: string | null
-  authorAvatar: string | null
-  createdAt: string
-}
-
-export interface ApiMember {
-  membershipId: string
-  profileId: string
-  groupRole: 'USER' | 'ADMIN' | 'RIGHT_HAND'
-  orgRole: string | null
-  name: string | null
-  avatar: string | null
-}
-
-export interface ApiOrgProfile {
-  profileId: string
-  name: string | null
-  orgRole: string | null
-  image: string | null
-}
-
-
-// ── Raw shapes returned by the API (before derivation) ────────────────────────
+// ── Raw shape returned by the API before client-side derivation ───────────────
 
 interface RawGroup {
   id: string
@@ -77,14 +26,7 @@ interface RawGroup {
   created_at: string
   memberRole: string | null
   memberProfileGroupId: string | null
-}
-
-// ── Helper ────────────────────────────────────────────────────────────────────
-
-function deriveGroupType(g: RawGroup): GroupType {
-  if (g.building_id) return 'building'
-  if (g.residence_id) return 'residence'
-  return 'custom'
+  memberCount: string // PostgreSQL COUNT returns a string
 }
 
 // ── Feed API ──────────────────────────────────────────────────────────────────
@@ -92,11 +34,19 @@ function deriveGroupType(g: RawGroup): GroupType {
 export const feedApi = {
   // Groups
   async getGroups(): Promise<GroupsResponse> {
-    const data = await api.get<{ groups: RawGroup[]; profileId: string; profileRole: string }>('/api/feed/groups')
+    const data = await api.get<{
+      groups: RawGroup[]
+      profileId: string
+      profileRole: string
+    }>('/api/feed/groups')
     return {
       profileId:   data.profileId,
       profileRole: data.profileRole,
-      groups:      data.groups.map(g => ({ ...g, type: deriveGroupType(g) })),
+      groups: data.groups.map(g => ({
+        ...g,
+        type:        deriveGroupType(g),
+        memberCount: Number(g.memberCount),
+      })),
     }
   },
 
