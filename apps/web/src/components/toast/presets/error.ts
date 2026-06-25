@@ -12,7 +12,7 @@ export const toastUnauthorized = () =>
 export const toastForbidden = () =>
   toast({ variant: 'error', title: 'ممنوع الوصول', description: 'ليس لديك صلاحية لهذا الإجراء' })
 
-export const toastApiError = (err: unknown) => {
+export const toastApiError = (err: unknown, fallbackTitle = 'خطأ') => {
   const e = err as { error?: { message?: string; code?: string }; message?: string } | null
 
   const code   = e?.error?.code
@@ -24,5 +24,5 @@ export const toastApiError = (err: unknown) => {
   if (code === 'CONFLICT')          return toast({ variant: 'error', title: 'تعارض في البيانات', description: msg })
   if (code === 'VALIDATION_ERROR')  return toast({ variant: 'warning', title: 'بيانات غير صالحة', description: msg })
 
-  return toast({ variant: 'error', title: 'خطأ', description: msg })
+  return toast({ variant: 'error', title: fallbackTitle, description: msg })
 }

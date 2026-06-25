@@ -6,6 +6,9 @@ import {
 } from '@i9amati/shared'
 import type { FeedAbility, MembershipInfo } from '@i9amati/shared'
 import { api } from '@/lib/api'
+import { 
+  toastCreated, toastUpdated, toastDeleted, toastApiError, toastSuccess 
+} from '@/components/toast'
 import { TopBar } from '@/components/layout/TopBar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -136,18 +139,26 @@ function GroupMembersModal({
 
   const addMember = useMutation({
     mutationFn: (profileId: string) => feedApi.addGroupMember(group.id, profileId),
-    onSuccess: () => Promise.all([
-      qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
-      qc.invalidateQueries({ queryKey: ['feed-groups'] }),
-    ]),
+    onSuccess: () => {
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+        qc.invalidateQueries({ queryKey: ['feed-groups'] }),
+      ])
+      toastSuccess('Member added')
+    },
+    onError: (err: any) => toastApiError(err, 'Failed to add member'),
   })
 
   const removeMember = useMutation({
     mutationFn: (profileId: string) => feedApi.removeGroupMember(group.id, profileId),
-    onSuccess: () => Promise.all([
-      qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
-      qc.invalidateQueries({ queryKey: ['feed-groups'] }),
-    ]),
+    onSuccess: () => {
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['feed-group-members', group.id] }),
+        qc.invalidateQueries({ queryKey: ['feed-groups'] }),
+      ])
+      toastDeleted('Member removed')
+    },
+    onError: (err: any) => toastApiError(err, 'Failed to remove member'),
   })
 
   return (
@@ -257,7 +268,9 @@ function CommentList({ postId, canComment }: { postId: string; canComment: boole
       qc.invalidateQueries({ queryKey: ['feed-comments', postId] })
       qc.invalidateQueries({ queryKey: ['feed-posts'] })
       setNewComment('')
+      toastCreated('Comment added')
     },
+    onError: (err: any) => toastApiError(err, 'Failed to add comment'),
   })
 
   return (
@@ -543,12 +556,19 @@ export function Feed() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['feed-groups'] })
       setSelectedGroupId(data.id)
+      toastCreated('Group created')
     },
+    onError: (err: any) => toastApiError(err, 'Failed to create group'),
   })
 
   const updateGroup = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => feedApi.updateGroup(id, name),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['feed-groups'] }); setRenameGroup(null) },
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ['feed-groups'] })
+      setRenameGroup(null)
+      toastUpdated('Group updated')
+    },
+    onError: (err: any) => toastApiError(err, 'Failed to update group'),
   })
 
   const deleteGroup = useMutation({
@@ -556,7 +576,9 @@ export function Feed() {
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ['feed-groups'] })
       if (activeGroupId === id) setSelectedGroupId(null)
+      toastDeleted('Group deleted')
     },
+    onError: (err: any) => toastApiError(err, 'Failed to delete group'),
   })
 
   // ── Post mutations ────────────────────────────────────────────────────────
@@ -577,7 +599,9 @@ export function Feed() {
       qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] })
       setNewPost('')
       clearFile()
+      toastCreated('Post published')
     },
+    onError: (err: any) => toastApiError(err, 'Failed to publish post'),
   })
 
   const editPost = useMutation({
@@ -589,7 +613,11 @@ export function Feed() {
         old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.map(p => p.id === id ? { ...p, content } : p) })) } : old)
       return { prev }
     },
-    onError: (_e, _v, ctx: { prev: unknown } | undefined) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
+    onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
+      if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
+      toastApiError(err, 'Failed to update post')
+    },
+    onSuccess: () => toastUpdated('Post updated'),
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
@@ -602,7 +630,11 @@ export function Feed() {
         old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.filter(p => p.id !== id) })) } : old)
       return { prev }
     },
-    onError: (_e, _v, ctx: { prev: unknown } | undefined) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
+    onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
+      if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
+      toastApiError(err, 'Failed to delete post')
+    },
+    onSuccess: () => toastDeleted('Post deleted'),
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
@@ -617,7 +649,10 @@ export function Feed() {
         old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.map(p => p.id === id ? { ...p, likedByMe: !likedByMe, likeCount: likedByMe ? p.likeCount - 1 : p.likeCount + 1 } : p) })) } : old)
       return { prev }
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
+    onError: (err: any, _v, ctx: { prev: unknown } | undefined) => { 
+      if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) 
+      toastApiError(err, 'Failed to like post')
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
