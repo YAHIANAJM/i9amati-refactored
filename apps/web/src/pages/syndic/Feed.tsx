@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { defineFeedAbility, subject, ProfileRole } from '@i9amati/shared'
 import type { FeedAbility, MembershipInfo } from '@i9amati/shared'
 import { TopBar } from '@/components/layout/TopBar'
@@ -463,12 +463,37 @@ export function Feed() {
   const selectedGroup = groups.find(g => g.id === activeGroupId) ?? null
   const membersGroup = groups.find(g => g.id === membersGroupId) ?? null
 
-  const { data: postsData, isLoading: postsLoading, isError: postsError } = useQuery({
+  const {
+    data: postsData,
+    isLoading: postsLoading,
+    isError: postsError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['feed-posts', activeGroupId],
-    queryFn: () => feedApi.getPosts(activeGroupId!),
+    queryFn: ({ pageParam }) => feedApi.getPosts(activeGroupId!, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!activeGroupId,
   })
-  const posts: ApiPost[] = postsData?.posts ?? []
+  const posts: ApiPost[] = postsData?.pages.flatMap(p => p.posts) ?? []
+
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0.1 },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // ── Group mutations ───────────────────────────────────────────────────────
   const createGroup = useMutation({
@@ -504,10 +529,10 @@ export function Feed() {
       await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
       const prev = qc.getQueryData(['feed-posts', activeGroupId])
       qc.setQueryData(['feed-posts', activeGroupId], (old: typeof postsData) =>
-        old ? { ...old, posts: old.posts.map(p => p.id === id ? { ...p, content } : p) } : old)
+        old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.map(p => p.id === id ? { ...p, content } : p) })) } : old)
       return { prev }
     },
-    onError: (_e, _v, ctx: any) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
+    onError: (_e, _v, ctx: { prev: unknown } | undefined) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
@@ -517,10 +542,10 @@ export function Feed() {
       await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
       const prev = qc.getQueryData(['feed-posts', activeGroupId])
       qc.setQueryData(['feed-posts', activeGroupId], (old: typeof postsData) =>
-        old ? { ...old, posts: old.posts.filter(p => p.id !== id) } : old)
+        old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.filter(p => p.id !== id) })) } : old)
       return { prev }
     },
-    onError: (_e, _v, ctx: any) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
+    onError: (_e, _v, ctx: { prev: unknown } | undefined) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed-posts', activeGroupId] }),
   })
 
@@ -532,7 +557,7 @@ export function Feed() {
       await qc.cancelQueries({ queryKey: ['feed-posts', activeGroupId] })
       const prev = qc.getQueryData(['feed-posts', activeGroupId])
       qc.setQueryData(['feed-posts', activeGroupId], (old: typeof postsData) =>
-        old ? { ...old, posts: old.posts.map(p => p.id === id ? { ...p, likedByMe: !likedByMe, likeCount: likedByMe ? p.likeCount - 1 : p.likeCount + 1 } : p) } : old)
+        old ? { ...old, pages: old.pages.map(page => ({ ...page, posts: page.posts.map(p => p.id === id ? { ...p, likedByMe: !likedByMe, likeCount: likedByMe ? p.likeCount - 1 : p.likeCount + 1 } : p) })) } : old)
       return { prev }
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(['feed-posts', activeGroupId], ctx.prev) },
@@ -585,6 +610,14 @@ export function Feed() {
                 onEdit={(id, content) => editPost.mutate({ id, content })}
                 onDelete={id => deletePost.mutate(id)} />
             ))}
+
+          {/* infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-1" />
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
 
         {/* Groups sidebar */}
