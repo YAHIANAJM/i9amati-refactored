@@ -412,7 +412,16 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
       .orderBy('fp.created_at', 'desc')
       .limit(limit + 1)
 
-    if (cursor) postsQuery = postsQuery.where('fp.created_at', '<', sql<Date>`${cursor}::timestamptz`)
+    if (cursor) {
+      const cursorPost = await tenantDb
+        .selectFrom('feed_posts')
+        .select('created_at')
+        .where('id', '=', cursor)
+        .executeTakeFirst()
+      if (cursorPost) {
+        postsQuery = postsQuery.where('fp.created_at', '<', cursorPost.created_at)
+      }
+    }
 
     const rows    = await postsQuery.execute()
     const hasMore = rows.length > limit
@@ -478,7 +487,7 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
         commentCount:    commentMap[p.id] ?? 0,
       })),
       hasMore,
-      nextCursor: hasMore ? posts.at(-1)!.created_at.toISOString() : null,
+      nextCursor: hasMore ? posts.at(-1)!.id : null,
     })
   } catch (err) { next(err) }
 })
