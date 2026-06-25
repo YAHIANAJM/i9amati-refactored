@@ -30,7 +30,7 @@ function guard(action: ServiceActions, subject: ServiceSubjects) {
   return (req: Request, _res: Response, next: NextFunction) => {
     const { profileRole } = req as AuthRequest
     next(defineServiceAbility(profileRole).cannot(action, subject)
-      ? new AppError(403, 'Forbidden')
+      ? new AppError(403, 'Forbidden', 'FORBIDDEN')
       : undefined)
   }
 }
@@ -41,13 +41,13 @@ function parseBody<S extends z.ZodTypeAny>(schema: S, data: unknown): z.infer<S>
     const msg = r.error.issues
       .map(i => `${i.path.join('.') || 'body'}: ${i.message}`)
       .join('; ')
-    throw new AppError(400, msg)
+    throw new AppError(400, msg, 'VALIDATION_ERROR')
   }
   return r.data
 }
 
 function requireRow<T>(row: T | undefined, resource: string): T {
-  if (row === undefined) throw new AppError(404, `${resource} not found`)
+  if (row === undefined) throw new AppError(404, `${resource} not found`, 'NOT_FOUND')
   return row
 }
 
@@ -342,6 +342,7 @@ router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContra
     if (body.amount !== undefined && body.amount < Number(contract.amount_paid)) {
       throw new AppError(409,
         `Cannot reduce contract amount below amount already paid (${contract.amount_paid})`,
+        'CONFLICT',
       )
     }
 
@@ -409,7 +410,7 @@ router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceCon
     )
 
     const remaining = Number(contract.amount) - Number(contract.amount_paid)
-    if (remaining <= 0) throw new AppError(409, 'Contract is already fully paid')
+    if (remaining <= 0) throw new AppError(409, 'Contract is already fully paid', 'CONFLICT')
 
     const newPaid = Math.min(
       Number(contract.amount_paid) + body.amount,
