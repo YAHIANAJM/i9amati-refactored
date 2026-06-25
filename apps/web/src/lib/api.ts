@@ -9,7 +9,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `HTTP ${res.status}`)
+    const err = new Error(body.error?.message || `HTTP ${res.status}`) as any
+    err.error = body.error
+    throw err
   }
   return res.status === 204 ? undefined as T : res.json()
 }
@@ -29,7 +31,9 @@ export const api = {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      throw new Error(body.error ?? `HTTP ${res.status}`)
+      const err = new Error(body.error?.message || `HTTP ${res.status}`) as any
+      err.error = body.error
+      throw err
     }
     return res.json() as Promise<T>
   },
