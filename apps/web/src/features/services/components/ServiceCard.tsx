@@ -1,11 +1,12 @@
-import { Phone, Plus, Pencil, Trash2, Wrench, CreditCard } from 'lucide-react'
+import { useRef } from 'react'
+import { Phone, Plus, Pencil, Trash2, Wrench, CreditCard, Paperclip, FileText, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
-import type { ApiService, ApiServiceContract } from '@/lib/services.api'
+import type { ApiService, ApiServiceContract, ContractFile } from '@/lib/services.api'
 import { getStatusVariant, getTypeColorClass, paymentPercent } from '../utils'
 
 interface ServiceCardProps {
@@ -17,12 +18,15 @@ interface ServiceCardProps {
   onEditContract:    (service: ApiService, contract: ApiServiceContract) => void
   onDeleteContract:  (service: ApiService, contract: ApiServiceContract) => void
   onRecordPayment:   (service: ApiService, contract: ApiServiceContract) => void
+  onAttachFile:      (contract: ApiServiceContract, file: File) => void
+  onRemoveFile:      (contract: ApiServiceContract, docId: string) => void
 }
 
 export function ServiceCard({
   service, isSyndic,
   onEdit, onDelete, onAddContract,
   onEditContract, onDeleteContract, onRecordPayment,
+  onAttachFile, onRemoveFile,
 }: ServiceCardProps) {
   const { t } = useTranslation()
 
@@ -76,6 +80,8 @@ export function ServiceCard({
                 onEdit={() => onEditContract(service, c)}
                 onDelete={() => onDeleteContract(service, c)}
                 onPay={() => onRecordPayment(service, c)}
+                onAttachFile={file => onAttachFile(c, file)}
+                onRemoveFile={docId => onRemoveFile(c, docId)}
               />
             ))}
           </div>
@@ -100,17 +106,20 @@ export function ServiceCard({
 }
 
 interface ContractRowProps {
-  contract:  ApiServiceContract
-  isSyndic:  boolean
-  onEdit:    () => void
-  onDelete:  () => void
-  onPay:     () => void
+  contract:      ApiServiceContract
+  isSyndic:      boolean
+  onEdit:        () => void
+  onDelete:      () => void
+  onPay:         () => void
+  onAttachFile:  (file: File) => void
+  onRemoveFile:  (docId: string) => void
 }
 
-function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay }: ContractRowProps) {
-  const { t } = useTranslation()
-  const pct = paymentPercent(contract.amount_paid, contract.amount)
-  const remaining = contract.amount - contract.amount_paid
+function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile, onRemoveFile }: ContractRowProps) {
+  const { t }       = useTranslation()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pct          = paymentPercent(contract.amount_paid, contract.amount)
+  const remaining    = contract.amount - contract.amount_paid
 
   return (
     <div className="rounded-lg border bg-muted/20 p-3 space-y-2.5">
@@ -169,14 +178,81 @@ function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay }: ContractRo
         <Progress value={pct} className="h-1.5" />
       </div>
 
-      {isSyndic && remaining > 0 && (
-        <Button
-          size="sm"
-          className="w-full h-7 gap-1.5 text-[11px]"
-          onClick={onPay}
+      {/* Attached files */}
+      {contract.files.length > 0 && (
+        <div className="space-y-1 pt-1">
+          {contract.files.map(f => (
+            <FileRow
+              key={f.id}
+              file={f}
+              isSyndic={isSyndic}
+              onRemove={() => onRemoveFile(f.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        {isSyndic && remaining > 0 && (
+          <Button
+            size="sm"
+            className="flex-1 h-7 gap-1.5 text-[11px]"
+            onClick={onPay}
+          >
+            <CreditCard size={11} /> {t('services.recordPayment')}
+          </Button>
+        )}
+        {isSyndic && (
+          <>
+            <Button
+              variant="outline" size="sm"
+              className="h-7 gap-1.5 text-[11px]"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip size={11} /> {t('services.attachFile')}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) { onAttachFile(file); e.target.value = '' }
+              }}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FileRow({ file, isSyndic, onRemove }: { file: ContractFile; isSyndic: boolean; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5">
+      <FileText size={12} className="text-muted-foreground shrink-0" />
+      <a
+        href={file.url ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex-1 truncate text-[11px] text-primary hover:underline min-w-0"
+      >
+        {file.name}
+      </a>
+      {file.size && (
+        <span className="text-[10px] text-muted-foreground shrink-0">
+          {(file.size / 1024).toFixed(0)} KB
+        </span>
+      )}
+      {isSyndic && (
+        <button
+          onClick={onRemove}
+          className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
         >
-          <CreditCard size={11} /> {t('services.recordPayment')}
-        </Button>
+          <X size={11} />
+        </button>
       )}
     </div>
   )

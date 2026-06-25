@@ -2,6 +2,14 @@ import { api } from './api'
 
 export type ServiceContractStatus = 'ACTIVE' | 'PENDING' | 'EXPIRED' | 'CANCELLED'
 
+export interface ContractFile {
+  id:          string
+  name:        string
+  size:        number | null
+  url:         string | null
+  uploaded_at: string
+}
+
 export interface ApiServiceContract {
   id:           string
   service_id:   string
@@ -12,6 +20,7 @@ export interface ApiServiceContract {
   start_date:   string | null
   end_date:     string | null
   status:       ServiceContractStatus
+  files:        ContractFile[]
 }
 
 export interface ApiService {
@@ -35,9 +44,9 @@ export const servicesApi = {
   },
 
   async create(payload: {
-    name: string
-    type?: string
-    contact_info?: { phone?: string; email?: string }
+    name:          string
+    type?:         string | null
+    contact_info?: { phone?: string; email?: string } | null
   }): Promise<ApiService> {
     return api.post('/api/services', payload)
   },
@@ -55,12 +64,12 @@ export const servicesApi = {
   },
 
   async addContract(serviceId: string, payload: {
-    name:        string
-    description?: string
-    amount:      number
-    start_date?: string
-    end_date?:   string
-    status?:     ServiceContractStatus
+    name:          string
+    description?:  string | null
+    amount:        number
+    start_date?:   string | null
+    end_date?:     string | null
+    status?:       ServiceContractStatus
   }): Promise<ApiServiceContract> {
     return api.post(`/api/services/${serviceId}/contracts`, payload)
   },
@@ -82,5 +91,21 @@ export const servicesApi = {
 
   async recordPayment(serviceId: string, contractId: string, amount: number): Promise<ApiServiceContract> {
     return api.post(`/api/services/${serviceId}/contracts/${contractId}/pay`, { amount })
+  },
+
+  async attachFile(serviceId: string, contractId: string, file: File): Promise<ContractFile> {
+    const { key } = await api.upload<{ url: string; key: string }>(
+      '/api/upload?scope=documents',
+      file,
+    )
+    return api.post(`/api/services/${serviceId}/contracts/${contractId}/files`, {
+      name: file.name,
+      key,
+      size: file.size,
+    })
+  },
+
+  async removeFile(serviceId: string, contractId: string, docId: string): Promise<void> {
+    return api.delete(`/api/services/${serviceId}/contracts/${contractId}/files/${docId}`)
   },
 }

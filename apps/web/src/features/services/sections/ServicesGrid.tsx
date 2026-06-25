@@ -6,23 +6,26 @@ import { ServiceCard } from '../components/ServiceCard'
 import type { ApiService, ApiServiceContract } from '@/lib/services.api'
 
 interface ServicesGridProps {
-  services:        ApiService[]
-  isLoading:       boolean
-  isError:         boolean
-  isSyndic:        boolean
-  onCreateService: () => void
-  onEdit:          (service: ApiService) => void
-  onDelete:        (service: ApiService) => void
-  onAddContract:   (service: ApiService) => void
-  onEditContract:  (service: ApiService, contract: ApiServiceContract) => void
-  onDeleteContract:(service: ApiService, contract: ApiServiceContract) => void
-  onRecordPayment: (service: ApiService, contract: ApiServiceContract) => void
+  services:         ApiService[]
+  isLoading:        boolean
+  isError:          boolean
+  isSyndic:         boolean
+  onCreateService:  () => void
+  onEdit:           (service: ApiService) => void
+  onDelete:         (service: ApiService) => void
+  onAddContract:    (service: ApiService) => void
+  onEditContract:   (service: ApiService, contract: ApiServiceContract) => void
+  onDeleteContract: (service: ApiService, contract: ApiServiceContract) => void
+  onRecordPayment:  (service: ApiService, contract: ApiServiceContract) => void
+  onAttachFile:     (service: ApiService, contract: ApiServiceContract, file: File) => void
+  onRemoveFile:     (service: ApiService, contract: ApiServiceContract, docId: string) => void
 }
 
 export function ServicesGrid({
   services, isLoading, isError, isSyndic,
   onCreateService, onEdit, onDelete,
   onAddContract, onEditContract, onDeleteContract, onRecordPayment,
+  onAttachFile, onRemoveFile,
 }: ServicesGridProps) {
   const { t } = useTranslation()
 
@@ -82,6 +85,8 @@ export function ServicesGrid({
           onEditContract={onEditContract}
           onDeleteContract={onDeleteContract}
           onRecordPayment={onRecordPayment}
+          onAttachFile={(contract, file) => onAttachFile(service, contract, file)}
+          onRemoveFile={(contract, docId) => onRemoveFile(service, contract, docId)}
         />
       ))}
     </div>
