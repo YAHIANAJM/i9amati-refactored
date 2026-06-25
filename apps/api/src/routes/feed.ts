@@ -92,6 +92,238 @@ router.get('/groups', async (req: Request, res, next) => {
   } catch (err) { next(err) }
 })
 
+// ── POST /feed/groups ─────────────────────────────────────────────────────────
+
+const CreateGroupSchema = z.object({
+  name:        z.string().min(1).max(120),
+  residenceId: z.string().uuid().optional(),
+  buildingId:  z.string().uuid().optional(),
+}).refine(d => !(d.residenceId && d.buildingId), {
+  message: 'A group can be linked to a residence OR a building, not both',
+})
+
+router.post('/groups', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileRole } = req as AuthRequest
+    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'Forbidden')
+
+    const { name, residenceId, buildingId } = CreateGroupSchema.parse(req.body)
+
+    // Generate a unique slug: lowercase name + random suffix
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const slug = `${base}-${crypto.randomUUID().slice(0, 6)}`
+
+    const id = crypto.randomUUID()
+    await tenantDb
+      .insertInto('groups')
+      .values({
+        id,
+        name,
+        slug,
+        residence_id: residenceId ?? null,
+        building_id:  buildingId  ?? null,
+        updated_at:   new Date(),
+      })
+      .execute()
+
+    res.status(201).json({ id, slug })
+  } catch (err) { next(err) }
+})
+
+// ── PATCH /feed/groups/:groupId ───────────────────────────────────────────────
+
+const UpdateGroupSchema = z.object({ name: z.string().min(1).max(120) })
+
+router.patch('/groups/:groupId', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileRole } = req as AuthRequest
+    const { groupId } = req.params
+    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'Forbidden')
+
+    const { name } = UpdateGroupSchema.parse(req.body)
+
+    const group = await tenantDb
+      .selectFrom('groups').select('id').where('id', '=', groupId).executeTakeFirst()
+    if (!group) throw new AppError(404, 'Group not found')
+
+    await tenantDb
+      .updateTable('groups')
+      .set({ name, updated_at: new Date() })
+      .where('id', '=', groupId)
+      .execute()
+
+    res.json({ id: groupId })
+  } catch (err) { next(err) }
+})
+
+// ── DELETE /feed/groups/:groupId ──────────────────────────────────────────────
+
+router.delete('/groups/:groupId', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileRole } = req as AuthRequest
+    const { groupId } = req.params
+    if (profileRole !== ProfileRole.SYNDIC) throw new AppError(403, 'Forbidden')
+
+    const group = await tenantDb
+      .selectFrom('groups').select('id').where('id', '=', groupId).executeTakeFirst()
+    if (!group) throw new AppError(404, 'Group not found')
+
+    // _profile_groups rows are deleted first to avoid FK violation from feed_posts
+    // (feed_posts.author_id → _profile_groups.id). Feed posts/comments/likes have
+    // no direct FK to groups, so we delete in order:
+    // 1. feed_post_likes (cascade would cover, but be explicit)
+    // 2. feed_comments (cascade from feed_posts)
+    // 3. feed_posts via author_id in this group's _profile_groups
+    // 4. _profile_groups
+    // 5. groups
+
+    const pgIds = await tenantDb
+      .selectFrom('_profile_groups')
+      .select('id')
+      .where('group_id', '=', groupId)
+      .execute()
+    const pgIdList = pgIds.map(r => r.id)
+
+    if (pgIdList.length > 0) {
+      // Delete likes → posts (comments cascade from posts FK)
+      const postIds = await tenantDb
+        .selectFrom('feed_posts')
+        .select('id')
+        .where('author_id', 'in', pgIdList)
+        .execute()
+      const postIdList = postIds.map(p => p.id)
+
+      if (postIdList.length > 0) {
+        await tenantDb.deleteFrom('feed_post_likes').where('post_id', 'in', postIdList).execute()
+        await tenantDb.deleteFrom('feed_comments').where('post_id', 'in', postIdList).execute()
+        await tenantDb.deleteFrom('feed_posts').where('id', 'in', postIdList).execute()
+      }
+      await tenantDb.deleteFrom('_profile_groups').where('group_id', '=', groupId).execute()
+    }
+
+    await tenantDb.deleteFrom('groups').where('id', '=', groupId).execute()
+
+    res.status(204).send()
+  } catch (err) { next(err) }
+})
+
+// ── GET /feed/groups/:groupId/members ─────────────────────────────────────────
+
+router.get('/groups/:groupId/members', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileId, profileRole } = req as AuthRequest
+    const { groupId } = req.params
+
+    // Verify requester is a member of this group (or SYNDIC)
+    if (profileRole !== ProfileRole.SYNDIC) {
+      const membership = await tenantDb
+        .selectFrom('_profile_groups')
+        .select('id')
+        .where('group_id', '=', groupId)
+        .where('profile_id', '=', profileId)
+        .executeTakeFirst()
+      if (!membership) throw new AppError(403, 'Forbidden')
+    }
+
+    const pgRows = await tenantDb
+      .selectFrom('_profile_groups')
+      .where('group_id', '=', groupId)
+      .select(['id', 'profile_id', 'role'])
+      .execute()
+
+    if (pgRows.length === 0) return res.json({ members: [] })
+
+    const profileIds = pgRows.map(r => r.profile_id)
+    const profileRows = await db
+      .selectFrom('public.profiles as prof')
+      .innerJoin('public.users as u', 'prof.user_id', 'u.id')
+      .where('prof.id', 'in', profileIds)
+      .select(['prof.id as profile_id', 'u.name', 'u.image', 'prof.role as orgRole'])
+      .execute()
+
+    const profileMap = Object.fromEntries(profileRows.map(p => [p.profile_id, p]))
+
+    res.json({
+      members: pgRows.map(pg => ({
+        membershipId: pg.id,
+        profileId:    pg.profile_id,
+        groupRole:    pg.role,
+        name:         profileMap[pg.profile_id]?.name   ?? null,
+        avatar:       profileMap[pg.profile_id]?.image  ?? null,
+        orgRole:      profileMap[pg.profile_id]?.orgRole ?? null,
+      })),
+    })
+  } catch (err) { next(err) }
+})
+
+// ── POST /feed/groups/:groupId/members ────────────────────────────────────────
+
+const AddMemberSchema = z.object({ profileId: z.string().uuid() })
+
+router.post('/groups/:groupId/members', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileId: requesterId, profileRole } = req as AuthRequest
+    const { groupId } = req.params
+    const { profileId: targetProfileId } = AddMemberSchema.parse(req.body)
+
+    // SYNDIC or group ADMIN can add members
+    if (profileRole !== ProfileRole.SYNDIC) {
+      const myMembership = await tenantDb
+        .selectFrom('_profile_groups')
+        .select('role')
+        .where('group_id', '=', groupId)
+        .where('profile_id', '=', requesterId)
+        .executeTakeFirst()
+      if (!myMembership || myMembership.role !== 'ADMIN') throw new AppError(403, 'Forbidden')
+    }
+
+    const existing = await tenantDb
+      .selectFrom('_profile_groups')
+      .select('id')
+      .where('group_id', '=', groupId)
+      .where('profile_id', '=', targetProfileId)
+      .executeTakeFirst()
+
+    if (existing) return res.status(200).json({ membershipId: existing.id })
+
+    const id = crypto.randomUUID()
+    await tenantDb
+      .insertInto('_profile_groups')
+      .values({ id, group_id: groupId, profile_id: targetProfileId, role: 'USER' })
+      .execute()
+
+    res.status(201).json({ membershipId: id })
+  } catch (err) { next(err) }
+})
+
+// ── DELETE /feed/groups/:groupId/members/:profileId ───────────────────────────
+
+router.delete('/groups/:groupId/members/:profileId', async (req: Request, res, next) => {
+  try {
+    const { tenantDb, profileId: requesterId, profileRole } = req as AuthRequest
+    const { groupId, profileId: targetProfileId } = req.params
+
+    // SYNDIC or group ADMIN can remove members
+    if (profileRole !== ProfileRole.SYNDIC) {
+      const myMembership = await tenantDb
+        .selectFrom('_profile_groups')
+        .select('role')
+        .where('group_id', '=', groupId)
+        .where('profile_id', '=', requesterId)
+        .executeTakeFirst()
+      if (!myMembership || myMembership.role !== 'ADMIN') throw new AppError(403, 'Forbidden')
+    }
+
+    await tenantDb
+      .deleteFrom('_profile_groups')
+      .where('group_id', '=', groupId)
+      .where('profile_id', '=', targetProfileId)
+      .execute()
+
+    res.status(204).send()
+  } catch (err) { next(err) }
+})
+
 // ── GET /feed/groups/:groupId/posts ───────────────────────────────────────────
 
 router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
@@ -492,6 +724,25 @@ router.delete('/posts/:postId/like', async (req: Request, res, next) => {
       .execute()
 
     res.status(204).send()
+  } catch (err) { next(err) }
+})
+
+// ── GET /feed/org-profiles ────────────────────────────────────────────────────
+// Returns all profiles in this org — used by the member picker when adding members to a group.
+
+router.get('/org-profiles', async (req: Request, res, next) => {
+  try {
+    const { activeOrganizationId } = req as AuthRequest
+
+    const profiles = await db
+      .selectFrom('public.profiles as prof')
+      .innerJoin('public.users as u', 'prof.user_id', 'u.id')
+      .where('prof.organization_id', '=', activeOrganizationId)
+      .select(['prof.id as profileId', 'u.name', 'u.image', 'prof.role as orgRole'])
+      .orderBy('u.name', 'asc')
+      .execute()
+
+    res.json({ profiles })
   } catch (err) { next(err) }
 })
 
