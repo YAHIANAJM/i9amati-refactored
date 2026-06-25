@@ -12,6 +12,7 @@ import meetingsRouter from './routes/meetings'
 import notificationsRouter from './routes/notifications'
 import chatbotRouter from './routes/chatbot'
 import feedRouter from './routes/feed'
+import uploadRouter from './routes/upload'
 import { errorHandler } from './middleware/errorHandler'
 import { db } from './db/db'
 
@@ -39,6 +40,7 @@ app.use('/api/meetings',     meetingsRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/chatbot',      chatbotRouter)
 app.use('/api/feed',        feedRouter)
+app.use('/api/upload',      uploadRouter)
 
 app.use(errorHandler)
 
