@@ -1,11 +1,20 @@
 import { Router, Request, Response, NextFunction } from 'express'
-import { z } from 'zod'
+import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import { randomUUID } from 'crypto'
 import type { Selectable } from 'kysely'
 import { authenticate } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
-import { defineServiceAbility } from '@i9amati/shared'
+import { formatZodError } from '../lib/zod-errors'
+import {
+  defineServiceAbility,
+  CreateServiceSchema,
+  UpdateServiceSchema,
+  CreateContractSchema,
+  UpdateContractSchema,
+  RecordPaymentSchema,
+  AttachFileSchema,
+} from '@i9amati/shared'
 import type { ServiceActions, ServiceSubjects } from '@i9amati/shared'
 import type { ServiceContractTable, ServiceTable } from '../db/types'
 import { minioClient, BUCKET, objectUrl } from '../lib/storage'
@@ -35,14 +44,9 @@ function guard(action: ServiceActions, subject: ServiceSubjects) {
   }
 }
 
-function parseBody<S extends z.ZodTypeAny>(schema: S, data: unknown): z.infer<S> {
+function parseBody<S extends ZodTypeAny>(schema: S, data: unknown): ZodInfer<S> {
   const r = schema.safeParse(data)
-  if (!r.success) {
-    const msg = r.error.issues
-      .map(i => `${i.path.join('.') || 'body'}: ${i.message}`)
-      .join('; ')
-    throw new AppError(400, msg, 'VALIDATION_ERROR')
-  }
+  if (!r.success) throw new AppError(400, formatZodError(r.error), 'VALIDATION_ERROR')
   return r.data
 }
 
@@ -160,15 +164,6 @@ router.get('/', async (req: Request, res, next) => {
 
 // ── POST /api/services ─────────────────────────────────────────────────────────
 
-const CreateServiceSchema = z.object({
-  name:         z.string().min(1).max(100),
-  type:         z.string().max(50).nullable().optional(),
-  contact_info: z.object({
-    phone: z.string().optional(),
-    email: z.string().email().optional(),
-  }).nullable().optional(),
-})
-
 router.post('/', guard('create', 'Service'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
@@ -193,15 +188,6 @@ router.post('/', guard('create', 'Service'), async (req: Request, res, next) => 
 })
 
 // ── PATCH /api/services/:serviceId ────────────────────────────────────────────
-
-const UpdateServiceSchema = z.object({
-  name:         z.string().min(1).max(100).optional(),
-  type:         z.string().max(50).nullable().optional(),
-  contact_info: z.object({
-    phone: z.string().optional(),
-    email: z.string().email().optional(),
-  }).nullable().optional(),
-})
 
 router.patch('/:serviceId', guard('update', 'Service'), async (req: Request, res, next) => {
   try {
@@ -275,15 +261,6 @@ router.delete('/:serviceId', guard('delete', 'Service'), async (req: Request, re
 
 // ── POST /api/services/:serviceId/contracts ────────────────────────────────────
 
-const CreateContractSchema = z.object({
-  name:        z.string().min(1).max(200),
-  description: z.string().max(1000).nullable().optional(),
-  amount:      z.number().min(0),
-  start_date:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  end_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  status:      z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']).optional(),
-})
-
 router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
@@ -317,15 +294,6 @@ router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (
 })
 
 // ── PATCH /api/services/:serviceId/contracts/:contractId ──────────────────────
-
-const UpdateContractSchema = z.object({
-  name:        z.string().min(1).max(200).optional(),
-  description: z.string().max(1000).nullable().optional(),
-  amount:      z.number().min(0).optional(),
-  start_date:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  end_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  status:      z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']).optional(),
-})
 
 router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
@@ -393,10 +361,6 @@ router.delete('/:serviceId/contracts/:contractId', guard('delete', 'ServiceContr
 
 // ── POST /api/services/:serviceId/contracts/:contractId/pay ───────────────────
 
-const RecordPaymentSchema = z.object({
-  amount: z.number().positive(),
-})
-
 router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
@@ -430,12 +394,6 @@ router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceCon
 })
 
 // ── POST /api/services/:serviceId/contracts/:contractId/files ─────────────────
-
-const AttachFileSchema = z.object({
-  name: z.string().min(1).max(255),
-  key:  z.string().min(1).max(500),
-  size: z.number().int().min(0).optional(),
-})
 
 router.post('/:serviceId/contracts/:contractId/files', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {

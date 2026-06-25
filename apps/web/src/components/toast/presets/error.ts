@@ -18,8 +18,15 @@ export const toastApiError = (err: unknown, fallbackTitle?: string) => {
   const code = e?.error?.code
   const msg  = e?.error?.message ?? e?.message ?? i18n.t('errors.codes.INTERNAL_ERROR')
 
-  // These codes carry a meaningful server message — show it directly
-  if (code === 'VALIDATION_ERROR') return toast({ variant: 'warning', title: i18n.t('errors.title.VALIDATION_ERROR'), description: msg })
+  // VALIDATION_ERROR: msg is '|'-joined translation keys emitted by shared Zod schemas
+  if (code === 'VALIDATION_ERROR') {
+    const description = msg
+      .split('|')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map(k => { const t = i18n.t(k as any) as string; return t !== k ? t : k })
+      .join('. ')
+    return toast({ variant: 'warning', title: i18n.t('errors.title.VALIDATION_ERROR'), description })
+  }
   if (code === 'CONFLICT')         return toast({ variant: 'error',   title: i18n.t('errors.title.CONFLICT'),          description: msg })
   if (code === 'NOT_FOUND')        return toast({ variant: 'error',   title: i18n.t('errors.title.NOT_FOUND'),          description: msg })
   if (code === 'UNAUTHORIZED')     return toastUnauthorized()
