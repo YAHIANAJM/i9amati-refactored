@@ -38,6 +38,27 @@ export interface ServicesResponse {
   services:    ApiService[]
 }
 
+export interface ApiStaffProfile {
+  id: string
+  role: string
+  firstName: string | null
+  lastName: string | null
+  image: string | null
+}
+
+export interface ApiServiceSession {
+  id: string
+  service_id: string
+  profile_id: string
+  check_in_at: string
+  check_out_at: string | null
+  profile: {
+    firstName: string | null
+    lastName: string | null
+    image: string | null
+  }
+}
+
 export const servicesApi = {
   async list(): Promise<ServicesResponse> {
     return api.get<ServicesResponse>('/api/services')
@@ -108,5 +129,21 @@ export const servicesApi = {
 
   async removeFile(serviceId: string, contractId: string, docId: string): Promise<void> {
     return api.delete(`/api/services/${serviceId}/contracts/${contractId}/files/${docId}`)
+  },
+
+  async getStaff(): Promise<ApiStaffProfile[]> {
+    return api.get<ApiStaffProfile[]>('/api/services/staff')
+  },
+
+  async getSessions(serviceId: string): Promise<ApiServiceSession[]> {
+    return api.get<ApiServiceSession[]>(`/api/services/${serviceId}/sessions`)
+  },
+
+  async checkIn(serviceId: string, profileId: string): Promise<ApiServiceSession> {
+    return api.post(`/api/services/${serviceId}/sessions/check-in`, { profileId })
+  },
+
+  async checkOut(serviceId: string, sessionId: string): Promise<ApiServiceSession> {
+    return api.patch(`/api/services/${serviceId}/sessions/${sessionId}/check-out`, {})
   },
 }

@@ -91,3 +91,10 @@ export const AttachFileSchema = z.object({
   size: z.number({ invalid_type_error: 'validation.fileSize.invalid' })
     .int({ message: 'validation.fileSize.invalid' }).min(0, { message: 'validation.fileSize.invalid' }).optional(),
 })
+
+export const RecordCheckInSchema = z.object({
+  profileId: z.string({
+    required_error:     'validation.profileId.required',
+    invalid_type_error: 'validation.profileId.required',
+  }).min(1, { message: 'validation.profileId.required' }),
+})

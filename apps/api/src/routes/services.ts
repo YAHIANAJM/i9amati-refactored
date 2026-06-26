@@ -14,6 +14,7 @@ import {
   UpdateContractSchema,
   RecordPaymentSchema,
   AttachFileSchema,
+  RecordCheckInSchema,
 } from '@i9amati/shared'
 import type { ServiceActions, ServiceSubjects } from '@i9amati/shared'
 import type { ServiceContractTable, ServiceTable } from '../db/types'
@@ -157,6 +158,30 @@ router.get('/', async (req: Request, res, next) => {
         fmtService(s, contractsByService.get(s.id) ?? [], filesByContract),
       )),
     })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── GET /api/services/staff ────────────────────────────────────────────────────
+
+router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
+    const staff = await (tenantDb as any)
+      .selectFrom('public.profiles as prof')
+      .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
+      .select([
+        'prof.id',
+        'prof.role',
+        'usr.name as firstName',
+        'usr.image'
+      ])
+      .where('prof.organization_id', '=', activeOrganizationId!)
+      .where('prof.role', '=', 'STAFF')
+      .execute()
+    
+    return res.json(staff)
   } catch (err) {
     next(err)
   }
@@ -480,6 +505,125 @@ router.delete('/:serviceId/contracts/:contractId/files/:docId', guard('update', 
     await tenantDb.deleteFrom('documents').where('id', '=', doc.id).execute()
 
     return res.status(204).send()
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── GET /api/services/:serviceId/sessions ──────────────────────────────────────
+
+router.get('/:serviceId/sessions', guard('read', 'Service'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb } = req as AuthRequest
+    const service = requireRow(
+      await tenantDb.selectFrom('services').select('id')
+        .where('id', '=', req.params.serviceId).executeTakeFirst(),
+      'Service'
+    )
+
+    const sessions = await (tenantDb as any)
+      .selectFrom('service_check_in_out as sesh')
+      .innerJoin('public.profiles as prof', 'prof.id', 'sesh.profile_id')
+      .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
+      .select([
+        'sesh.id',
+        'sesh.service_id',
+        'sesh.profile_id',
+        'sesh.check_in_at',
+        'sesh.check_out_at',
+        'usr.name as firstName',
+        'usr.image'
+      ])
+      .where('sesh.service_id', '=', service.id)
+      .orderBy('sesh.check_in_at', 'desc')
+      .execute()
+
+    return res.json(sessions.map((s: any) => ({
+      id: s.id,
+      service_id: s.service_id,
+      profile_id: s.profile_id,
+      check_in_at: s.check_in_at ? (s.check_in_at instanceof Date ? s.check_in_at.toISOString() : String(s.check_in_at)) : null,
+      check_out_at: s.check_out_at ? (s.check_out_at instanceof Date ? s.check_out_at.toISOString() : String(s.check_out_at)) : null,
+      profile: {
+        firstName: s.firstName,
+        lastName: null,
+        image: s.image
+      }
+    })))
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── POST /api/services/:serviceId/sessions/check-in ────────────────────────────
+
+router.post('/:serviceId/sessions/check-in', guard('update', 'Service'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb } = req as AuthRequest
+    const body = parseBody(RecordCheckInSchema, req.body)
+    const service = requireRow(
+      await tenantDb.selectFrom('services').select('id')
+        .where('id', '=', req.params.serviceId).executeTakeFirst(),
+      'Service'
+    )
+    
+    const session = await tenantDb
+      .insertInto('service_check_in_out')
+      .values({
+        id: randomUUID(),
+        service_id: service.id,
+        profile_id: body.profileId,
+        check_in_at: new Date(),
+        check_out_at: null
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+      
+    return res.status(201).json({
+      id: session.id,
+      service_id: session.service_id,
+      profile_id: session.profile_id,
+      check_in_at: session.check_in_at instanceof Date ? session.check_in_at.toISOString() : String(session.check_in_at),
+      check_out_at: null
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── PATCH /api/services/:serviceId/sessions/:sessionId/check-out ────────────────
+
+router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'Service'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb } = req as AuthRequest
+    
+    const session = requireRow(
+      await tenantDb.selectFrom('service_check_in_out')
+        .selectAll()
+        .where('id', '=', req.params.sessionId)
+        .where('service_id', '=', req.params.serviceId)
+        .executeTakeFirst(),
+      'Session'
+    )
+    
+    if (session.check_out_at) {
+       throw new AppError(409, 'Session is already checked out', 'CONFLICT')
+    }
+
+    const updated = await tenantDb
+      .updateTable('service_check_in_out')
+      .set({ check_out_at: new Date() })
+      .where('id', '=', session.id)
+      .returningAll()
+      .executeTakeFirstOrThrow()
+      
+    return res.json({
+      id: updated.id,
+      service_id: updated.service_id,
+      profile_id: updated.profile_id,
+      check_in_at: updated.check_in_at instanceof Date ? updated.check_in_at.toISOString() : String(updated.check_in_at),
+      check_out_at: updated.check_out_at instanceof Date ? updated.check_out_at.toISOString() : String(updated.check_out_at),
+    })
   } catch (err) {
     next(err)
   }

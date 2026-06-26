@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Phone, Plus, Pencil, Trash2, Wrench, CreditCard, Paperclip, FileText, X } from 'lucide-react'
+import { Phone, Plus, Pencil, Trash2, Wrench, CreditCard, Paperclip, FileText, X, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,13 +20,14 @@ interface ServiceCardProps {
   onRecordPayment:   (service: ApiService, contract: ApiServiceContract) => void
   onAttachFile:      (contract: ApiServiceContract, file: File) => void
   onRemoveFile:      (contract: ApiServiceContract, docId: string) => void
+  onTrackStaff:      (service: ApiService) => void
 }
 
 export function ServiceCard({
   service, isSyndic,
   onEdit, onDelete, onAddContract,
   onEditContract, onDeleteContract, onRecordPayment,
-  onAttachFile, onRemoveFile,
+  onAttachFile, onRemoveFile, onTrackStaff
 }: ServiceCardProps) {
   const { t } = useTranslation()
 
@@ -91,15 +92,24 @@ export function ServiceCard({
           </p>
         )}
 
-        {isSyndic && (
+        <div className="flex gap-2">
+          {isSyndic && (
+            <Button
+              variant="outline" size="sm"
+              className="flex-1 h-8 gap-1.5 text-xs border-dashed"
+              onClick={() => onAddContract(service)}
+            >
+              <Plus size={12} /> {t('services.addContract')}
+            </Button>
+          )}
           <Button
             variant="outline" size="sm"
-            className="w-full h-8 gap-1.5 text-xs border-dashed"
-            onClick={() => onAddContract(service)}
+            className="flex-1 h-8 gap-1.5 text-xs bg-muted/30"
+            onClick={() => onTrackStaff(service)}
           >
-            <Plus size={12} /> {t('services.addContract')}
+            <User size={12} /> {t('services.trackStaff')}
           </Button>
-        )}
+        </div>
       </CardContent>
     </Card>
   )
