@@ -209,6 +209,10 @@ export const ar = {
     password:              "كلمة المرور",
     createStaffButton:     "إنشاء الحساب",
     staffCreatedSuccessfully: "تم إنشاء حساب الموظف بنجاح!",
+    staffDeleted:          "تم حذف الموظف بنجاح!",
+    deleteStaffTitle:      "حذف موظف",
+    deleteStaffDesc:       "هل أنت متأكد من حذف",
+    deleteStaff:           "حذف الموظف",
   },
   conflict: {
     amountBelowPaid:   "لا يمكن تخفيض مبلغ العقد إلى أقل من المبلغ المدفوع بالفعل",
@@ -250,6 +254,10 @@ export const ar = {
       paid:            "مدفوع",
       remaining:       "متبقي",
     },
+  },
+  common: {
+    delete: "حذف",
+    cancel: "إلغاء",
   },
 }
 

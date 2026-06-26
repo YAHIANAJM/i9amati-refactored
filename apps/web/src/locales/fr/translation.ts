@@ -209,6 +209,10 @@ export const fr: typeof import('../ar/translation').ar = {
     password:              "Mot de passe",
     createStaffButton:     "Créer le Compte",
     staffCreatedSuccessfully: "Compte personnel créé avec succès !",
+    staffDeleted:          "Personnel supprimé avec succès !",
+    deleteStaffTitle:      "Supprimer le personnel",
+    deleteStaffDesc:       "Êtes-vous sûr de vouloir supprimer",
+    deleteStaff:           "Supprimer le personnel",
   },
   conflict: {
     amountBelowPaid:   "Impossible de réduire le montant du contrat en dessous du montant déjà payé",
@@ -250,6 +254,10 @@ export const fr: typeof import('../ar/translation').ar = {
       paid:            "Payé",
       remaining:       "Restant",
     },
+  },
+  common: {
+    delete: "Supprimer",
+    cancel: "Annuler",
   },
 }
 

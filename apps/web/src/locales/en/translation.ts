@@ -209,6 +209,10 @@ export const en: typeof import('../ar/translation').ar = {
     password:              "Password",
     createStaffButton:     "Create Account",
     staffCreatedSuccessfully: "Staff account created successfully!",
+    staffDeleted:          "Staff deleted successfully!",
+    deleteStaffTitle:      "Delete Staff",
+    deleteStaffDesc:       "Are you sure you want to delete",
+    deleteStaff:           "Delete Staff",
   },
   conflict: {
     amountBelowPaid:   "Cannot reduce the contract amount below the amount already paid",
@@ -250,6 +254,10 @@ export const en: typeof import('../ar/translation').ar = {
       paid:            "Paid",
       remaining:       "Remaining",
     },
+  },
+  common: {
+    delete: "Delete",
+    cancel: "Cancel",
   },
 }
 

@@ -150,4 +150,8 @@ export const servicesApi = {
   async createStaff(payload: any): Promise<{ id: string }> {
     return api.post<{ id: string }>('/api/services/staff', payload)
   },
+
+  async deleteStaff(profileId: string): Promise<{ success: boolean }> {
+    return api.delete<{ success: boolean }>(`/api/services/staff/${profileId}`)
+  },
 }

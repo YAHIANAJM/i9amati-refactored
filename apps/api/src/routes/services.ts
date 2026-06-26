@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import { randomUUID } from 'crypto'
-import * as bcrypt from 'bcryptjs'
+import { hashPassword } from 'better-auth/crypto'
 import type { Selectable } from 'kysely'
 import { authenticate } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
@@ -170,7 +170,7 @@ router.get('/', async (req: Request, res, next) => {
 router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) => {
   try {
     const { tenantDb, activeOrganizationId } = req as AuthRequest
-    const staff = await (tenantDb as any)
+    const staff = await tenantDb
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
       .select([
@@ -197,7 +197,7 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
     const { firstName, lastName, email, password } = parseBody(CreateStaffSchema, req.body)
 
     // Check if email already exists
-    const existingUser = await (tenantDb as any)
+    const existingUser = await tenantDb
       .selectFrom('public.user')
       .select('id')
       .where('email', '=', email.toLowerCase())
@@ -210,21 +210,22 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
     const userId = randomUUID()
     const accountId = randomUUID()
     const profileId = randomUUID()
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await hashPassword(password)
 
-    await (tenantDb as any).transaction().execute(async (trx: any) => {
+    await tenantDb.transaction().execute(async (trx) => {
       // Create User
       await trx
         .insertInto('public.user')
         .values({
           id: userId,
           name: `${firstName} ${lastName}`,
-          first_name: firstName,
-          last_name: lastName,
+          firstName: firstName,
+          lastName: lastName,
           email: email.toLowerCase(),
-          email_verified: false,
-          platform_role: 'USER',
-          updated_at: new Date()
+          emailVerified: false,
+          platformRole: 'USER',
+          createdAt: new Date(),
+          updatedAt: new Date()
         })
         .execute()
 
@@ -233,12 +234,13 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
         .insertInto('public.account')
         .values({
           id: accountId,
-          user_id: userId,
-          provider_id: 'credential',
-          account_id: email.toLowerCase(),
+          accountId: email.toLowerCase(),
+          userId: userId,
+          providerId: 'credential',
           password: hashedPassword,
-          organization_id: activeOrganizationId,
-          updated_at: new Date()
+          organizationId: activeOrganizationId,
+          createdAt: new Date(),
+          updatedAt: new Date()
         })
         .execute()
 
@@ -259,6 +261,33 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
   } catch (err) {
     next(err)
   }
+})
+
+// ── DELETE /api/services/staff/:profileId ──────────────────────────────────────
+
+router.delete('/staff/:profileId', guard('delete', 'Service'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
+    const profileId = req.params.profileId
+
+    const profile = await tenantDb
+      .selectFrom('public.profiles')
+      .select(['user_id', 'role'])
+      .where('id', '=', profileId)
+      .where('organization_id', '=', activeOrganizationId)
+      .executeTakeFirst()
+
+    if (!profile) throw new AppError(404, 'Staff not found')
+    if (profile.role !== 'STAFF') throw new AppError(403, 'Cannot delete non-staff profiles from this endpoint')
+
+    // Delete the user, which cascades and deletes the profile, account, and sessions.
+    await tenantDb
+      .deleteFrom('public.user')
+      .where('id', '=', profile.user_id)
+      .execute()
+
+    res.json({ success: true })
+  } catch (e) { next(e) }
 })
 
 // ── POST /api/services ─────────────────────────────────────────────────────────
@@ -595,7 +624,7 @@ router.get('/:serviceId/sessions', guard('read', 'Service'), async (req: Request
       'Service'
     )
 
-    const sessions = await (tenantDb as any)
+    const sessions = await tenantDb
       .selectFrom('service_check_in_out as sesh')
       .innerJoin('public.profiles as prof', 'prof.id', 'sesh.profile_id')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
