@@ -98,3 +98,22 @@ export const RecordCheckInSchema = z.object({
     invalid_type_error: 'validation.profileId.required',
   }).min(1, { message: 'validation.profileId.required' }),
 })
+
+export const CreateStaffSchema = z.object({
+  firstName: z.string({
+    required_error:     'validation.firstName.required',
+    invalid_type_error: 'validation.firstName.required',
+  }).min(1, { message: 'validation.firstName.required' }).max(50, { message: 'validation.name.tooLong' }),
+  lastName: z.string({
+    required_error:     'validation.lastName.required',
+    invalid_type_error: 'validation.lastName.required',
+  }).min(1, { message: 'validation.lastName.required' }).max(50, { message: 'validation.name.tooLong' }),
+  email: z.string({
+    required_error:     'validation.email.required',
+    invalid_type_error: 'validation.email.invalid',
+  }).email({ message: 'validation.email.invalid' }),
+  password: z.string({
+    required_error:     'validation.password.required',
+    invalid_type_error: 'validation.password.required',
+  }).min(6, { message: 'validation.password.tooShort' }),
+})

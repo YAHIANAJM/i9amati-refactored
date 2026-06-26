@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { Play, Square, User, History } from 'lucide-react'
+import { Play, Square, User, History, Plus } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { toastApiError, toastCreated, toastUpdated } from '@/components/toast'
 import { servicesApi, type ApiService } from '@/lib/services.api'
+import { CreateStaffDialog } from './CreateStaffDialog'
 
 interface StaffTrackingDialogProps {
   open: boolean
@@ -23,6 +24,7 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
   const queryClient = useQueryClient()
   
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
+  const [showCreateStaff, setShowCreateStaff] = useState(false)
 
   const { data: sessions = [], isLoading: loadingSessions } = useQuery({
     queryKey: ['services', service?.id, 'sessions'],
@@ -78,18 +80,29 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
           <div className="flex items-end gap-2 bg-muted/30 p-3 rounded-lg border border-border/50">
             <div className="flex-1 space-y-2">
               <label className="text-xs font-medium">{t('services.selectStaff')}</label>
-              <select
-                value={selectedStaffId}
-                onChange={(e) => setSelectedStaffId(e.target.value)}
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="" disabled>{t('services.selectStaffPlaceholder')}</option>
-                {staffList.map(staff => (
-                  <option key={staff.id} value={staff.id}>
-                    {staff.firstName} {staff.lastName}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedStaffId}
+                  onChange={(e) => setSelectedStaffId(e.target.value)}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="" disabled>{t('services.selectStaffPlaceholder')}</option>
+                  {staffList.map(staff => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.firstName} {staff.lastName}
+                    </option>
+                  ))}
+                </select>
+                <Button 
+                  size="icon" 
+                  variant="outline" 
+                  className="h-10 w-10 shrink-0" 
+                  onClick={() => setShowCreateStaff(true)}
+                  title={t('services.createStaff')}
+                >
+                  <Plus size={16} />
+                </Button>
+              </div>
             </div>
             <Button
               size="sm"
@@ -185,6 +198,13 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
           </div>
         </div>
       </DialogContent>
+      
+      {showCreateStaff && (
+        <CreateStaffDialog 
+          open={showCreateStaff} 
+          onClose={() => setShowCreateStaff(false)} 
+        />
+      )}
     </Dialog>
   )
 }
