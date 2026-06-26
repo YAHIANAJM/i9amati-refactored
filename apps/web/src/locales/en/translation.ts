@@ -198,7 +198,7 @@ export const en = {
       negative:      "Amount cannot be negative",
       positive:      "Amount must be greater than 0",
     },
-    date:         { format:   "Date must be in YYYY-MM-DD format" },
+    date:         { format: "Date must be in YYYY-MM-DD format", endBeforeStart: "End date must be on or after start date" },
     status:       { invalid:  "Please select a valid status" },
     fileName:     { required: "File name is required",      tooLong:      "File name is too long (max 255 characters)" },
     fileKey:      { required: "File reference is missing",  tooLong:      "File path is too long" },

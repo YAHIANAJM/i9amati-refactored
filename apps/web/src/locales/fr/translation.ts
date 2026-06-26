@@ -198,7 +198,7 @@ export const fr = {
       negative:      "Le montant ne peut pas être négatif",
       positive:      "Le montant doit être supérieur à 0",
     },
-    date:         { format:   "La date doit être au format AAAA-MM-JJ" },
+    date:         { format: "La date doit être au format AAAA-MM-JJ", endBeforeStart: "La date de fin doit être égale ou postérieure à la date de début" },
     status:       { invalid:  "Veuillez sélectionner un statut valide" },
     fileName:     { required: "Le nom du fichier est obligatoire",  tooLong:      "Nom de fichier trop long (max 255 caractères)" },
     fileKey:      { required: "Référence du fichier manquante",     tooLong:      "Chemin du fichier trop long" },

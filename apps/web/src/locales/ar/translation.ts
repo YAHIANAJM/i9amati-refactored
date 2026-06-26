@@ -198,7 +198,7 @@ export const ar = {
       negative:      "لا يمكن أن يكون المبلغ سالباً",
       positive:      "يجب أن يكون المبلغ أكبر من الصفر",
     },
-    date:         { format:   "يجب أن يكون التاريخ بصيغة YYYY-MM-DD" },
+    date:         { format: "يجب أن يكون التاريخ بصيغة YYYY-MM-DD", endBeforeStart: "يجب أن يكون تاريخ الانتهاء بعد أو يساوي تاريخ البداية" },
     status:       { invalid:  "الرجاء اختيار حالة صالحة" },
     fileName:     { required: "اسم الملف مطلوب",                 tooLong:      "اسم الملف طويل جداً (الحد الأقصى 255 حرف)" },
     fileKey:      { required: "مرجع الملف مفقود",                tooLong:      "مسار الملف طويل جداً" },
