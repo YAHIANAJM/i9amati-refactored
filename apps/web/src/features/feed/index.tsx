@@ -25,9 +25,9 @@ export function Feed() {
   const { data: session } = authClient.useSession()
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
-  const [membersGroupId, setMembersGroupId]   = useState<string | null>(null)
+  const [membersGroupId, setMembersGroupId] = useState<string | null>(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
-  const [renameGroup, setRenameGroup]         = useState<ApiGroup | null>(null)
+  const [renameGroup, setRenameGroup] = useState<ApiGroup | null>(null)
 
   // ── Groups ──────────────────────────────────────────────────────────────────
   const {
@@ -36,7 +36,7 @@ export function Feed() {
     isError: groupsError,
   } = useQuery({
     queryKey: ['feed-groups'],
-    queryFn:  feedApi.getGroups,
+    queryFn: feedApi.getGroups,
   })
   const groups = groupsResponse?.groups ?? []
 
@@ -47,16 +47,16 @@ export function Feed() {
       .filter(g => g.memberProfileGroupId != null)
       .map(g => ({
         profileGroupId: g.memberProfileGroupId!,
-        groupId:        g.id,
-        role:           (g.memberRole ?? 'USER') as MembershipInfo['role'],
+        groupId: g.id,
+        role: (g.memberRole ?? 'USER') as MembershipInfo['role'],
       }))
     return defineFeedAbility(profileRole as ProfileRole, profileId, memberships)
   }, [groupsResponse])
 
-  const isSyndic     = groupsResponse?.profileRole === ProfileRole.SYNDIC
+  const isSyndic = groupsResponse?.profileRole === ProfileRole.SYNDIC
   const activeGroupId = selectedGroupId ?? groups[0]?.id ?? null
   const selectedGroup = groups.find(g => g.id === activeGroupId) ?? null
-  const membersGroup  = groups.find(g => g.id === membersGroupId) ?? null
+  const membersGroup = groups.find(g => g.id === membersGroupId) ?? null
 
   // ── Posts (infinite) ───────────────────────────────────────────────────────
   const {
@@ -67,11 +67,11 @@ export function Feed() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey:       ['feed-posts', activeGroupId],
-    queryFn:        ({ pageParam }) => feedApi.getPosts(activeGroupId!, pageParam),
+    queryKey: ['feed-posts', activeGroupId],
+    queryFn: ({ pageParam }) => feedApi.getPosts(activeGroupId!, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
-    enabled:         !!activeGroupId,
+    enabled: !!activeGroupId,
   })
   const posts: ApiPost[] = postsData?.pages.flatMap(p => p.posts) ?? []
 
@@ -115,7 +115,7 @@ export function Feed() {
         if (!UPLOAD_MEDIA_MIME.includes(file.type as any)) throw new Error(`Invalid file type`)
         if (file.size > UPLOAD_MAX_SIZE_BYTES) throw new Error(`File too large. Max: ${UPLOAD_MAX_SIZE_LABEL}`)
         const res = await api.upload<{ url: string }>('/api/upload?scope=feed', file)
-        mediaUrl  = res.url
+        mediaUrl = res.url
         mediaType = mimeToMediaType(file.type)
       }
       return feedApi.createPost(activeGroupId!, { content, mediaUrl, mediaType })
@@ -194,8 +194,8 @@ export function Feed() {
     if (post) likePost.mutate({ id: postId, likedByMe: post.likedByMe })
   }
 
-  const user = (session as any)?.user
-
+  const user = session?.user
+  if (!user) return null
   return (
     <div className="flex flex-col min-h-full">
       <TopBar
