@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
@@ -16,10 +16,11 @@ import { CreateStaffDialog } from './CreateStaffDialog'
 interface StaffTrackingDialogProps {
   open: boolean
   service: ApiService | null
+  isSyndic: boolean
   onClose: () => void
 }
 
-export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDialogProps) {
+export function StaffTrackingDialog({ open, service, isSyndic, onClose }: StaffTrackingDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
@@ -37,6 +38,13 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
     queryFn: servicesApi.getStaff,
     enabled: open,
   })
+
+  // Default to selecting the staff member if there's only 1 returned (e.g. for staff members viewing their own profile)
+  useEffect(() => {
+    if (staffList.length === 1 && !selectedStaffId) {
+      setSelectedStaffId(staffList[0].id)
+    }
+  }, [staffList, selectedStaffId])
 
   const checkIn = useMutation({
     mutationFn: (profileId: string) => servicesApi.checkIn(service!.id, profileId),
@@ -120,26 +128,30 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
                     </option>
                   ))}
                 </select>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-10 w-10 shrink-0"
-                  onClick={() => setShowCreateStaff(true)}
-                  title={t('services.createStaff')}
-                >
-                  <Plus size={16} />
-                </Button>
-                {selectedStaffId && (
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-10 w-10 shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                    onClick={handleDeleteStaff}
-                    disabled={deleteStaff.isPending}
-                    title={t('services.deleteStaff')}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                {isSyndic && (
+                  <>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-10 w-10 shrink-0"
+                      onClick={() => setShowCreateStaff(true)}
+                      title={t('services.createStaff')}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                    {selectedStaffId && (
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-10 w-10 shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={handleDeleteStaff}
+                        disabled={deleteStaff.isPending}
+                        title={t('services.deleteStaff')}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

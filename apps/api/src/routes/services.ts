@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express'
+import { subject } from '@casl/ability'
 import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import { randomUUID } from 'crypto'
 import { hashPassword } from 'better-auth/crypto'
@@ -39,10 +40,10 @@ router.use(authenticate)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function guard(action: ServiceActions, subject: ServiceSubjects) {
+function guard(action: ServiceActions, sub: ServiceSubjects) {
   return (req: Request, _res: Response, next: NextFunction) => {
-    const { profileRole } = req as AuthRequest
-    next(defineServiceAbility(profileRole).cannot(action, subject)
+    const { profileRole, profileId } = req as AuthRequest
+    next(defineServiceAbility(profileRole, profileId).cannot(action, sub)
       ? new AppError(403, 'Forbidden', 'FORBIDDEN')
       : undefined)
   }
@@ -170,8 +171,8 @@ router.get('/', async (req: Request, res, next) => {
 
 router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, activeOrganizationId } = req as AuthRequest
-    const staff = await tenantDb
+    const { tenantDb, activeOrganizationId, profileRole, profileId } = req as AuthRequest
+    let query = tenantDb
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
       .select([
@@ -184,7 +185,12 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
       .where('prof.organization_id', '=', activeOrganizationId!)
       .where('prof.role', '=', 'STAFF')
       .where('prof.deleted_at', 'is', null)
-      .execute()
+
+    if (profileRole === 'STAFF') {
+      query = query.where('prof.id', '=', profileId)
+    }
+
+    const staff = await query.execute()
 
     return res.json(staff)
   } catch (err) {
@@ -657,16 +663,10 @@ router.delete('/:serviceId/contracts/:contractId/files/:docId', guard('update', 
 
 // ── GET /api/services/:serviceId/sessions ──────────────────────────────────────
 
-router.get('/:serviceId/sessions', guard('read', 'Service'), async (req: Request, res, next) => {
+router.get('/:serviceId/sessions', guard('read', 'ServiceSession'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
-    const service = requireRow(
-      await tenantDb.selectFrom('services').select('id')
-        .where('id', '=', req.params.serviceId).executeTakeFirst(),
-      'Service'
-    )
-
-    const sessions = await tenantDb
+    const { tenantDb, profileRole, profileId } = req as AuthRequest
+    let query = tenantDb
       .selectFrom('service_check_in_out as sesh')
       .innerJoin('public.profiles as prof', 'prof.id', 'sesh.profile_id')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
@@ -680,9 +680,13 @@ router.get('/:serviceId/sessions', guard('read', 'Service'), async (req: Request
         'usr.name as firstName',
         'usr.image'
       ])
-      .where('sesh.service_id', '=', service.id)
-      .orderBy('sesh.check_in_at', 'desc')
-      .execute()
+      .where('sesh.service_id', '=', req.params.serviceId)
+
+    if (profileRole === 'STAFF') {
+      query = query.where('sesh.profile_id', '=', profileId)
+    }
+
+    const sessions = await query.orderBy('sesh.check_in_at', 'desc').execute()
 
     return res.json(sessions.map((s: any) => ({
       id: s.id,
@@ -703,10 +707,16 @@ router.get('/:serviceId/sessions', guard('read', 'Service'), async (req: Request
 
 // ── POST /api/services/:serviceId/sessions/check-in ────────────────────────────
 
-router.post('/:serviceId/sessions/check-in', guard('update', 'Service'), async (req: Request, res, next) => {
+router.post('/:serviceId/sessions/check-in', guard('create', 'ServiceSession'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
+    const { tenantDb, profileRole, profileId } = req as AuthRequest
     const body = parseBody(RecordCheckInSchema, req.body)
+    
+    const ability = defineServiceAbility(profileRole, profileId)
+    if (ability.cannot('create', subject('ServiceSession', { profile_id: body.profileId }))) {
+      throw new AppError(403, 'Staff can only check in for themselves', 'FORBIDDEN')
+    }
+
     const service = requireRow(
       await tenantDb.selectFrom('services').select('id')
         .where('id', '=', req.params.serviceId).executeTakeFirst(),
@@ -739,9 +749,9 @@ router.post('/:serviceId/sessions/check-in', guard('update', 'Service'), async (
 
 // ── PATCH /api/services/:serviceId/sessions/:sessionId/check-out ────────────────
 
-router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'Service'), async (req: Request, res, next) => {
+router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'ServiceSession'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
+    const { tenantDb, profileRole, profileId } = req as AuthRequest
 
     const session = requireRow(
       await tenantDb.selectFrom('service_check_in_out')
@@ -751,6 +761,11 @@ router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'Servi
         .executeTakeFirst(),
       'Session'
     )
+
+    const ability = defineServiceAbility(profileRole, profileId)
+    if (ability.cannot('update', subject('ServiceSession', { profile_id: session.profile_id }))) {
+      throw new AppError(403, 'Staff can only check out their own sessions', 'FORBIDDEN')
+    }
 
     if (session.check_out_at) {
       throw new AppError(409, 'Session is already checked out', 'CONFLICT')

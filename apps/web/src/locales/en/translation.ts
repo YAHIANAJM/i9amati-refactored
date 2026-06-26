@@ -279,7 +279,8 @@ export const en: typeof import('../ar/translation').ar = {
       successTitle: "Success",
       successDesc: "Password changed successfully. You can now log in.",
       errorTitle: "Error",
-      errorDesc: "Failed to reset password. Please try again."
+      errorDesc: "Failed to reset password. Please try again.",
+      missingToken: "Reset link is invalid or missing"
     }
   },
   common: {

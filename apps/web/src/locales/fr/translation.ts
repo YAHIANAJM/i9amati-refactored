@@ -279,7 +279,8 @@ export const fr: typeof import('../ar/translation').ar = {
       successTitle: "Succès",
       successDesc: "Mot de passe modifié avec succès. Vous pouvez vous connecter.",
       errorTitle: "Erreur",
-      errorDesc: "Échec de la réinitialisation. Veuillez réessayer."
+      errorDesc: "Échec de la réinitialisation. Veuillez réessayer.",
+      missingToken: "Le lien de réinitialisation est invalide ou manquant"
     }
   },
   common: {

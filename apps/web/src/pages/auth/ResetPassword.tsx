@@ -26,7 +26,7 @@ export function ResetPassword() {
     try {
       const token = new URLSearchParams(window.location.search).get('token');
       if (!token) {
-        toastError(t('auth.reset.errorTitle'), t('auth.reset.errorDesc'))
+        toastError(t('auth.reset.errorTitle'), t('auth.reset.missingToken'))
         return
       }
       const { error } = await authClient.resetPassword({
