@@ -127,6 +127,9 @@ export const ar = {
     }
   },
   services: {
+    assignStaff:           "تعيين الموظفين",
+    assignStaffDesc:       "حدد الموظفين المعينين لـ {{serviceName}}",
+    noStaffFound:          "لم يتم العثور على موظفين في المؤسسة.",
     pageTitle:             "تتبع الخدمات",
     pageSubtitle:          "عقود مزودي الخدمات الخارجيين",
     addProvider:           "إضافة مزود",

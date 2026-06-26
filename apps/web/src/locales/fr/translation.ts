@@ -127,6 +127,9 @@ export const fr: typeof import('../ar/translation').ar = {
     }
   },
   services: {
+    assignStaff:           "Affecter du personnel",
+    assignStaffDesc:       "Sélectionnez les membres du personnel affectés à {{serviceName}}",
+    noStaffFound:          "Aucun membre du personnel trouvé dans l'organisation.",
     pageTitle:             "Suivi des prestataires",
     pageSubtitle:          "Contrats de prestataires de services externes",
     addProvider:           "Ajouter prestataire",

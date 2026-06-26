@@ -127,6 +127,9 @@ export const en: typeof import('../ar/translation').ar = {
     }
   },
   services: {
+    assignStaff:           "Assign Staff",
+    assignStaffDesc:       "Select the staff members assigned to {{serviceName}}",
+    noStaffFound:          "No staff members found in the organization.",
     pageTitle:             "Service Tracking",
     pageSubtitle:          "External service provider contracts",
     addProvider:           "Add Provider",
