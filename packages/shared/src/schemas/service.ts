@@ -35,10 +35,14 @@ export const CreateContractSchema = z.object({
     required_error:     'validation.amount.required',
     invalid_type_error: 'validation.amount.mustBeNumber',
   }).min(0, { message: 'validation.amount.negative' }),
-  start_date: z.string({ invalid_type_error: 'validation.date.format' })
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).nullable().optional(),
-  end_date: z.string({ invalid_type_error: 'validation.date.format' })
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).nullable().optional(),
+  start_date: z.string({
+    required_error:     'validation.date.required',
+    invalid_type_error: 'validation.date.format',
+  }).regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }),
+  end_date: z.string({
+    required_error:     'validation.date.required',
+    invalid_type_error: 'validation.date.format',
+  }).regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }),
   status: z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED'], {
     errorMap: () => ({ message: 'validation.status.invalid' }),
   }).optional(),
@@ -54,9 +58,9 @@ export const UpdateContractSchema = z.object({
   amount_paid: z.number({ invalid_type_error: 'validation.amount.mustBeNumber' })
     .min(0, { message: 'validation.amount.negative' }).optional(),
   start_date: z.string({ invalid_type_error: 'validation.date.format' })
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).nullable().optional(),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).optional(),
   end_date: z.string({ invalid_type_error: 'validation.date.format' })
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).nullable().optional(),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'validation.date.format' }).optional(),
   status: z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED'], {
     errorMap: () => ({ message: 'validation.status.invalid' }),
   }).optional(),

@@ -17,8 +17,8 @@ export interface ApiServiceContract {
   description:  string | null
   amount:       number
   amount_paid:  number
-  start_date:   string | null
-  end_date:     string | null
+  start_date:   string
+  end_date:     string
   status:       ServiceContractStatus
   files:        ContractFile[]
 }
@@ -67,8 +67,8 @@ export const servicesApi = {
     name:          string
     description?:  string | null
     amount:        number
-    start_date?:   string | null
-    end_date?:     string | null
+    start_date:    string
+    end_date:      string
     status?:       ServiceContractStatus
   }): Promise<ApiServiceContract> {
     return api.post(`/api/services/${serviceId}/contracts`, payload)
@@ -79,8 +79,8 @@ export const servicesApi = {
     description?:  string | null
     amount?:       number
     amount_paid?:  number
-    start_date?:   string | null
-    end_date?:     string | null
+    start_date?:   string
+    end_date?:     string
     status?:       ServiceContractStatus
   }): Promise<ApiServiceContract> {
     return api.patch(`/api/services/${serviceId}/contracts/${contractId}`, payload)

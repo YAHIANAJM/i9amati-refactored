@@ -313,7 +313,7 @@ router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContra
       throw new AppError(409, 'conflict.paidExceedsAmount', 'CONFLICT')
     }
 
-    const updates: { name?: string; description?: string | null; amount?: number; amount_paid?: number; start_date?: string | null; end_date?: string | null; status?: string } = {}
+    const updates: { name?: string; description?: string | null; amount?: number; amount_paid?: number; start_date?: string; end_date?: string; status?: string } = {}
     if (body.name        !== undefined) updates.name        = body.name
     if (body.description !== undefined) updates.description = body.description
     if (body.amount      !== undefined) updates.amount      = body.amount

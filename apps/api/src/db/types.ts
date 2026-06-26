@@ -361,8 +361,8 @@ export interface ServiceContractTable {
   description: string | null
   amount: ColumnType<number, number | undefined, number>
   amount_paid: ColumnType<number, number | undefined, number>
-  start_date: string | null
-  end_date: string | null
+  start_date: string
+  end_date: string
   status: ColumnType<string, string | undefined, string>
 }
 
