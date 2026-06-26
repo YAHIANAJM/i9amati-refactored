@@ -198,7 +198,7 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
   try {
     const { tenantDb, activeOrganizationId } = req as AuthRequest
     const { firstName, lastName, email } = parseBody(CreateStaffSchema, req.body)
-
+    const randomPassword = randomUUID()
     // Check if email already exists
     const existingUser = await tenantDb
       .selectFrom('public.user')
@@ -211,47 +211,56 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
     const userId = existingUser?.id ?? randomUUID()
     const accountId = randomUUID()
     const profileId = randomUUID()
-    const hashedPassword = await hashPassword(randomUUID())
+    const hashedPassword = await hashPassword(randomPassword)
 
     await tenantDb.transaction().execute(async (trx) => {
       // Create User
 
-      if (!existingUser) {
-        await trx
-          .insertInto('public.user')
-          .values({
-            id: userId,
-            name: `${firstName} ${lastName}`,
-            firstName: firstName,
-            lastName: lastName,
-            email: email.toLowerCase(),
-            emailVerified: false,
-            platformRole: 'USER',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .execute()
 
-        // Create Account with Password
+      if (existingUser) {
+        // Create Profile for STAFF role in the org
         await trx
-          .insertInto('public.account')
+          .insertInto('public.profiles')
           .values({
-            id: accountId,
-            accountId: email.toLowerCase(),
-            userId: userId,
-            providerId: 'credential',
-            password: hashedPassword,
-            organizationId: activeOrganizationId,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            id: profileId,
+            user_id: userId,
+            organization_id: activeOrganizationId,
+            role: 'STAFF',
+            updated_at: new Date()
           })
           .execute()
-        await auth.api.forgetPasswordEmailOTP({
-          body: {
-            email: email.toLowerCase(),
-          },
-        })
+        return
       }
+      await trx
+        .insertInto('public.user')
+        .values({
+          id: userId,
+          name: `${firstName} ${lastName}`,
+          firstName: firstName,
+          lastName: lastName,
+          email: email.toLowerCase(),
+          emailVerified: false,
+          platformRole: 'USER',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .execute()
+
+      // Create Account with Password
+      await trx
+        .insertInto('public.account')
+        .values({
+          id: accountId,
+          accountId: email.toLowerCase(),
+          userId: userId,
+          providerId: 'credential',
+          password: hashedPassword,
+          organizationId: activeOrganizationId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .execute()
+
       // Create Profile for STAFF role in the org
       await trx
         .insertInto('public.profiles')
@@ -264,6 +273,20 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
         })
         .execute()
     })
+
+    if (!existingUser) {
+      // Send reset password email only for newly created users
+      // Needs to be outside transaction so better-auth can find the committed user
+      try {
+        await auth.api.requestPasswordReset({
+          body: {
+            email: email.toLowerCase(),
+          },
+        })
+      } catch (e) {
+        console.error('Failed to trigger reset password:', e)
+      }
+    }
 
     return res.status(201).json({ id: profileId })
   } catch (err) {

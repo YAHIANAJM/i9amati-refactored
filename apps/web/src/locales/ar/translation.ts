@@ -255,6 +255,33 @@ export const ar = {
       remaining:       "متبقي",
     },
   },
+  auth: {
+    forgot: {
+      title: "إعادة تعيين كلمة المرور",
+      emailPlaceholder: "البريد الإلكتروني",
+      sending: "جاري الإرسال...",
+      sendBtn: "إرسال رابط إعادة التعيين",
+      remembered: "تذكرت كلمة المرور؟",
+      loginLink: "تسجيل الدخول",
+      successTitle: "تم الإرسال",
+      successDesc: "تحقق من بريدك الإلكتروني للحصول على رابط إعادة تعيين كلمة المرور",
+      errorTitle: "خطأ",
+      errorDesc: "يرجى المحاولة مرة أخرى"
+    },
+    reset: {
+      title: "تعيين كلمة مرور جديدة",
+      passwordPlaceholder: "كلمة المرور الجديدة",
+      confirmPlaceholder: "تأكيد كلمة المرور",
+      processing: "جاري المعالجة...",
+      resetBtn: "تغيير كلمة المرور",
+      mismatchTitle: "خطأ",
+      mismatchDesc: "كلمتا المرور غير متطابقتين",
+      successTitle: "نجاح",
+      successDesc: "تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول.",
+      errorTitle: "خطأ",
+      errorDesc: "فشل إعادة تعيين كلمة المرور، يرجى المحاولة مرة أخرى."
+    }
+  },
   common: {
     delete: "حذف",
     cancel: "إلغاء",

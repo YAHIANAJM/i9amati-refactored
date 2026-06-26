@@ -255,6 +255,33 @@ export const fr: typeof import('../ar/translation').ar = {
       remaining:       "Restant",
     },
   },
+  auth: {
+    forgot: {
+      title: "Réinitialiser votre mot de passe",
+      emailPlaceholder: "Adresse e-mail",
+      sending: "Envoi en cours...",
+      sendBtn: "Envoyer le lien",
+      remembered: "Vous vous souvenez de votre mot de passe ?",
+      loginLink: "Se connecter",
+      successTitle: "Succès",
+      successDesc: "Si cet email est enregistré, un lien a été envoyé.",
+      errorTitle: "Erreur",
+      errorDesc: "Veuillez réessayer"
+    },
+    reset: {
+      title: "Définissez un nouveau mot de passe",
+      passwordPlaceholder: "Nouveau mot de passe",
+      confirmPlaceholder: "Confirmer le mot de passe",
+      processing: "Traitement en cours...",
+      resetBtn: "Réinitialiser",
+      mismatchTitle: "Erreur",
+      mismatchDesc: "Les mots de passe ne correspondent pas",
+      successTitle: "Succès",
+      successDesc: "Mot de passe modifié avec succès. Vous pouvez vous connecter.",
+      errorTitle: "Erreur",
+      errorDesc: "Échec de la réinitialisation. Veuillez réessayer."
+    }
+  },
   common: {
     delete: "Supprimer",
     cancel: "Annuler",

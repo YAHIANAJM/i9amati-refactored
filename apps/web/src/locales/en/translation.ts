@@ -255,6 +255,33 @@ export const en: typeof import('../ar/translation').ar = {
       remaining:       "Remaining",
     },
   },
+  auth: {
+    forgot: {
+      title: "Reset your password",
+      emailPlaceholder: "Email Address",
+      sending: "Sending...",
+      sendBtn: "Send Reset Link",
+      remembered: "Remembered your password?",
+      loginLink: "Log in",
+      successTitle: "Success",
+      successDesc: "If this email is registered, a reset link has been sent.",
+      errorTitle: "Error",
+      errorDesc: "Please try again"
+    },
+    reset: {
+      title: "Set a new password for your account",
+      passwordPlaceholder: "New Password",
+      confirmPlaceholder: "Confirm New Password",
+      processing: "Processing...",
+      resetBtn: "Reset Password",
+      mismatchTitle: "Error",
+      mismatchDesc: "Passwords do not match",
+      successTitle: "Success",
+      successDesc: "Password changed successfully. You can now log in.",
+      errorTitle: "Error",
+      errorDesc: "Failed to reset password. Please try again."
+    }
+  },
   common: {
     delete: "Delete",
     cancel: "Cancel",
