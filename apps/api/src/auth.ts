@@ -14,22 +14,26 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, url, token }, request) => {
+      // Recommendation: Avoid awaiting the email sending to prevent timing attacks
+      console.log(`Sending reset password to ${user.email}: ${url} : ${token}`)
+    }
   },
 
   user: {
     additionalFields: {
-      firstName:    { type: 'string',  required: false, defaultValue: '' },
-      lastName:     { type: 'string',  required: false, defaultValue: '' },
-      phone:        { type: 'string',  required: false },
-      platformRole: { type: 'string',  required: false, defaultValue: 'USER' },
-      verifiedAt:   { type: 'date',    required: false },
+      firstName: { type: 'string', required: false, defaultValue: '' },
+      lastName: { type: 'string', required: false, defaultValue: '' },
+      phone: { type: 'string', required: false },
+      platformRole: { type: 'string', required: false, defaultValue: 'USER' },
+      verifiedAt: { type: 'date', required: false },
     },
   },
 
   session: {
     additionalFields: {
       activeOrganizationId: { type: 'string', required: false },
-      profileId:            { type: 'string', required: false },
+      profileId: { type: 'string', required: false },
     },
   },
 
@@ -52,7 +56,7 @@ export const auth = betterAuth({
             data: {
               ...session,
               activeOrganizationId: profile.organization_id,
-              profileId:            profile.id,
+              profileId: profile.id,
             },
           }
         },
@@ -63,13 +67,13 @@ export const auth = betterAuth({
   socialProviders: {
     ...(process.env.GOOGLE_CLIENT_ID ? {
       google: {
-        clientId:     process.env.GOOGLE_CLIENT_ID,
+        clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       },
     } : {}),
     ...(process.env.FACEBOOK_APP_ID ? {
       facebook: {
-        clientId:     process.env.FACEBOOK_APP_ID,
+        clientId: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET!,
       },
     } : {}),
@@ -82,11 +86,14 @@ export const auth = betterAuth({
       async sendVerificationOTP({ email, otp, type }) {
         console.log(`Sending ${type} OTP to ${email}: ${otp}`)
       },
+
     }),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
         console.log(`Sending magic link to ${email}: ${url}`)
       },
     }),
+
+
   ],
 })
