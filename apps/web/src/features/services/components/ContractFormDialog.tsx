@@ -53,7 +53,7 @@ export function ContractFormDialog({ open, contract, isPending, onClose, onSubmi
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const parsed = parseFloat(amount)
-    if (!name.trim() || isNaN(parsed) || parsed < 0) return
+    if (!name.trim() || isNaN(parsed) || parsed < 0 || !startDate || !endDate) return
     const parsedPaid = amountPaid !== '' ? parseFloat(amountPaid) : undefined
     onSubmit({
       name:         name.trim(),
@@ -176,7 +176,7 @@ export function ContractFormDialog({ open, contract, isPending, onClose, onSubmi
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
               {t('services.cancel')}
             </Button>
-            <Button type="submit" size="sm" disabled={!name.trim() || !amount || isPending}>
+            <Button type="submit" size="sm" disabled={!name.trim() || !amount || !startDate || !endDate || isPending}>
               {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
               {t('services.save')}
             </Button>

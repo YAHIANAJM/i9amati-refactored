@@ -187,8 +187,8 @@ export function Services() {
       description: data.description || null,
       amount:      data.amount,
       amount_paid: data.amount_paid,
-      start_date:  data.start_date || null,
-      end_date:    data.end_date || null,
+      start_date:  data.start_date,
+      end_date:    data.end_date,
       status:      data.status,
     }
     if (contractDialog.contract && contractDialog.service) {
