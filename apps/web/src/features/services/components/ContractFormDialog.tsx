@@ -5,6 +5,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ApiServiceContract, ServiceContractStatus } from '@/lib/services.api'
+import { z } from 'zod'
+import { CreateContractSchema, UpdateContractSchema } from '@i9amati/shared'
+import { toastApiError } from '@/components/toast'
 
 const STATUSES: ServiceContractStatus[] = ['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']
 
@@ -58,15 +61,32 @@ export function ContractFormDialog({ open, contract, isPending, onClose, onSubmi
     const parsed = parseFloat(amount)
     if (!name.trim() || isNaN(parsed) || parsed < 0 || !startDate || !endDate || dateOrderError) return
     const parsedPaid = amountPaid !== '' ? parseFloat(amountPaid) : undefined
-    onSubmit({
+    const payload = {
       name:         name.trim(),
-      description:  description.trim(),
+      description:  description.trim() || null,
       amount:       parsed,
       amount_paid:  parsedPaid !== undefined && !isNaN(parsedPaid) ? parsedPaid : undefined,
       start_date:   startDate,
       end_date:     endDate,
       status,
-    })
+    }
+
+    try {
+      if (isEdit) {
+        UpdateContractSchema.parse(payload)
+      } else {
+        CreateContractSchema.parse(payload)
+      }
+      // The parent expects description to be string, but payload uses string | null, wait, parent onSubmit is slightly different.
+      // Let's pass the valid payload. But the onSubmit expects description as string.
+      onSubmit({ ...payload, description: payload.description || '' })
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
+    }
   }
 
   const isEdit = !!contract

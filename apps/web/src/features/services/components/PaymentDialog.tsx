@@ -5,6 +5,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
 import type { ApiServiceContract } from '@/lib/services.api'
+import { z } from 'zod'
+import { RecordPaymentSchema } from '@i9amati/shared'
+import { toastApiError } from '@/components/toast'
 
 interface PaymentDialogProps {
   open:      boolean
@@ -28,7 +31,16 @@ export function PaymentDialog({ open, contract, isPending, onClose, onSubmit }: 
     e.preventDefault()
     const parsed = parseFloat(amount)
     if (isNaN(parsed) || parsed <= 0) return
-    onSubmit(parsed)
+    try {
+      RecordPaymentSchema.parse({ amount: parsed })
+      onSubmit(parsed)
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
+    }
   }
 
   return (
