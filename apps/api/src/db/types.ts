@@ -12,67 +12,68 @@ export interface PublicUserTable {
   id: string
   name: string
   email: string
-  email_verified: ColumnType<boolean, boolean, boolean>
-  verified_at: Timestamp | null
+  emailVerified: ColumnType<boolean, boolean, boolean>
+  verifiedAt: Timestamp | null
   image: string | null
-  first_name: string | null
-  last_name: string | null
+  firstName: string | null
+  lastName: string | null
   phone: string | null
   role: string | null
-  platform_role: 'SUDO' | 'USER'
+  platformRole: 'SUDO' | 'USER'
   banned: boolean | null
-  ban_reason: string | null
-  ban_expires: Timestamp | null
-  two_factor_enabled: boolean | null
-  created_at: ColumnType<Date, Date | string | undefined, never>
-  updated_at: Timestamp
+  banReason: string | null
+  banExpires: Timestamp | null
+  twoFactorEnabled: boolean | null
+  createdAt: ColumnType<Date, Date | string | undefined, never>
+  updatedAt: Timestamp
 }
 
 export interface PublicSessionTable {
   id: string
-  expires_at: Timestamp
+  expiresAt: Timestamp
   token: string
-  created_at: ColumnType<Date, Date | string | undefined, never>
-  updated_at: Timestamp
-  ip_address: string | null
-  user_agent: string | null
-  user_id: string
-  account_id: string | null
-  profile_id: string | null
-  active_organization_id: string | null
-  impersonated_by: string | null
+  createdAt: ColumnType<Date, Date | string | undefined, never>
+  updatedAt: Timestamp
+  ipAddress: string | null
+  userAgent: string | null
+  userId: string
+  accountId: string | null
+  profileId: string | null
+  activeOrganizationId: string | null
+  impersonatedBy: string | null
 }
 
 export interface PublicAccountTable {
   id: string
-  provider_id: string
-  user_id: string
-  organization_id: string | null
-  access_token: string | null
-  refresh_token: string | null
-  id_token: string | null
-  access_token_expires_at: Timestamp | null
-  refresh_token_expires_at: Timestamp | null
+  accountId: string
+  providerId: string
+  userId: string
+  organizationId: string | null
+  accessToken: string | null
+  refreshToken: string | null
+  idToken: string | null
+  accessTokenExpiresAt: Timestamp | null
+  refreshTokenExpiresAt: Timestamp | null
   scope: string | null
   password: string | null
-  created_at: ColumnType<Date, Date | string | undefined, never>
-  updated_at: Timestamp
+  createdAt: ColumnType<Date, Date | string | undefined, never>
+  updatedAt: Timestamp
 }
 
 export interface PublicVerificationTable {
   id: string
   identifier: string
   value: string
-  expires_at: Timestamp
-  created_at: ColumnType<Date, Date | string | undefined, never>
-  updated_at: Timestamp
+  expiresAt: Timestamp
+  createdAt: ColumnType<Date, Date | string | undefined, never>
+  updatedAt: Timestamp
 }
 
 export interface PublicTwoFactorTable {
   id: string
   secret: string
-  backup_codes: string
-  user_id: string
+  backupCodes: string
+  userId: string
   verified: boolean | null
 }
 

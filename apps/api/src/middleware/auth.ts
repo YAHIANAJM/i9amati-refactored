@@ -54,8 +54,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
           await db
             .updateTable('public.session')
             .set({
-              profile_id:             profile.id,
-              active_organization_id: profile.organization_id,
+              profileId:            profile.id,
+              activeOrganizationId: profile.organization_id,
             })
             .where('id', '=', session.session.id)
             .execute()

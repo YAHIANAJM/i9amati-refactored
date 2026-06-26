@@ -2,14 +2,14 @@ import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { Play, Square, User, History, Plus } from 'lucide-react'
+import { Play, Square, User, History, Plus, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { toastApiError, toastCreated, toastUpdated } from '@/components/toast'
+import { toastApiError, toastCreated, toastUpdated, toastConfirmation, toastDeleted } from '@/components/toast'
 import { servicesApi, type ApiService } from '@/lib/services.api'
 import { CreateStaffDialog } from './CreateStaffDialog'
 
@@ -22,7 +22,7 @@ interface StaffTrackingDialogProps {
 export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  
+
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
   const [showCreateStaff, setShowCreateStaff] = useState(false)
 
@@ -57,12 +57,39 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
     onError: toastApiError,
   })
 
+  const deleteStaff = useMutation({
+    mutationFn: (profileId: string) => servicesApi.deleteStaff(profileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services', 'staff'] })
+      toastDeleted(t('services.staffDeleted'))
+      setSelectedStaffId('')
+    },
+    onError: toastApiError,
+  })
+
   const activeSessions = useMemo(() => sessions.filter(s => !s.check_out_at), [sessions])
   const pastSessions = useMemo(() => sessions.filter(s => !!s.check_out_at), [sessions])
 
   function handleCheckIn() {
     if (!selectedStaffId) return
     checkIn.mutate(selectedStaffId)
+  }
+
+  function handleDeleteStaff() {
+    if (!selectedStaffId) return
+    const staff = staffList.find(s => s.id === selectedStaffId)
+    if (!staff) return
+
+    toastConfirmation(
+      t('services.deleteStaffTitle'),
+      `${t('services.deleteStaffDesc')} ${staff.firstName} ${staff.lastName}?`,
+      {
+        label: t('common.delete'),
+        variant: 'destructive',
+        onClick: () => deleteStaff.mutate(selectedStaffId)
+      },
+      t('common.cancel')
+    )
   }
 
   return (
@@ -93,15 +120,27 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
                     </option>
                   ))}
                 </select>
-                <Button 
-                  size="icon" 
-                  variant="outline" 
-                  className="h-10 w-10 shrink-0" 
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-10 w-10 shrink-0"
                   onClick={() => setShowCreateStaff(true)}
                   title={t('services.createStaff')}
                 >
                   <Plus size={16} />
                 </Button>
+                {selectedStaffId && (
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-10 w-10 shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={handleDeleteStaff}
+                    disabled={deleteStaff.isPending}
+                    title={t('services.deleteStaff')}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                )}
               </div>
             </div>
             <Button
@@ -123,7 +162,7 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
               </span>
               {t('services.activeSessions')}
             </h4>
-            
+
             {loadingSessions ? (
               <p className="text-sm text-muted-foreground">{t('services.loading')}</p>
             ) : activeSessions.length === 0 ? (
@@ -167,7 +206,7 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
             <h4 className="text-sm font-semibold flex items-center gap-1.5 text-muted-foreground">
               <History size={14} /> {t('services.pastSessions')}
             </h4>
-            
+
             {!loadingSessions && pastSessions.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('services.noPastSessions')}</p>
             ) : (
@@ -198,11 +237,11 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
           </div>
         </div>
       </DialogContent>
-      
+
       {showCreateStaff && (
-        <CreateStaffDialog 
-          open={showCreateStaff} 
-          onClose={() => setShowCreateStaff(false)} 
+        <CreateStaffDialog
+          open={showCreateStaff}
+          onClose={() => setShowCreateStaff(false)}
         />
       )}
     </Dialog>
