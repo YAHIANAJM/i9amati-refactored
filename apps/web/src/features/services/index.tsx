@@ -10,6 +10,7 @@ import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ApiServiceContract, ServiceContractStatus, ServicesResponse } from '@/lib/services.api'
 import { ServicesGrid } from './sections/ServicesGrid'
 import { ServiceFormDialog } from './components/ServiceFormDialog'
+import type { ServiceSubmitPayload } from './components/ServiceFormDialog'
 import { ContractFormDialog } from './components/ContractFormDialog'
 import { PaymentDialog } from './components/PaymentDialog'
 
@@ -45,8 +46,30 @@ export function Services() {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
-  const createService = useMutation({
-    mutationFn: servicesApi.create,
+  const createServiceWizard = useMutation({
+    mutationFn: async (data: ServiceSubmitPayload) => {
+      const svc = await servicesApi.create({
+        name: data.name,
+        type: data.type || null,
+        contact_info: (data.phone || data.email)
+          ? { phone: data.phone || undefined, email: data.email || undefined }
+          : null,
+      })
+      if (data.contract) {
+        const contract = await servicesApi.addContract(svc.id, {
+          name:        data.contract.name,
+          description: data.contract.description || null,
+          amount:      data.contract.amount,
+          start_date:  data.contract.start_date,
+          end_date:    data.contract.end_date,
+          status:      data.contract.status,
+        })
+        if (data.files.length > 0) {
+          await Promise.all(data.files.map(f => servicesApi.attachFile(svc.id, contract.id, f)))
+        }
+      }
+      return svc
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] })
       toastCreated(t('services.created'))
@@ -163,7 +186,7 @@ export function Services() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  function handleServiceSubmit(data: { name: string; type: string; phone: string; email: string }) {
+  function handleServiceSubmit(data: ServiceSubmitPayload) {
     const payload = {
       name: data.name,
       type: data.type || null,
@@ -174,7 +197,7 @@ export function Services() {
     if (serviceDialog.service) {
       updateService.mutate({ id: serviceDialog.service.id, ...payload })
     } else {
-      createService.mutate(payload)
+      createServiceWizard.mutate(data)
     }
   }
 
@@ -211,7 +234,7 @@ export function Services() {
     removeContractFile.mutate({ serviceId: service.id, contractId: contract.id, docId })
   }
 
-  const isServicePending  = createService.isPending || updateService.isPending
+  const isServicePending  = createServiceWizard.isPending || updateService.isPending
   const isContractPending = addContract.isPending || updateContract.isPending
 
   return (
