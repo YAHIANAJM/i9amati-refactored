@@ -38,7 +38,15 @@ const STYLES: Record<ToastVariant, {
 const DURATION = 5000 // 10s
 
 function ToastCard({ id, title, description, variant, duration = DURATION, action, cancelLabel }: ToastItem) {
-  const s = STYLES[variant]
+  let s = STYLES[variant]
+
+  if (variant === 'confirmation' && action?.variant === 'destructive') {
+    s = {
+      border: 'border-l-[4px] border-red-500',
+      icon: <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />,
+      bar: 'bg-red-500',
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => dismissToast(id), duration)
@@ -52,7 +60,7 @@ function ToastCard({ id, title, description, variant, duration = DURATION, actio
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 80, scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-      className={`relative flex items-start gap-3 w-80 rounded-lg shadow-lg bg-white px-4 py-3 pb-[18px] overflow-hidden ${s.border}`}
+      className={`relative flex items-start gap-3 w-80 rounded-lg shadow-lg bg-white px-4 py-3 pb-[18px] overflow-hidden pointer-events-auto ${s.border}`}
     >
       {s.icon}
 
@@ -107,7 +115,7 @@ export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 items-end">
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 items-end pointer-events-none">
       <AnimatePresence mode="sync">
         {toasts.map(t => <ToastCard key={t.id} {...t} />)}
       </AnimatePresence>
