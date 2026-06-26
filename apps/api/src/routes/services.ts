@@ -176,7 +176,8 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
       .select([
         'prof.id',
         'prof.role',
-        'usr.name as firstName',
+        'usr.firstName',
+        'usr.lastName',
         'usr.image'
       ])
       .where('prof.organization_id', '=', activeOrganizationId!)
