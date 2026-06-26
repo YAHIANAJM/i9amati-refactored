@@ -93,6 +93,7 @@ export interface PublicProfileTable {
   role: 'SYNDIC' | 'OWNER' | 'TENANT' | 'STAFF'
   created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
+  deleted_at: Timestamp | null
 }
 
 export interface PublicInvitationTable {

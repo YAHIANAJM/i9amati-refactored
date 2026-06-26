@@ -42,6 +42,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         .selectFrom('public.profiles')
         .select(['id', 'organization_id', 'role'])
         .where('user_id', '=', session.user.id)
+        .where('deleted_at', 'is', null)
         .executeTakeFirst()
 
       if (profile) {
@@ -71,7 +72,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     const [org, profileRow] = await Promise.all([
       db.selectFrom('public.organizations').select('slug').where('id', '=', activeOrganizationId).executeTakeFirst(),
-      db.selectFrom('public.profiles').select('role').where('id', '=', profileId).executeTakeFirst(),
+      db.selectFrom('public.profiles').select('role').where('id', '=', profileId).where('deleted_at', 'is', null).executeTakeFirst(),
     ])
 
     if (!org) {

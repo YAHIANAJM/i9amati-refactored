@@ -373,6 +373,7 @@ async function sendConvocationEmails(
     .selectFrom('public.profiles')
     .select(['id', 'user_id'])
     .where('id', 'in', profileIds)
+    .where('deleted_at', 'is', null)
     .execute()
 
   const userIds = profiles.map(p => p.user_id)

@@ -21,15 +21,16 @@ import {
 import type { ServiceActions, ServiceSubjects } from '@i9amati/shared'
 import type { ServiceContractTable, ServiceTable } from '../db/types'
 import { minioClient, BUCKET, presignedUrl } from '../lib/storage'
+import { auth } from '../auth'
 
 type ContractRow = Selectable<ServiceContractTable>
-type ServiceRow  = Selectable<ServiceTable>
+type ServiceRow = Selectable<ServiceTable>
 
 type FileRow = {
-  id:          string
-  name:        string
-  size:        number | null
-  path:        string | null
+  id: string
+  name: string
+  size: number | null
+  path: string | null
   uploaded_at: Date
 }
 
@@ -71,20 +72,20 @@ function toSlug(name: string): string {
 
 async function fmtContract(c: ContractRow, files: FileRow[] = []) {
   return {
-    id:          c.id,
-    service_id:  c.service_id,
-    name:        c.name,
+    id: c.id,
+    service_id: c.service_id,
+    name: c.name,
     description: c.description ?? null,
-    amount:      Number(c.amount),
+    amount: Number(c.amount),
     amount_paid: Number(c.amount_paid),
-    start_date:  c.start_date ?? null,
-    end_date:    c.end_date ?? null,
-    status:      c.status,
+    start_date: c.start_date ?? null,
+    end_date: c.end_date ?? null,
+    status: c.status,
     files: await Promise.all(files.map(async f => ({
-      id:          f.id,
-      name:        f.name,
-      size:        f.size ?? null,
-      url:         f.path ? await presignedUrl(f.path) : null,
+      id: f.id,
+      name: f.name,
+      size: f.size ?? null,
+      url: f.path ? await presignedUrl(f.path) : null,
       uploaded_at: f.uploaded_at instanceof Date
         ? f.uploaded_at.toISOString()
         : String(f.uploaded_at),
@@ -93,17 +94,17 @@ async function fmtContract(c: ContractRow, files: FileRow[] = []) {
 }
 
 async function fmtService(
-  s:               ServiceRow,
-  contracts:       ContractRow[],
+  s: ServiceRow,
+  contracts: ContractRow[],
   filesByContract: Map<string, FileRow[]> = new Map(),
 ) {
   return {
-    id:           s.id,
-    name:         s.name,
-    slug:         s.slug,
-    type:         s.type ?? null,
+    id: s.id,
+    name: s.name,
+    slug: s.slug,
+    type: s.type ?? null,
     contact_info: (s.contact_info as { phone?: string; email?: string } | null) ?? null,
-    contracts:    await Promise.all(contracts.map(c => fmtContract(c, filesByContract.get(c.id) ?? []))),
+    contracts: await Promise.all(contracts.map(c => fmtContract(c, filesByContract.get(c.id) ?? []))),
   }
 }
 
@@ -121,28 +122,28 @@ router.get('/', async (req: Request, res, next) => {
 
     const contracts = services.length > 0
       ? await tenantDb
-          .selectFrom('service_contracts')
-          .selectAll()
-          .where('service_id', 'in', services.map(s => s.id))
-          .orderBy('start_date', 'desc')
-          .execute()
+        .selectFrom('service_contracts')
+        .selectAll()
+        .where('service_id', 'in', services.map(s => s.id))
+        .orderBy('start_date', 'desc')
+        .execute()
       : []
 
     const allContractIds = contracts.map(c => c.id)
     const docs = allContractIds.length > 0
       ? await tenantDb
-          .selectFrom('document_access')
-          .innerJoin('documents', 'documents.id', 'document_access.doc_id')
-          .select([
-            'documents.id',
-            'documents.name',
-            'documents.size',
-            'documents.path',
-            'documents.uploaded_at',
-            'document_access.contract_id',
-          ])
-          .where('document_access.contract_id', 'in', allContractIds)
-          .execute()
+        .selectFrom('document_access')
+        .innerJoin('documents', 'documents.id', 'document_access.doc_id')
+        .select([
+          'documents.id',
+          'documents.name',
+          'documents.size',
+          'documents.path',
+          'documents.uploaded_at',
+          'document_access.contract_id',
+        ])
+        .where('document_access.contract_id', 'in', allContractIds)
+        .execute()
       : []
 
     const filesByContract = new Map<string, FileRow[]>(allContractIds.map(id => [id, []]))
@@ -182,8 +183,9 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
       ])
       .where('prof.organization_id', '=', activeOrganizationId!)
       .where('prof.role', '=', 'STAFF')
+      .where('prof.deleted_at', 'is', null)
       .execute()
-    
+
     return res.json(staff)
   } catch (err) {
     next(err)
@@ -195,7 +197,7 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
 router.post('/staff', guard('create', 'Service'), async (req: Request, res, next) => {
   try {
     const { tenantDb, activeOrganizationId } = req as AuthRequest
-    const { firstName, lastName, email, password } = parseBody(CreateStaffSchema, req.body)
+    const { firstName, lastName, email } = parseBody(CreateStaffSchema, req.body)
 
     // Check if email already exists
     const existingUser = await tenantDb
@@ -203,48 +205,53 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
       .select('id')
       .where('email', '=', email.toLowerCase())
       .executeTakeFirst()
-      
-    if (existingUser) {
-      throw new AppError(409, 'Email already in use', 'CONFLICT')
-    }
 
-    const userId = randomUUID()
+
+
+    const userId = existingUser?.id ?? randomUUID()
     const accountId = randomUUID()
     const profileId = randomUUID()
-    const hashedPassword = await hashPassword(password)
+    const hashedPassword = await hashPassword(randomUUID())
 
     await tenantDb.transaction().execute(async (trx) => {
       // Create User
-      await trx
-        .insertInto('public.user')
-        .values({
-          id: userId,
-          name: `${firstName} ${lastName}`,
-          firstName: firstName,
-          lastName: lastName,
-          email: email.toLowerCase(),
-          emailVerified: false,
-          platformRole: 'USER',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .execute()
 
-      // Create Account with Password
-      await trx
-        .insertInto('public.account')
-        .values({
-          id: accountId,
-          accountId: email.toLowerCase(),
-          userId: userId,
-          providerId: 'credential',
-          password: hashedPassword,
-          organizationId: activeOrganizationId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .execute()
+      if (!existingUser) {
+        await trx
+          .insertInto('public.user')
+          .values({
+            id: userId,
+            name: `${firstName} ${lastName}`,
+            firstName: firstName,
+            lastName: lastName,
+            email: email.toLowerCase(),
+            emailVerified: false,
+            platformRole: 'USER',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .execute()
 
+        // Create Account with Password
+        await trx
+          .insertInto('public.account')
+          .values({
+            id: accountId,
+            accountId: email.toLowerCase(),
+            userId: userId,
+            providerId: 'credential',
+            password: hashedPassword,
+            organizationId: activeOrganizationId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .execute()
+        await auth.api.forgetPasswordEmailOTP({
+          body: {
+            email: email.toLowerCase(),
+          },
+        })
+      }
       // Create Profile for STAFF role in the org
       await trx
         .insertInto('public.profiles')
@@ -276,16 +283,27 @@ router.delete('/staff/:profileId', guard('delete', 'Service'), async (req: Reque
       .select(['user_id', 'role'])
       .where('id', '=', profileId)
       .where('organization_id', '=', activeOrganizationId)
+      .where('deleted_at', 'is', null)
       .executeTakeFirst()
 
     if (!profile) throw new AppError(404, 'Staff not found')
     if (profile.role !== 'STAFF') throw new AppError(403, 'Cannot delete non-staff profiles from this endpoint')
 
-    // Delete the user, which cascades and deletes the profile, account, and sessions.
-    await tenantDb
-      .deleteFrom('public.user')
-      .where('id', '=', profile.user_id)
-      .execute()
+    // Soft delete the profile instead of hard deleting
+    // Also ban the user so they can no longer login
+    await tenantDb.transaction().execute(async (trx) => {
+      await trx
+        .updateTable('public.profiles')
+        .set({ deleted_at: new Date() })
+        .where('id', '=', profileId)
+        .execute()
+
+      await trx
+        .updateTable('public.user')
+        .set({ banned: true, banReason: 'Staff profile deleted' })
+        .where('id', '=', profile.user_id)
+        .execute()
+    })
 
     res.json({ success: true })
   } catch (e) { next(e) }
@@ -321,7 +339,7 @@ router.post('/', guard('create', 'Service'), async (req: Request, res, next) => 
 router.patch('/:serviceId', guard('update', 'Service'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
-    const body    = parseBody(UpdateServiceSchema, req.body)
+    const body = parseBody(UpdateServiceSchema, req.body)
     const service = requireRow(
       await tenantDb.selectFrom('services').selectAll()
         .where('id', '=', req.params.serviceId).executeTakeFirst(),
@@ -329,8 +347,8 @@ router.patch('/:serviceId', guard('update', 'Service'), async (req: Request, res
     )
 
     const updates: { name?: string; type?: string | null; contact_info?: { phone?: string; email?: string } | null } = {}
-    if (body.name         !== undefined) updates.name         = body.name
-    if (body.type         !== undefined) updates.type         = body.type
+    if (body.name !== undefined) updates.name = body.name
+    if (body.type !== undefined) updates.type = body.type
     if (body.contact_info !== undefined) updates.contact_info = body.contact_info
 
     if (Object.keys(updates).length === 0) {
@@ -393,7 +411,7 @@ router.delete('/:serviceId', guard('delete', 'Service'), async (req: Request, re
 router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
-    const body    = parseBody(CreateContractSchema, req.body)
+    const body = parseBody(CreateContractSchema, req.body)
     const service = requireRow(
       await tenantDb.selectFrom('services').select('id')
         .where('id', '=', req.params.serviceId).executeTakeFirst(),
@@ -403,15 +421,15 @@ router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (
     const contract = await tenantDb
       .insertInto('service_contracts')
       .values({
-        id:          randomUUID(),
-        service_id:  service.id,
-        name:        body.name,
+        id: randomUUID(),
+        service_id: service.id,
+        name: body.name,
         description: body.description ?? null,
-        amount:      body.amount,
+        amount: body.amount,
         amount_paid: 0,
-        start_date:  body.start_date ?? null,
-        end_date:    body.end_date ?? null,
-        status:      body.status ?? 'PENDING',
+        start_date: body.start_date ?? null,
+        end_date: body.end_date ?? null,
+        status: body.status ?? 'PENDING',
       })
       .returningAll()
       .executeTakeFirstOrThrow()
@@ -427,7 +445,7 @@ router.post('/:serviceId/contracts', guard('create', 'ServiceContract'), async (
 router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
-    const body     = parseBody(UpdateContractSchema, req.body)
+    const body = parseBody(UpdateContractSchema, req.body)
     const contract = requireRow(
       await tenantDb.selectFrom('service_contracts').selectAll()
         .where('id', '=', req.params.contractId)
@@ -436,20 +454,20 @@ router.patch('/:serviceId/contracts/:contractId', guard('update', 'ServiceContra
       'Contract',
     )
 
-    const effectiveAmount = body.amount      ?? Number(contract.amount)
-    const effectivePaid   = body.amount_paid ?? Number(contract.amount_paid)
+    const effectiveAmount = body.amount ?? Number(contract.amount)
+    const effectivePaid = body.amount_paid ?? Number(contract.amount_paid)
     if (effectivePaid > effectiveAmount) {
       throw new AppError(409, 'conflict.paidExceedsAmount', 'CONFLICT')
     }
 
     const updates: { name?: string; description?: string | null; amount?: number; amount_paid?: number; start_date?: string; end_date?: string; status?: string } = {}
-    if (body.name        !== undefined) updates.name        = body.name
+    if (body.name !== undefined) updates.name = body.name
     if (body.description !== undefined) updates.description = body.description
-    if (body.amount      !== undefined) updates.amount      = body.amount
+    if (body.amount !== undefined) updates.amount = body.amount
     if (body.amount_paid !== undefined) updates.amount_paid = body.amount_paid
-    if (body.start_date  !== undefined) updates.start_date  = body.start_date
-    if (body.end_date    !== undefined) updates.end_date    = body.end_date
-    if (body.status      !== undefined) updates.status      = body.status
+    if (body.start_date !== undefined) updates.start_date = body.start_date
+    if (body.end_date !== undefined) updates.end_date = body.end_date
+    if (body.status !== undefined) updates.status = body.status
 
     if (Object.keys(updates).length === 0) return res.json(await fmtContract(contract))
 
@@ -493,7 +511,7 @@ router.delete('/:serviceId/contracts/:contractId', guard('delete', 'ServiceContr
 router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
-    const body     = parseBody(RecordPaymentSchema, req.body)
+    const body = parseBody(RecordPaymentSchema, req.body)
     const contract = requireRow(
       await tenantDb.selectFrom('service_contracts').selectAll()
         .where('id', '=', req.params.contractId)
@@ -527,7 +545,7 @@ router.post('/:serviceId/contracts/:contractId/pay', guard('update', 'ServiceCon
 router.post('/:serviceId/contracts/:contractId/files', guard('update', 'ServiceContract'), async (req: Request, res, next) => {
   try {
     const { tenantDb, profileId } = req as AuthRequest
-    const body     = parseBody(AttachFileSchema, req.body)
+    const body = parseBody(AttachFileSchema, req.body)
     const contract = requireRow(
       await tenantDb.selectFrom('service_contracts').select('id')
         .where('id', '=', req.params.contractId)
@@ -540,36 +558,36 @@ router.post('/:serviceId/contracts/:contractId/files', guard('update', 'ServiceC
     await tenantDb
       .insertInto('documents')
       .values({
-        id:          docId,
-        type:        'FILE',
-        parent_id:   null,
-        name:        body.name,
-        path:        body.key,
-        size:        body.size ?? null,
+        id: docId,
+        type: 'FILE',
+        parent_id: null,
+        name: body.name,
+        path: body.key,
+        size: body.size ?? null,
         uploaded_by: profileId,
-        updated_at:  new Date(),
+        updated_at: new Date(),
       })
       .execute()
 
     await tenantDb
       .insertInto('document_access')
       .values({
-        id:           randomUUID(),
-        doc_id:       docId,
-        contract_id:  contract.id,
-        profile_id:   null,
+        id: randomUUID(),
+        doc_id: docId,
+        contract_id: contract.id,
+        profile_id: null,
         residence_id: null,
-        building_id:  null,
+        building_id: null,
         apartment_id: null,
         access_level: 'VIEW',
       })
       .execute()
 
     return res.status(201).json({
-      id:          docId,
-      name:        body.name,
-      size:        body.size ?? null,
-      url:         await presignedUrl(body.key),
+      id: docId,
+      name: body.name,
+      size: body.size ?? null,
+      url: await presignedUrl(body.key),
       uploaded_at: new Date().toISOString(),
     })
   } catch (err) {
@@ -629,6 +647,7 @@ router.get('/:serviceId/sessions', guard('read', 'Service'), async (req: Request
       .selectFrom('service_check_in_out as sesh')
       .innerJoin('public.profiles as prof', 'prof.id', 'sesh.profile_id')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
+      .where('prof.deleted_at', 'is', null)
       .select([
         'sesh.id',
         'sesh.service_id',
@@ -670,7 +689,7 @@ router.post('/:serviceId/sessions/check-in', guard('update', 'Service'), async (
         .where('id', '=', req.params.serviceId).executeTakeFirst(),
       'Service'
     )
-    
+
     const session = await tenantDb
       .insertInto('service_check_in_out')
       .values({
@@ -682,7 +701,7 @@ router.post('/:serviceId/sessions/check-in', guard('update', 'Service'), async (
       })
       .returningAll()
       .executeTakeFirstOrThrow()
-      
+
     return res.status(201).json({
       id: session.id,
       service_id: session.service_id,
@@ -700,7 +719,7 @@ router.post('/:serviceId/sessions/check-in', guard('update', 'Service'), async (
 router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'Service'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
-    
+
     const session = requireRow(
       await tenantDb.selectFrom('service_check_in_out')
         .selectAll()
@@ -709,9 +728,9 @@ router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'Servi
         .executeTakeFirst(),
       'Session'
     )
-    
+
     if (session.check_out_at) {
-       throw new AppError(409, 'Session is already checked out', 'CONFLICT')
+      throw new AppError(409, 'Session is already checked out', 'CONFLICT')
     }
 
     const updated = await tenantDb
@@ -720,7 +739,7 @@ router.patch('/:serviceId/sessions/:sessionId/check-out', guard('update', 'Servi
       .where('id', '=', session.id)
       .returningAll()
       .executeTakeFirstOrThrow()
-      
+
     return res.json({
       id: updated.id,
       service_id: updated.service_id,

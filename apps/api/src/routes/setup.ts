@@ -26,6 +26,7 @@ router.post('/', async (req, res, next) => {
       .selectFrom('public.profiles')
       .select('id')
       .where('user_id', '=', session.user.id)
+      .where('deleted_at', 'is', null)
       .executeTakeFirst()
     if (existing) throw new AppError(409, 'User already has an organisation')
 

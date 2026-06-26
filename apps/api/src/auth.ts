@@ -43,6 +43,7 @@ export const auth = betterAuth({
             .selectFrom('public.profiles')
             .select(['id', 'organization_id'])
             .where('user_id', '=', session.userId)
+            .where('deleted_at', 'is', null)
             .executeTakeFirst()
 
           if (!profile) return

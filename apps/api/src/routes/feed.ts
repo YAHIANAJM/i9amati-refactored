@@ -185,6 +185,7 @@ router.post('/groups', async (req: Request, res, next) => {
       .select('id')
       .where('organization_id', '=', activeOrganizationId)
       .where('role', '=', ProfileRole.SYNDIC)
+      .where('deleted_at', 'is', null)
       .execute()
 
     if (syndicProfiles.length > 0) {
@@ -315,6 +316,7 @@ router.get('/groups/:groupId/members', async (req: Request, res, next) => {
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as u', 'prof.user_id', 'u.id')
       .where('prof.id', 'in', profileIds)
+      .where('prof.deleted_at', 'is', null)
       .select(['prof.id as profile_id', 'u.name', 'u.image', 'prof.role as orgRole'])
       .execute()
 
@@ -381,6 +383,7 @@ router.delete('/groups/:groupId/members/:profileId', async (req: Request, res, n
       .selectFrom('public.profiles')
       .select('role')
       .where('id', '=', targetProfileId)
+      .where('deleted_at', 'is', null)
       .executeTakeFirst()
 
     if (targetProfile?.role === ProfileRole.SYNDIC) {
@@ -472,6 +475,7 @@ router.get('/groups/:groupId/posts', async (req: Request, res, next) => {
         .selectFrom('public.profiles as prof')
         .innerJoin('public.user as u', 'prof.user_id', 'u.id')
         .where('prof.id', 'in', authorProfileIds)
+        .where('prof.deleted_at', 'is', null)
         .select(['prof.id as profile_id', 'u.name', 'u.image'])
         .execute(),
     ])
@@ -642,6 +646,7 @@ router.get('/posts/:postId/comments', async (req: Request, res, next) => {
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as u', 'prof.user_id', 'u.id')
       .where('prof.id', 'in', authorProfileIds)
+      .where('prof.deleted_at', 'is', null)
       .select(['prof.id as profile_id', 'u.name', 'u.image'])
       .execute()
 
@@ -972,6 +977,7 @@ router.get('/analytics', async (req: Request, res, next) => {
           .selectFrom('public.profiles as prof')
           .innerJoin('public.user as u', 'prof.user_id', 'u.id')
           .where('prof.id', 'in', neededProfileIds)
+          .where('prof.deleted_at', 'is', null)
           .select(['prof.id as profile_id', 'u.name', 'u.image'])
           .execute()
       : []
@@ -1030,6 +1036,7 @@ router.get('/org-profiles', async (req: Request, res, next) => {
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as u', 'prof.user_id', 'u.id')
       .where('prof.organization_id', '=', activeOrganizationId)
+      .where('prof.deleted_at', 'is', null)
       .select(['prof.id as profileId', 'u.name', 'u.image', 'prof.role as orgRole'])
       .orderBy('u.name', 'asc')
       .execute()
