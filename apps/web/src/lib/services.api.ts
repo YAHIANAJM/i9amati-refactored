@@ -146,4 +146,8 @@ export const servicesApi = {
   async checkOut(serviceId: string, sessionId: string): Promise<ApiServiceSession> {
     return api.patch(`/api/services/${serviceId}/sessions/${sessionId}/check-out`, {})
   },
+
+  async createStaff(payload: any): Promise<{ id: string }> {
+    return api.post<{ id: string }>('/api/services/staff', payload)
+  },
 }

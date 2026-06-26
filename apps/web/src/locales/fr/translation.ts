@@ -203,6 +203,12 @@ export const fr: typeof import('../ar/translation').ar = {
     noPastSessions:        "Aucune session passée.",
     staffCheckedIn:        "Personnel pointé à l'arrivée",
     staffCheckedOut:       "Personnel pointé au départ",
+    createStaff:           "Créer un Compte Personnel",
+    firstName:             "Prénom",
+    lastName:              "Nom",
+    password:              "Mot de passe",
+    createStaffButton:     "Créer le Compte",
+    staffCreatedSuccessfully: "Compte personnel créé avec succès !",
   },
   conflict: {
     amountBelowPaid:   "Impossible de réduire le montant du contrat en dessous du montant déjà payé",

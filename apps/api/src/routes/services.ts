@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import { randomUUID } from 'crypto'
+import * as bcrypt from 'bcryptjs'
 import type { Selectable } from 'kysely'
 import { authenticate } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
@@ -15,6 +16,7 @@ import {
   RecordPaymentSchema,
   AttachFileSchema,
   RecordCheckInSchema,
+  CreateStaffSchema,
 } from '@i9amati/shared'
 import type { ServiceActions, ServiceSubjects } from '@i9amati/shared'
 import type { ServiceContractTable, ServiceTable } from '../db/types'
@@ -182,6 +184,78 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
       .execute()
     
     return res.json(staff)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── POST /api/services/staff ───────────────────────────────────────────────────
+
+router.post('/staff', guard('create', 'Service'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
+    const { firstName, lastName, email, password } = parseBody(CreateStaffSchema, req.body)
+
+    // Check if email already exists
+    const existingUser = await (tenantDb as any)
+      .selectFrom('public.user')
+      .select('id')
+      .where('email', '=', email.toLowerCase())
+      .executeTakeFirst()
+      
+    if (existingUser) {
+      throw new AppError(409, 'Email already in use', 'CONFLICT')
+    }
+
+    const userId = randomUUID()
+    const accountId = randomUUID()
+    const profileId = randomUUID()
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    await (tenantDb as any).transaction().execute(async (trx: any) => {
+      // Create User
+      await trx
+        .insertInto('public.user')
+        .values({
+          id: userId,
+          name: `${firstName} ${lastName}`,
+          first_name: firstName,
+          last_name: lastName,
+          email: email.toLowerCase(),
+          email_verified: false,
+          platform_role: 'USER',
+          updated_at: new Date()
+        })
+        .execute()
+
+      // Create Account with Password
+      await trx
+        .insertInto('public.account')
+        .values({
+          id: accountId,
+          user_id: userId,
+          provider_id: 'credential',
+          account_id: email.toLowerCase(),
+          password: hashedPassword,
+          organization_id: activeOrganizationId,
+          updated_at: new Date()
+        })
+        .execute()
+
+      // Create Profile for STAFF role in the org
+      await trx
+        .insertInto('public.profiles')
+        .values({
+          id: profileId,
+          user_id: userId,
+          organization_id: activeOrganizationId,
+          role: 'STAFF',
+          updated_at: new Date()
+        })
+        .execute()
+    })
+
+    return res.status(201).json({ id: profileId })
   } catch (err) {
     next(err)
   }

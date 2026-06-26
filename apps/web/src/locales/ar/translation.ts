@@ -203,6 +203,12 @@ export const ar = {
     noPastSessions:        "لا توجد جلسات سابقة.",
     staffCheckedIn:        "تم تسجيل دخول الموظف",
     staffCheckedOut:       "تم تسجيل خروج الموظف",
+    createStaff:           "إنشاء حساب موظف",
+    firstName:             "الاسم الأول",
+    lastName:              "اسم العائلة",
+    password:              "كلمة المرور",
+    createStaffButton:     "إنشاء الحساب",
+    staffCreatedSuccessfully: "تم إنشاء حساب الموظف بنجاح!",
   },
   conflict: {
     amountBelowPaid:   "لا يمكن تخفيض مبلغ العقد إلى أقل من المبلغ المدفوع بالفعل",

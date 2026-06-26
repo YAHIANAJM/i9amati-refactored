@@ -203,6 +203,12 @@ export const en: typeof import('../ar/translation').ar = {
     noPastSessions:        "No past sessions.",
     staffCheckedIn:        "Staff checked in",
     staffCheckedOut:       "Staff checked out",
+    createStaff:           "Create Staff Account",
+    firstName:             "First Name",
+    lastName:              "Last Name",
+    password:              "Password",
+    createStaffButton:     "Create Account",
+    staffCreatedSuccessfully: "Staff account created successfully!",
   },
   conflict: {
     amountBelowPaid:   "Cannot reduce the contract amount below the amount already paid",
