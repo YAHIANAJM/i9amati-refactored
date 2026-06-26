@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, CheckCircle2, XCircle, AlertTriangle, Info, Bell } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useToast, dismissToast, type ToastVariant, type ToastItem } from './useToast'
 
 const STYLES: Record<ToastVariant, {
@@ -73,11 +73,10 @@ function ToastCard({ id, title, description, variant, duration = DURATION, actio
           <div className="mt-3 flex items-center gap-2">
             <button
               onClick={() => { action.onClick(); dismissToast(id) }}
-              className={`text-xs font-semibold text-white px-3 py-1.5 rounded-md transition-colors ${
-                action.variant === 'destructive' 
-                  ? 'bg-red-500 hover:bg-red-600' 
+              className={`text-xs font-semibold text-white px-3 py-1.5 rounded-md transition-colors ${action.variant === 'destructive'
+                  ? 'bg-red-500 hover:bg-red-600'
                   : 'bg-indigo-500 hover:bg-indigo-600'
-              }`}
+                }`}
             >
               {action.label}
             </button>
