@@ -35,9 +35,9 @@ const STYLES: Record<ToastVariant, {
   },
 }
 
-const DURATION = 10000 // 10s
+const DURATION = 5000 // 10s
 
-function ToastCard({ id, title, description, variant, duration = DURATION }: ToastItem) {
+function ToastCard({ id, title, description, variant, duration = DURATION, action, cancelLabel }: ToastItem) {
   const s = STYLES[variant]
 
   useEffect(() => {
@@ -49,17 +49,33 @@ function ToastCard({ id, title, description, variant, duration = DURATION }: Toa
     <motion.div
       layout
       initial={{ opacity: 0, x: 80, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0,  scale: 1    }}
-      exit={{    opacity: 0, x: 80, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 80, scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       className={`relative flex items-start gap-3 w-80 rounded-lg shadow-lg bg-white px-4 py-3 pb-[18px] overflow-hidden ${s.border}`}
     >
       {s.icon}
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pb-1">
         <p className="text-sm font-semibold text-slate-800 leading-snug">{title}</p>
         {description && (
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
+        )}
+        {action && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => { action.onClick(); dismissToast(id) }}
+              className="text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
+            >
+              {action.label}
+            </button>
+            <button
+              onClick={() => dismissToast(id)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-800 bg-slate-100 px-3 py-1.5 rounded-md hover:bg-slate-200 transition-colors"
+            >
+              {cancelLabel || 'Cancel'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -86,24 +102,11 @@ function ToastCard({ id, title, description, variant, duration = DURATION }: Toa
 export function Toaster() {
   const { toasts } = useToast()
 
-  const bottom = toasts.filter(t => t.variant !== 'confirmation')
-  const top    = toasts.filter(t => t.variant === 'confirmation')
-
   return (
-    <>
-      {/* error / success / warning / info — bottom right */}
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 items-end">
-        <AnimatePresence mode="sync">
-          {bottom.map(t => <ToastCard key={t.id} {...t} />)}
-        </AnimatePresence>
-      </div>
-
-      {/* confirmation — top right */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-2 items-end">
-        <AnimatePresence mode="sync">
-          {top.map(t => <ToastCard key={t.id} {...t} />)}
-        </AnimatePresence>
-      </div>
-    </>
+    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 items-end">
+      <AnimatePresence mode="sync">
+        {toasts.map(t => <ToastCard key={t.id} {...t} />)}
+      </AnimatePresence>
+    </div>
   )
 }
