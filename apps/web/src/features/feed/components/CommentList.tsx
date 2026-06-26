@@ -8,9 +8,11 @@ import { feedApi, type ApiComment } from '@/lib/feed.api'
 import { getInitials } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { z } from 'zod'
+import { CreateFeedCommentSchema } from '@i9amati/shared'
 
 interface CommentListProps {
-  postId:     string
+  postId: string
   canComment: boolean
 }
 
@@ -21,7 +23,7 @@ export function CommentList({ postId, canComment }: CommentListProps) {
 
   const { data: comments = [], isLoading } = useQuery({
     queryKey: ['feed-comments', postId],
-    queryFn:  () => feedApi.getComments(postId),
+    queryFn: () => feedApi.getComments(postId),
   })
 
   const addComment = useMutation({
@@ -36,7 +38,17 @@ export function CommentList({ postId, canComment }: CommentListProps) {
   })
 
   function submit() {
-    if (newComment.trim()) addComment.mutate(newComment.trim())
+    try {
+      CreateFeedCommentSchema.parse({ content: newComment.trim() })
+      addComment.mutate(newComment.trim())
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
+    }
+
   }
 
   return (
