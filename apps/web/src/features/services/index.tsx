@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/button'
-import { toastDeleted, toastApiError, toastCreated, toastUpdated } from '@/components/toast'
+import { toastDeleted, toastApiError, toastCreated, toastUpdated, toastConfirmation } from '@/components/toast'
 import { ProfileRole } from '@i9amati/shared'
 import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ApiServiceContract, ServiceContractStatus, ServicesResponse } from '@/lib/services.api'
@@ -156,7 +156,15 @@ export function Services() {
       status:      data.status,
     }
     if (contractDialog.contract && contractDialog.service) {
-      updateContract.mutate({ serviceId: contractDialog.service.id, contractId: contractDialog.contract.id, ...payload })
+      toastConfirmation(
+        t('services.confirmUpdate', 'Êtes-vous sûr de vouloir mettre à jour?'),
+        t('services.confirmUpdateDesc', 'Cette action va modifier les données.'),
+        { 
+          label: t('services.confirm', 'Confirmer'), 
+          onClick: () => updateContract.mutate({ serviceId: contractDialog.service!.id, contractId: contractDialog.contract!.id, ...payload }) 
+        },
+        t('services.cancel', 'Annuler')
+      )
     } else if (contractDialog.service) {
       addContract.mutate({ serviceId: contractDialog.service.id, ...payload })
     }
@@ -172,7 +180,15 @@ export function Services() {
   }
 
   function handleRemoveFile(service: ApiService, contract: ApiServiceContract, docId: string) {
-    removeContractFile.mutate({ serviceId: service.id, contractId: contract.id, docId })
+    toastConfirmation(
+      t('services.confirmRemoveFile', 'Êtes-vous sûr de vouloir supprimer ce fichier?'),
+      t('services.confirmRemoveFileDesc', 'Cette action est irréversible.'),
+      { 
+        label: t('services.confirm', 'Confirmer'), 
+        onClick: () => removeContractFile.mutate({ serviceId: service.id, contractId: contract.id, docId }) 
+      },
+      t('services.cancel', 'Annuler')
+    )
   }
 
   const isContractPending = addContract.isPending || updateContract.isPending
@@ -199,10 +215,24 @@ export function Services() {
           isSyndic={isSyndic}
           onCreateService={() => setServiceDialog({ open: true, service: null })}
           onEdit={service => setServiceDialog({ open: true, service })}
-          onDelete={service => deleteService.mutate(service.id)}
+          onDelete={service => {
+            toastConfirmation(
+              t('services.confirmDelete', 'Êtes-vous sûr de vouloir supprimer ce prestataire?'),
+              t('services.confirmDeleteDesc', 'Cette action est irréversible.'),
+              { label: t('services.confirm', 'Confirmer'), onClick: () => deleteService.mutate(service.id) },
+              t('services.cancel', 'Annuler')
+            )
+          }}
           onAddContract={service => setContractDialog({ open: true, service, contract: null })}
           onEditContract={(service, contract) => setContractDialog({ open: true, service, contract })}
-          onDeleteContract={(service, contract) => deleteContract.mutate({ serviceId: service.id, contractId: contract.id })}
+          onDeleteContract={(service, contract) => {
+            toastConfirmation(
+              t('services.confirmDeleteContract', 'Êtes-vous sûr de vouloir supprimer ce contrat?'),
+              t('services.confirmDeleteContractDesc', 'Cette action est irréversible.'),
+              { label: t('services.confirm', 'Confirmer'), onClick: () => deleteContract.mutate({ serviceId: service.id, contractId: contract.id }) },
+              t('services.cancel', 'Annuler')
+            )
+          }}
           onRecordPayment={(service, contract) => setPaymentDialog({ open: true, service, contract })}
           onAttachFile={handleAttachFile}
           onRemoveFile={handleRemoveFile}

@@ -5,7 +5,7 @@ import { Loader2, Check, Paperclip, X, ChevronRight, ChevronLeft } from 'lucide-
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { toastCreated, toastUpdated, toastApiError } from '@/components/toast'
+import { toastCreated, toastUpdated, toastApiError, toastConfirmation } from '@/components/toast'
 import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ServiceContractStatus } from '@/lib/services.api'
 import { z } from 'zod'
@@ -167,7 +167,6 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!service || !providerValid) return
-    setIsPending(true)
     try {
       const payload = {
         name: name.trim(),
@@ -175,17 +174,34 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
         contact_info: buildContactInfo(phone, email),
       }
       UpdateServiceSchema.parse(payload)
-      await servicesApi.update(service.id, payload)
-      invalidate()
-      toastUpdated(t('services.updated'))
-      onClose()
+      
+      toastConfirmation(
+        t('services.confirmUpdate', 'Êtes-vous sûr de vouloir mettre à jour?'),
+        t('services.confirmUpdateDesc', 'Cette action va modifier les données.'),
+        {
+          label: t('services.confirm', 'Confirmer'),
+          onClick: async () => {
+            setIsPending(true)
+            try {
+              await servicesApi.update(service.id, payload)
+              invalidate()
+              toastUpdated(t('services.updated'))
+              onClose()
+            } catch (err) {
+              toastApiError(err)
+            } finally {
+              setIsPending(false)
+            }
+          }
+        },
+        t('services.cancel', 'Annuler')
+      )
     } catch (err) {
       if (err instanceof z.ZodError) {
         toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
       } else {
         toastApiError(err)
       }
-    } finally {
       setIsPending(false)
     }
   }

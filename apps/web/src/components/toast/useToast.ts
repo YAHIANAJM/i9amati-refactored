@@ -8,6 +8,11 @@ export interface ToastItem {
   description?: string
   variant: ToastVariant
   duration?: number
+  action?: {
+    label: string
+    onClick: () => void
+  }
+  cancelLabel?: string
 }
 
 type Listener = (toasts: ToastItem[]) => void
