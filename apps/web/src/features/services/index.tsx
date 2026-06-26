@@ -4,13 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/button'
-import { toastCreated, toastUpdated, toastDeleted, toastApiError } from '@/components/toast'
+import { toastDeleted, toastApiError, toastCreated, toastUpdated } from '@/components/toast'
 import { ProfileRole } from '@i9amati/shared'
 import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ApiServiceContract, ServiceContractStatus, ServicesResponse } from '@/lib/services.api'
 import { ServicesGrid } from './sections/ServicesGrid'
 import { ServiceFormDialog } from './components/ServiceFormDialog'
-import type { ServiceSubmitPayload } from './components/ServiceFormDialog'
 import { ContractFormDialog } from './components/ContractFormDialog'
 import { PaymentDialog } from './components/PaymentDialog'
 
@@ -20,8 +19,8 @@ type ServiceDialog = { open: boolean; service: ApiService | null }
 type ContractDialog = { open: boolean; service: ApiService | null; contract: ApiServiceContract | null }
 type PaymentDialogState = { open: boolean; service: ApiService | null; contract: ApiServiceContract | null }
 
-const CLOSED_SERVICE:  ServiceDialog  = { open: false, service: null }
-const CLOSED_CONTRACT: ContractDialog = { open: false, service: null, contract: null }
+const CLOSED_SERVICE:  ServiceDialog      = { open: false, service: null }
+const CLOSED_CONTRACT: ContractDialog     = { open: false, service: null, contract: null }
 const CLOSED_PAYMENT:  PaymentDialogState = { open: false, service: null, contract: null }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -41,53 +40,10 @@ export function Services() {
     queryFn:  servicesApi.list,
   })
 
-  const services  = servicesResponse?.services ?? []
-  const isSyndic  = servicesResponse?.profileRole === ProfileRole.SYNDIC
+  const services = servicesResponse?.services ?? []
+  const isSyndic = servicesResponse?.profileRole === ProfileRole.SYNDIC
 
   // ── Mutations ──────────────────────────────────────────────────────────────
-
-  const createServiceWizard = useMutation({
-    mutationFn: async (data: ServiceSubmitPayload) => {
-      const svc = await servicesApi.create({
-        name: data.name,
-        type: data.type || null,
-        contact_info: (data.phone || data.email)
-          ? { phone: data.phone || undefined, email: data.email || undefined }
-          : null,
-      })
-      if (data.contract) {
-        const contract = await servicesApi.addContract(svc.id, {
-          name:        data.contract.name,
-          description: data.contract.description || null,
-          amount:      data.contract.amount,
-          start_date:  data.contract.start_date,
-          end_date:    data.contract.end_date,
-          status:      data.contract.status,
-        })
-        if (data.files.length > 0) {
-          await Promise.all(data.files.map(f => servicesApi.attachFile(svc.id, contract.id, f)))
-        }
-      }
-      return svc
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] })
-      toastCreated(t('services.created'))
-      setServiceDialog(CLOSED_SERVICE)
-    },
-    onError: (err: unknown) => toastApiError(err),
-  })
-
-  const updateService = useMutation({
-    mutationFn: ({ id, ...payload }: { id: string } & Parameters<typeof servicesApi.update>[1]) =>
-      servicesApi.update(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] })
-      toastUpdated(t('services.updated'))
-      setServiceDialog(CLOSED_SERVICE)
-    },
-    onError: (err: unknown) => toastApiError(err),
-  })
 
   const deleteService = useMutation({
     mutationFn: servicesApi.remove,
@@ -186,21 +142,6 @@ export function Services() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  function handleServiceSubmit(data: ServiceSubmitPayload) {
-    const payload = {
-      name: data.name,
-      type: data.type || null,
-      contact_info: (data.phone || data.email)
-        ? { phone: data.phone || undefined, email: data.email || undefined }
-        : null,
-    }
-    if (serviceDialog.service) {
-      updateService.mutate({ id: serviceDialog.service.id, ...payload })
-    } else {
-      createServiceWizard.mutate(data)
-    }
-  }
-
   function handleContractSubmit(data: {
     name: string; description: string; amount: number; amount_paid?: number
     start_date: string; end_date: string; status: ServiceContractStatus
@@ -234,7 +175,6 @@ export function Services() {
     removeContractFile.mutate({ serviceId: service.id, contractId: contract.id, docId })
   }
 
-  const isServicePending  = createServiceWizard.isPending || updateService.isPending
   const isContractPending = addContract.isPending || updateContract.isPending
 
   return (
@@ -272,9 +212,7 @@ export function Services() {
       <ServiceFormDialog
         open={serviceDialog.open}
         service={serviceDialog.service}
-        isPending={isServicePending}
         onClose={() => setServiceDialog(CLOSED_SERVICE)}
-        onSubmit={handleServiceSubmit}
       />
       <ContractFormDialog
         open={contractDialog.open}

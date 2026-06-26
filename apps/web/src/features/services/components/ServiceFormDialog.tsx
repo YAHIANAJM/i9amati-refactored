@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, Check, Paperclip, X, ChevronRight, ChevronLeft } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { toastCreated, toastUpdated, toastApiError } from '@/components/toast'
+import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ServiceContractStatus } from '@/lib/services.api'
 
 const SERVICE_TYPES = [
@@ -13,36 +16,16 @@ const STATUSES: ServiceContractStatus[] = ['ACTIVE', 'PENDING', 'EXPIRED', 'CANC
 
 type WizardStep = 'provider' | 'contract' | 'documents'
 
-export interface ServiceWizardContract {
-  name:        string
-  description: string
-  amount:      number
-  start_date:  string
-  end_date:    string
-  status:      ServiceContractStatus
-}
-
-export interface ServiceSubmitPayload {
-  name:      string
-  type:      string
-  phone:     string
-  email:     string
-  contract?: ServiceWizardContract
-  files:     File[]
-}
-
 interface Props {
-  open:      boolean
-  service:   ApiService | null
-  isPending: boolean
-  onClose:   () => void
-  onSubmit:  (data: ServiceSubmitPayload) => void
+  open:    boolean
+  service: ApiService | null
+  onClose: () => void
 }
 
 // ── Step indicator ─────────────────────────────────────────────────────────────
 
 const WIZARD_STEPS: {
-  key: WizardStep
+  key:      WizardStep
   labelKey: 'services.stepProvider' | 'services.stepContract' | 'services.stepDocuments'
   optional?: boolean
 }[] = [
@@ -100,7 +83,7 @@ function StepIndicator({ current }: { current: WizardStep }) {
   )
 }
 
-// ── Shared field wrapper ───────────────────────────────────────────────────────
+// ── Shared helpers ─────────────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -113,19 +96,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = 'w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background'
 
+function buildContactInfo(phone: string, email: string) {
+  return (phone || email) ? { phone: phone || undefined, email: email || undefined } : null
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit }: Props) {
+export function ServiceFormDialog({ open, service, onClose }: Props) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const isEdit = !!service
 
-  // Provider fields (shared between modes)
+  // Provider fields
   const [name,  setName]  = useState('')
   const [type,  setType]  = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
 
-  // Wizard-only state
+  // Wizard state
   const [step,           setStep]           = useState<WizardStep>('provider')
   const [contractName,   setContractName]   = useState('')
   const [description,    setDescription]    = useState('')
@@ -134,6 +122,12 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
   const [endDate,        setEndDate]        = useState('')
   const [contractStatus, setContractStatus] = useState<ServiceContractStatus>('PENDING')
   const [files,          setFiles]          = useState<File[]>([])
+
+  // IDs of entities already saved in this wizard session
+  const [savedServiceId,  setSavedServiceId]  = useState<string | null>(null)
+  const [savedContractId, setSavedContractId] = useState<string | null>(null)
+
+  const [isPending, setIsPending] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -151,28 +145,121 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
         setEndDate('')
         setContractStatus('PENDING')
         setFiles([])
+        setSavedServiceId(null)
+        setSavedContractId(null)
       }
     }
   }, [open, service])
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ['services'] })
+  }
 
   const providerValid  = name.trim().length > 0
   const amountNum      = parseFloat(amount)
   const contractFilled = !!(contractName.trim() && amount && !isNaN(amountNum) && amountNum >= 0 && startDate && endDate)
 
-  function buildPayload(withContract: boolean, withFiles: boolean): ServiceSubmitPayload {
-    const base = { name: name.trim(), type: type.trim(), phone: phone.trim(), email: email.trim() }
-    if (!withContract) return { ...base, files: [] }
-    return {
-      ...base,
-      contract: {
+  // ── Edit mode ──────────────────────────────────────────────────────────────
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!service || !providerValid) return
+    setIsPending(true)
+    try {
+      await servicesApi.update(service.id, {
+        name: name.trim(),
+        type: type || null,
+        contact_info: buildContactInfo(phone, email),
+      })
+      invalidate()
+      toastUpdated(t('services.updated'))
+      onClose()
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  // ── Wizard: Provider → save service, go to Contract ───────────────────────
+
+  async function handleProviderNext() {
+    if (!providerValid) return
+    setIsPending(true)
+    try {
+      const payload = {
+        name: name.trim(),
+        type: type || null,
+        contact_info: buildContactInfo(phone, email),
+      }
+      if (savedServiceId) {
+        await servicesApi.update(savedServiceId, payload)
+      } else {
+        const svc = await servicesApi.create(payload)
+        setSavedServiceId(svc.id)
+      }
+      invalidate()
+      setStep('contract')
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  // ── Wizard: Contract → save contract, go to Documents ─────────────────────
+
+  async function handleContractNext() {
+    if (!contractFilled || !savedServiceId) return
+    setIsPending(true)
+    try {
+      const payload = {
         name:        contractName.trim(),
-        description: description.trim(),
+        description: description.trim() || null,
         amount:      amountNum,
         start_date:  startDate,
         end_date:    endDate,
         status:      contractStatus,
-      },
-      files: withFiles ? files : [],
+      }
+      if (savedContractId) {
+        await servicesApi.updateContract(savedServiceId, savedContractId, payload)
+      } else {
+        const contract = await servicesApi.addContract(savedServiceId, payload)
+        setSavedContractId(contract.id)
+      }
+      invalidate()
+      setStep('documents')
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  // ── Wizard: skip contract step, service already saved ─────────────────────
+
+  function handleSkipAndClose() {
+    invalidate()
+    toastCreated(t('services.created'))
+    onClose()
+  }
+
+  // ── Wizard: Documents → attach files, done ────────────────────────────────
+
+  async function handleDocumentsSave() {
+    if (!savedServiceId || !savedContractId) return
+    setIsPending(true)
+    try {
+      if (files.length > 0) {
+        await Promise.all(files.map(f => servicesApi.attachFile(savedServiceId!, savedContractId!, f)))
+        invalidate()
+      }
+      toastCreated(t('services.created'))
+      onClose()
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setIsPending(false)
     }
   }
 
@@ -182,17 +269,22 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
     e.target.value = ''
   }
 
-  // ── Edit mode: single-step ─────────────────────────────────────────────────
+  // Ensure cache is fresh if dialog is closed mid-wizard after service was created
+  function handleOpenChange(v: boolean) {
+    if (!v) {
+      if (savedServiceId) invalidate()
+      onClose()
+    }
+  }
+
+  // ── Edit mode: single-step form ────────────────────────────────────────────
 
   if (isEdit) {
     return (
-      <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md p-6">
           <DialogTitle className="text-base font-semibold mb-4">{t('services.editService')}</DialogTitle>
-          <form
-            onSubmit={e => { e.preventDefault(); if (providerValid) onSubmit(buildPayload(false, false)) }}
-            className="space-y-3"
-          >
+          <form onSubmit={handleEditSubmit} className="space-y-3">
             <Field label={`${t('services.providerName')} *`}>
               <input value={name} onChange={e => setName(e.target.value)} required className={inputCls} />
             </Field>
@@ -227,7 +319,7 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
   // ── Create mode: multi-step wizard ─────────────────────────────────────────
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg p-6">
         <DialogTitle className="text-base font-semibold mb-2">{t('services.createService')}</DialogTitle>
 
@@ -256,7 +348,8 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
             </div>
             <div className="flex justify-between pt-2">
               <Button type="button" variant="outline" size="sm" onClick={onClose}>{t('services.cancel')}</Button>
-              <Button type="button" size="sm" disabled={!providerValid} onClick={() => setStep('contract')}>
+              <Button type="button" size="sm" disabled={!providerValid || isPending} onClick={handleProviderNext}>
+                {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
                 {t('services.next')} <ChevronRight size={13} className="ml-1" />
               </Button>
             </div>
@@ -295,16 +388,15 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
               </Field>
             </div>
             <div className="flex items-center justify-between pt-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setStep('provider')}>
+              <Button type="button" variant="ghost" size="sm" disabled={isPending} onClick={() => setStep('provider')}>
                 <ChevronLeft size={13} className="mr-1" /> {t('services.back')}
               </Button>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" disabled={isPending}
-                  onClick={() => onSubmit(buildPayload(false, false))}>
-                  {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
+                <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={handleSkipAndClose}>
                   {t('services.skipAndSave')}
                 </Button>
-                <Button type="button" size="sm" disabled={!contractFilled} onClick={() => setStep('documents')}>
+                <Button type="button" size="sm" disabled={!contractFilled || isPending} onClick={handleContractNext}>
+                  {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
                   {t('services.next')} <ChevronRight size={13} className="ml-1" />
                 </Button>
               </div>
@@ -348,11 +440,10 @@ export function ServiceFormDialog({ open, service, isPending, onClose, onSubmit 
             )}
 
             <div className="flex items-center justify-between pt-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setStep('contract')}>
+              <Button type="button" variant="ghost" size="sm" disabled={isPending} onClick={() => setStep('contract')}>
                 <ChevronLeft size={13} className="mr-1" /> {t('services.back')}
               </Button>
-              <Button type="button" size="sm" disabled={isPending}
-                onClick={() => onSubmit(buildPayload(true, true))}>
+              <Button type="button" size="sm" disabled={isPending} onClick={handleDocumentsSave}>
                 {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
                 {files.length > 0 ? t('services.saveWithFiles') : t('services.save')}
               </Button>
