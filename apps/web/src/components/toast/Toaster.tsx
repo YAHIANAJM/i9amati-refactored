@@ -35,7 +35,7 @@ const STYLES: Record<ToastVariant, {
   },
 }
 
-const DURATION = 5000 // 10s
+const DURATION = 5000 // 5s
 
 function ToastCard({ id, title, description, variant, duration = DURATION, action, cancelLabel }: ToastItem) {
   let s = STYLES[variant]
@@ -74,8 +74,8 @@ function ToastCard({ id, title, description, variant, duration = DURATION, actio
             <button
               onClick={() => { action.onClick(); dismissToast(id) }}
               className={`text-xs font-semibold text-white px-3 py-1.5 rounded-md transition-colors ${action.variant === 'destructive'
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-indigo-500 hover:bg-indigo-600'
+                ? 'bg-red-500 hover:bg-red-600'
+                : 'bg-indigo-500 hover:bg-indigo-600'
                 }`}
             >
               {action.label}
