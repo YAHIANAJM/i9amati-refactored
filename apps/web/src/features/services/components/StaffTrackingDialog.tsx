@@ -82,7 +82,7 @@ export function StaffTrackingDialog({ open, service, onClose }: StaffTrackingDia
 
     toastConfirmation(
       t('services.deleteStaffTitle'),
-      `${t('services.deleteStaffDesc')} ${staff.firstName} ${staff.lastName}?`,
+      `${t('services.deleteStaffDesc')} ${[staff.firstName, staff.lastName].filter(Boolean).join(' ')}?`,
       {
         label: t('common.delete'),
         variant: 'destructive',
