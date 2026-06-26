@@ -777,6 +777,18 @@ router.post('/:serviceId/sessions/check-in', guard('create', 'ServiceSession'), 
       'Service'
     )
 
+    const activeSession = await tenantDb
+      .selectFrom('service_check_in_out')
+      .select('id')
+      .where('service_id', '=', service.id)
+      .where('profile_id', '=', body.profileId)
+      .where('check_out_at', 'is', null)
+      .executeTakeFirst()
+
+    if (activeSession) {
+      throw new AppError(400, 'validation.session.alreadyCheckedIn', 'BAD_REQUEST')
+    }
+
     const session = await tenantDb
       .insertInto('service_check_in_out')
       .values({

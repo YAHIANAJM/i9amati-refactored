@@ -223,6 +223,7 @@ export const en: typeof import('../ar/translation').ar = {
     paidExceedsAmount: "The paid amount cannot exceed the total contract amount",
   },
   validation: {
+    session:      { alreadyCheckedIn: "Staff is already checked in and hasn't checked out yet." },
     name:         { required: "Name is required",           tooLong:      "Name is too long (max 100 characters)" },
     contractName: { required: "Contract name is required",  tooLong:      "Contract name is too long (max 200 characters)" },
     description:  { tooLong:  "Description is too long (max 1000 characters)" },

@@ -223,6 +223,7 @@ export const ar = {
     paidExceedsAmount: "لا يمكن أن يتجاوز المبلغ المدفوع إجمالي مبلغ العقد",
   },
   validation: {
+    session:      { alreadyCheckedIn: "الموظف قام بتسجيل الدخول ولم يسجل الخروج بعد." },
     name:         { required: "الاسم مطلوب",                    tooLong:      "الاسم طويل جداً (الحد الأقصى 100 حرف)" },
     contractName: { required: "اسم العقد مطلوب",                 tooLong:      "اسم العقد طويل جداً (الحد الأقصى 200 حرف)" },
     description:  { tooLong:  "الوصف طويل جداً (الحد الأقصى 1000 حرف)" },
