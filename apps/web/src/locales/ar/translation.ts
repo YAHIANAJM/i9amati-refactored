@@ -180,6 +180,15 @@ export const ar = {
     saveWithFiles:         "حفظ مع الملفات",
     documentsFor:          "ملفات للعقد: {{contract}}",
     clickToAttach:         "انقر لإرفاق ملفات",
+    confirm:               "تأكيد",
+    confirmUpdate:         "هل أنت متأكد من التحديث؟",
+    confirmUpdateDesc:     "سيؤدي هذا الإجراء إلى تعديل البيانات.",
+    confirmRemoveFile:     "هل أنت متأكد من حذف هذا الملف؟",
+    confirmRemoveFileDesc: "هذا الإجراء لا يمكن التراجع عنه.",
+    confirmDelete:         "هل أنت متأكد من حذف هذا المزود؟",
+    confirmDeleteDesc:     "هذا الإجراء لا يمكن التراجع عنه.",
+    confirmDeleteContract: "هل أنت متأكد من حذف هذا العقد؟",
+    confirmDeleteContractDesc: "هذا الإجراء لا يمكن التراجع عنه.",
   },
   conflict: {
     amountBelowPaid:   "لا يمكن تخفيض مبلغ العقد إلى أقل من المبلغ المدفوع بالفعل",
@@ -222,6 +231,6 @@ export const ar = {
       remaining:       "متبقي",
     },
   },
-} as const
+}
 
 export default ar

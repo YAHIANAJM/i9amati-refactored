@@ -176,10 +176,10 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
       UpdateServiceSchema.parse(payload)
       
       toastConfirmation(
-        t('services.confirmUpdate', 'Êtes-vous sûr de vouloir mettre à jour?'),
-        t('services.confirmUpdateDesc', 'Cette action va modifier les données.'),
+        t('services.confirmUpdate'),
+        t('services.confirmUpdateDesc'),
         {
-          label: t('services.confirm', 'Confirmer'),
+          label: t('services.confirm'),
           onClick: async () => {
             setIsPending(true)
             try {
@@ -194,7 +194,7 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
             }
           }
         },
-        t('services.cancel', 'Annuler')
+        t('services.cancel')
       )
     } catch (err) {
       if (err instanceof z.ZodError) {

@@ -11,6 +11,7 @@ export interface ToastItem {
   action?: {
     label: string
     onClick: () => void
+    variant?: 'default' | 'destructive'
   }
   cancelLabel?: string
 }

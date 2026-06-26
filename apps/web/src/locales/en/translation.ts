@@ -1,4 +1,4 @@
-export const en = {
+export const en: typeof import('../ar/translation').ar = {
   errors: {
     title: {
       error: "Error",
@@ -180,6 +180,15 @@ export const en = {
     saveWithFiles:         "Save with files",
     documentsFor:          "Files for contract: {{contract}}",
     clickToAttach:         "Click to attach files",
+    confirm:               "Confirm",
+    confirmUpdate:         "Are you sure you want to update?",
+    confirmUpdateDesc:     "This action will modify the data.",
+    confirmRemoveFile:     "Are you sure you want to remove this file?",
+    confirmRemoveFileDesc: "This action cannot be undone.",
+    confirmDelete:         "Are you sure you want to delete this provider?",
+    confirmDeleteDesc:     "This action cannot be undone.",
+    confirmDeleteContract: "Are you sure you want to delete this contract?",
+    confirmDeleteContractDesc: "This action cannot be undone.",
   },
   conflict: {
     amountBelowPaid:   "Cannot reduce the contract amount below the amount already paid",
@@ -222,6 +231,6 @@ export const en = {
       remaining:       "Remaining",
     },
   },
-} as const
+}
 
 export default en

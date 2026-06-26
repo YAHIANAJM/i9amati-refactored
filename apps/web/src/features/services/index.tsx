@@ -157,13 +157,13 @@ export function Services() {
     }
     if (contractDialog.contract && contractDialog.service) {
       toastConfirmation(
-        t('services.confirmUpdate', 'Êtes-vous sûr de vouloir mettre à jour?'),
-        t('services.confirmUpdateDesc', 'Cette action va modifier les données.'),
+        t('services.confirmUpdate'),
+        t('services.confirmUpdateDesc'),
         { 
-          label: t('services.confirm', 'Confirmer'), 
+          label: t('services.confirm'), 
           onClick: () => updateContract.mutate({ serviceId: contractDialog.service!.id, contractId: contractDialog.contract!.id, ...payload }) 
         },
-        t('services.cancel', 'Annuler')
+        t('services.cancel')
       )
     } else if (contractDialog.service) {
       addContract.mutate({ serviceId: contractDialog.service.id, ...payload })
@@ -181,13 +181,14 @@ export function Services() {
 
   function handleRemoveFile(service: ApiService, contract: ApiServiceContract, docId: string) {
     toastConfirmation(
-      t('services.confirmRemoveFile', 'Êtes-vous sûr de vouloir supprimer ce fichier?'),
-      t('services.confirmRemoveFileDesc', 'Cette action est irréversible.'),
+      t('services.confirmRemoveFile'),
+      t('services.confirmRemoveFileDesc'),
       { 
-        label: t('services.confirm', 'Confirmer'), 
+        label: t('services.confirm'), 
+        variant: 'destructive',
         onClick: () => removeContractFile.mutate({ serviceId: service.id, contractId: contract.id, docId }) 
       },
-      t('services.cancel', 'Annuler')
+      t('services.cancel')
     )
   }
 
@@ -217,20 +218,20 @@ export function Services() {
           onEdit={service => setServiceDialog({ open: true, service })}
           onDelete={service => {
             toastConfirmation(
-              t('services.confirmDelete', 'Êtes-vous sûr de vouloir supprimer ce prestataire?'),
-              t('services.confirmDeleteDesc', 'Cette action est irréversible.'),
-              { label: t('services.confirm', 'Confirmer'), onClick: () => deleteService.mutate(service.id) },
-              t('services.cancel', 'Annuler')
+              t('services.confirmDelete'),
+              t('services.confirmDeleteDesc'),
+              { label: t('services.confirm'), variant: 'destructive', onClick: () => deleteService.mutate(service.id) },
+              t('services.cancel')
             )
           }}
           onAddContract={service => setContractDialog({ open: true, service, contract: null })}
           onEditContract={(service, contract) => setContractDialog({ open: true, service, contract })}
           onDeleteContract={(service, contract) => {
             toastConfirmation(
-              t('services.confirmDeleteContract', 'Êtes-vous sûr de vouloir supprimer ce contrat?'),
-              t('services.confirmDeleteContractDesc', 'Cette action est irréversible.'),
-              { label: t('services.confirm', 'Confirmer'), onClick: () => deleteContract.mutate({ serviceId: service.id, contractId: contract.id }) },
-              t('services.cancel', 'Annuler')
+              t('services.confirmDeleteContract'),
+              t('services.confirmDeleteContractDesc'),
+              { label: t('services.confirm'), variant: 'destructive', onClick: () => deleteContract.mutate({ serviceId: service.id, contractId: contract.id }) },
+              t('services.cancel')
             )
           }}
           onRecordPayment={(service, contract) => setPaymentDialog({ open: true, service, contract })}
