@@ -15,12 +15,13 @@ import { CreateStaffSchema } from '@i9amati/shared'
 
 interface CreateStaffDialogProps {
   open: boolean
+  serviceId?: string
   onClose: () => void
 }
 
 type FormValues = z.infer<typeof CreateStaffSchema>
 
-export function CreateStaffDialog({ open, onClose }: CreateStaffDialogProps) {
+export function CreateStaffDialog({ open, serviceId, onClose }: CreateStaffDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
@@ -28,18 +29,21 @@ export function CreateStaffDialog({ open, onClose }: CreateStaffDialogProps) {
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
   })
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({})
 
   const { mutate: createStaff, isPending } = useMutation<{ id: string }, any, FormValues>({
     mutationFn: async (data: FormValues) => {
-      return await servicesApi.createStaff(data)
+      const res = await servicesApi.createStaff(data)
+      if (serviceId) {
+        await servicesApi.assignStaff(serviceId, res.id)
+      }
+      return res
     },
     onSuccess: () => {
       toastCreated(t('services.staffCreatedSuccessfully'))
       queryClient.invalidateQueries({ queryKey: ['services', 'staff'] })
-      setFormData({ firstName: '', lastName: '', email: '', password: '' })
+      setFormData({ firstName: '', lastName: '', email: '' })
       setErrors({})
       onClose()
     },
@@ -69,7 +73,7 @@ export function CreateStaffDialog({ open, onClose }: CreateStaffDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(val) => {
       if (!val) {
-        setFormData({ firstName: '', lastName: '', email: '', password: '' })
+        setFormData({ firstName: '', lastName: '', email: '' })
         setErrors({})
         onClose()
       }
@@ -120,19 +124,7 @@ export function CreateStaffDialog({ open, onClose }: CreateStaffDialogProps) {
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{t('services.password')}</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="••••••••"
-            />
-            {errors.password && (
-              <p className="text-xs text-red-500">{t(errors.password as any)}</p>
-            )}
-          </div>
+
 
           <div className="pt-2 flex justify-end">
             <Button type="submit" disabled={isPending}>

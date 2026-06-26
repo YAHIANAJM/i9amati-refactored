@@ -362,6 +362,12 @@ export interface ServiceCheckInOutTable {
   check_out_at: Timestamp | null
 }
 
+export interface ServiceStaffAssignmentTable {
+  service_id: string
+  profile_id: string
+  assigned_at: Generated<Timestamp>
+}
+
 export interface ServiceContractTable {
   id: Generated<string>
   service_id: string
@@ -455,6 +461,7 @@ export interface Database {
   services: ServiceTable
   service_schedules: ServiceScheduleTable
   service_check_in_out: ServiceCheckInOutTable
+  service_staff_assignments: ServiceStaffAssignmentTable
   service_contracts: ServiceContractTable
   service_residences: ServiceResidenceTable
   notifications: NotificationTable

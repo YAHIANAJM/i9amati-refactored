@@ -3,7 +3,7 @@ import { subject } from '@casl/ability'
 import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import { randomUUID } from 'crypto'
 import { hashPassword } from 'better-auth/crypto'
-import type { Selectable } from 'kysely'
+import { sql, type Selectable } from 'kysely'
 import { authenticate } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
@@ -115,10 +115,16 @@ router.get('/', async (req: Request, res, next) => {
   try {
     const { tenantDb, profileRole, profileId } = req as AuthRequest
 
-    const services = await tenantDb
-      .selectFrom('services')
-      .selectAll()
-      .orderBy('name', 'asc')
+    let servicesQuery = tenantDb.selectFrom('services').selectAll('services')
+    
+    if (profileRole === 'STAFF') {
+      servicesQuery = servicesQuery
+        .innerJoin('service_staff_assignments as ssa', 'ssa.service_id', 'services.id')
+        .where('ssa.profile_id', '=', profileId)
+    }
+
+    const services = await servicesQuery
+      .orderBy('services.name', 'asc')
       .execute()
 
     const contracts = services.length > 0
@@ -172,6 +178,8 @@ router.get('/', async (req: Request, res, next) => {
 router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) => {
   try {
     const { tenantDb, activeOrganizationId, profileRole, profileId } = req as AuthRequest
+    const serviceId = req.query.serviceId as string | undefined
+
     let query = tenantDb
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
@@ -190,9 +198,55 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
       query = query.where('prof.id', '=', profileId)
     }
 
+    if (serviceId) {
+      query = query
+        .leftJoin('service_staff_assignments as ssa', (join) =>
+          join.onRef('ssa.profile_id', '=', 'prof.id').on('ssa.service_id', '=', sql.lit(serviceId))
+        )
+        .select('ssa.assigned_at')
+    }
+
     const staff = await query.execute()
 
-    return res.json(staff)
+    return res.json(staff.map(s => ({
+      ...s,
+      is_assigned: !!(s as any).assigned_at
+    })))
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── POST /api/services/:serviceId/assign/:profileId ──────────────────────────
+
+router.post('/:serviceId/assign/:profileId', guard('manage', 'all'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb } = req as AuthRequest
+    await tenantDb
+      .insertInto('service_staff_assignments')
+      .values({
+        service_id: req.params.serviceId,
+        profile_id: req.params.profileId
+      })
+      .onConflict((oc) => oc.doNothing())
+      .execute()
+    res.status(204).send()
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── DELETE /api/services/:serviceId/assign/:profileId ────────────────────────
+
+router.delete('/:serviceId/assign/:profileId', guard('manage', 'all'), async (req: Request, res, next) => {
+  try {
+    const { tenantDb } = req as AuthRequest
+    await tenantDb
+      .deleteFrom('service_staff_assignments')
+      .where('service_id', '=', req.params.serviceId)
+      .where('profile_id', '=', req.params.profileId)
+      .execute()
+    res.status(204).send()
   } catch (err) {
     next(err)
   }

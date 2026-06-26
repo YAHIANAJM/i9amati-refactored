@@ -44,6 +44,7 @@ export interface ApiStaffProfile {
   firstName: string | null
   lastName: string | null
   image: string | null
+  is_assigned?: boolean
 }
 
 export interface ApiServiceSession {
@@ -131,8 +132,16 @@ export const servicesApi = {
     return api.delete(`/api/services/${serviceId}/contracts/${contractId}/files/${docId}`)
   },
 
-  async getStaff(): Promise<ApiStaffProfile[]> {
-    return api.get<ApiStaffProfile[]>('/api/services/staff')
+  async getStaff(serviceId?: string): Promise<ApiStaffProfile[]> {
+    return api.get<ApiStaffProfile[]>(`/api/services/staff${serviceId ? `?serviceId=${serviceId}` : ''}`)
+  },
+
+  async assignStaff(serviceId: string, profileId: string): Promise<void> {
+    return api.post(`/api/services/${serviceId}/assign/${profileId}`, {})
+  },
+
+  async unassignStaff(serviceId: string, profileId: string): Promise<void> {
+    return api.delete(`/api/services/${serviceId}/assign/${profileId}`)
   },
 
   async getSessions(serviceId: string): Promise<ApiServiceSession[]> {
