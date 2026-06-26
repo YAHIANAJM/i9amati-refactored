@@ -157,7 +157,8 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
 
   const providerValid  = name.trim().length > 0
   const amountNum      = parseFloat(amount)
-  const contractFilled = !!(contractName.trim() && amount && !isNaN(amountNum) && amountNum >= 0 && startDate && endDate)
+  const datesValid     = !!(startDate && endDate && endDate >= startDate)
+  const contractFilled = !!(contractName.trim() && amount && !isNaN(amountNum) && amountNum >= 0 && datesValid)
 
   // ── Edit mode ──────────────────────────────────────────────────────────────
 
@@ -384,9 +385,13 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
               </Field>
               <Field label={`${t('services.endDate')} *`}>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                  className={cn(inputCls, startDate && endDate && endDate < startDate ? 'border-destructive focus:ring-destructive' : '')} />
               </Field>
             </div>
+            {startDate && endDate && endDate < startDate && (
+              <p className="text-xs text-destructive">{t('validation.date.endBeforeStart')}</p>
+            )}
             <div className="flex items-center justify-between pt-2">
               <Button type="button" variant="ghost" size="sm" disabled={isPending} onClick={() => setStep('provider')}>
                 <ChevronLeft size={13} className="mr-1" /> {t('services.back')}

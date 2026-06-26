@@ -46,7 +46,10 @@ export const CreateContractSchema = z.object({
   status: z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED'], {
     errorMap: () => ({ message: 'validation.status.invalid' }),
   }).optional(),
-})
+}).refine(
+  data => data.end_date >= data.start_date,
+  { message: 'validation.date.endBeforeStart', path: ['end_date'] },
+)
 
 export const UpdateContractSchema = z.object({
   name: z.string({ invalid_type_error: 'validation.contractName.required' })
@@ -64,7 +67,10 @@ export const UpdateContractSchema = z.object({
   status: z.enum(['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED'], {
     errorMap: () => ({ message: 'validation.status.invalid' }),
   }).optional(),
-})
+}).refine(
+  data => !(data.start_date && data.end_date) || data.end_date >= data.start_date,
+  { message: 'validation.date.endBeforeStart', path: ['end_date'] },
+)
 
 export const RecordPaymentSchema = z.object({
   amount: z.number({

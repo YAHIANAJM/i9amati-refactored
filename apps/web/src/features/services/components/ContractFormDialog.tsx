@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { ApiServiceContract, ServiceContractStatus } from '@/lib/services.api'
 
 const STATUSES: ServiceContractStatus[] = ['ACTIVE', 'PENDING', 'EXPIRED', 'CANCELLED']
@@ -50,10 +51,12 @@ export function ContractFormDialog({ open, contract, isPending, onClose, onSubmi
     }
   }, [open, contract])
 
+  const dateOrderError = !!(startDate && endDate && endDate < startDate)
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const parsed = parseFloat(amount)
-    if (!name.trim() || isNaN(parsed) || parsed < 0 || !startDate || !endDate) return
+    if (!name.trim() || isNaN(parsed) || parsed < 0 || !startDate || !endDate || dateOrderError) return
     const parsedPaid = amountPaid !== '' ? parseFloat(amountPaid) : undefined
     onSubmit({
       name:         name.trim(),
@@ -153,7 +156,7 @@ export function ContractFormDialog({ open, contract, isPending, onClose, onSubmi
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">{t('services.startDate')}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('services.startDate')} *</label>
               <input
                 type="date"
                 value={startDate}
@@ -162,21 +165,27 @@ export function ContractFormDialog({ open, contract, isPending, onClose, onSubmi
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">{t('services.endDate')}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('services.endDate')} *</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                className={cn(
+                  'w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 bg-background',
+                  dateOrderError ? 'border-destructive focus:ring-destructive' : 'focus:ring-ring',
+                )}
               />
             </div>
           </div>
+          {dateOrderError && (
+            <p className="text-xs text-destructive">{t('validation.date.endBeforeStart')}</p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
               {t('services.cancel')}
             </Button>
-            <Button type="submit" size="sm" disabled={!name.trim() || !amount || !startDate || !endDate || isPending}>
+            <Button type="submit" size="sm" disabled={!name.trim() || !amount || !startDate || !endDate || dateOrderError || isPending}>
               {isPending && <Loader2 size={13} className="animate-spin mr-1" />}
               {t('services.save')}
             </Button>
