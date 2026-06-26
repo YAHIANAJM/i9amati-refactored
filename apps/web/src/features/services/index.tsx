@@ -267,6 +267,7 @@ export function Services() {
       <StaffTrackingDialog
         open={staffDialog.open}
         service={staffDialog.service}
+        isSyndic={isSyndic}
         onClose={() => setStaffDialog(CLOSED_STAFF)}
       />
     </div>
