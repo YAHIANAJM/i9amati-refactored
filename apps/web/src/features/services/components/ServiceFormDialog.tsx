@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 import { toastCreated, toastUpdated, toastApiError } from '@/components/toast'
 import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ServiceContractStatus } from '@/lib/services.api'
+import { z } from 'zod'
+import { CreateServiceSchema, UpdateServiceSchema, CreateContractSchema } from '@i9amati/shared'
 
 const SERVICE_TYPES = [
   'Nettoyage', 'Sécurité', 'Ascenseur', 'Plomberie', 'Électricité', 'Jardinage', 'Peinture',
@@ -17,7 +19,7 @@ const STATUSES: ServiceContractStatus[] = ['ACTIVE', 'PENDING', 'EXPIRED', 'CANC
 type WizardStep = 'provider' | 'contract' | 'documents'
 
 interface Props {
-  open:    boolean
+  open: boolean
   service: ApiService | null
   onClose: () => void
 }
@@ -25,14 +27,14 @@ interface Props {
 // ── Step indicator ─────────────────────────────────────────────────────────────
 
 const WIZARD_STEPS: {
-  key:      WizardStep
+  key: WizardStep
   labelKey: 'services.stepProvider' | 'services.stepContract' | 'services.stepDocuments'
-  optional?: boolean
+  optional: boolean
 }[] = [
-  { key: 'provider',  labelKey: 'services.stepProvider' },
-  { key: 'contract',  labelKey: 'services.stepContract',  optional: true },
-  { key: 'documents', labelKey: 'services.stepDocuments', optional: true },
-]
+    { key: 'provider', labelKey: 'services.stepProvider', optional: false },
+    { key: 'contract', labelKey: 'services.stepContract', optional: true },
+    { key: 'documents', labelKey: 'services.stepDocuments', optional: true },
+  ]
 
 function StepIndicator({ current }: { current: WizardStep }) {
   const { t } = useTranslation()
@@ -40,14 +42,14 @@ function StepIndicator({ current }: { current: WizardStep }) {
   return (
     <div className="flex items-start justify-center mb-6">
       {WIZARD_STEPS.map((step, i) => {
-        const done   = i < currentIdx
+        const done = i < currentIdx
         const active = i === currentIdx
         return (
           <Fragment key={step.key}>
             <div className="flex flex-col items-center gap-1 w-24">
               <div className={cn(
                 'h-6 w-6 rounded-full flex items-center justify-center border-2 transition-all',
-                done   && 'bg-primary border-primary text-primary-foreground',
+                done && 'bg-primary border-primary text-primary-foreground',
                 active && 'bg-primary border-primary text-primary-foreground ring-4 ring-primary/20',
                 !done && !active && 'bg-background border-muted-foreground/35',
               )}>
@@ -55,8 +57,8 @@ function StepIndicator({ current }: { current: WizardStep }) {
               </div>
               <span className={cn(
                 'text-[11px] font-medium text-center leading-tight',
-                active           ? 'text-primary'         : '',
-                done             ? 'text-foreground/70'   : '',
+                active ? 'text-primary' : '',
+                done ? 'text-foreground/70' : '',
                 !done && !active ? 'text-muted-foreground' : '',
               )}>
                 {t(step.labelKey)}
@@ -108,23 +110,23 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
   const isEdit = !!service
 
   // Provider fields
-  const [name,  setName]  = useState('')
-  const [type,  setType]  = useState('')
+  const [name, setName] = useState('')
+  const [type, setType] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
 
   // Wizard state
-  const [step,           setStep]           = useState<WizardStep>('provider')
-  const [contractName,   setContractName]   = useState('')
-  const [description,    setDescription]    = useState('')
-  const [amount,         setAmount]         = useState('')
-  const [startDate,      setStartDate]      = useState('')
-  const [endDate,        setEndDate]        = useState('')
+  const [step, setStep] = useState<WizardStep>('provider')
+  const [contractName, setContractName] = useState('')
+  const [description, setDescription] = useState('')
+  const [amount, setAmount] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [contractStatus, setContractStatus] = useState<ServiceContractStatus>('PENDING')
-  const [files,          setFiles]          = useState<File[]>([])
+  const [files, setFiles] = useState<File[]>([])
 
   // IDs of entities already saved in this wizard session
-  const [savedServiceId,  setSavedServiceId]  = useState<string | null>(null)
+  const [savedServiceId, setSavedServiceId] = useState<string | null>(null)
   const [savedContractId, setSavedContractId] = useState<string | null>(null)
 
   const [isPending, setIsPending] = useState(false)
@@ -155,9 +157,9 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ['services'] })
   }
 
-  const providerValid  = name.trim().length > 0
-  const amountNum      = parseFloat(amount)
-  const datesValid     = !!(startDate && endDate && endDate >= startDate)
+  const providerValid = name.trim().length > 0
+  const amountNum = parseFloat(amount)
+  const datesValid = !!(startDate && endDate && endDate >= startDate)
   const contractFilled = !!(contractName.trim() && amount && !isNaN(amountNum) && amountNum >= 0 && datesValid)
 
   // ── Edit mode ──────────────────────────────────────────────────────────────
@@ -167,16 +169,22 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
     if (!service || !providerValid) return
     setIsPending(true)
     try {
-      await servicesApi.update(service.id, {
+      const payload = {
         name: name.trim(),
         type: type || null,
         contact_info: buildContactInfo(phone, email),
-      })
+      }
+      UpdateServiceSchema.parse(payload)
+      await servicesApi.update(service.id, payload)
       invalidate()
       toastUpdated(t('services.updated'))
       onClose()
     } catch (err) {
-      toastApiError(err)
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
     } finally {
       setIsPending(false)
     }
@@ -194,15 +202,21 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
         contact_info: buildContactInfo(phone, email),
       }
       if (savedServiceId) {
+        UpdateServiceSchema.parse(payload)
         await servicesApi.update(savedServiceId, payload)
       } else {
+        CreateServiceSchema.parse(payload)
         const svc = await servicesApi.create(payload)
         setSavedServiceId(svc.id)
       }
       invalidate()
       setStep('contract')
     } catch (err) {
-      toastApiError(err)
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
     } finally {
       setIsPending(false)
     }
@@ -215,13 +229,14 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
     setIsPending(true)
     try {
       const payload = {
-        name:        contractName.trim(),
+        name: contractName.trim(),
         description: description.trim() || null,
-        amount:      amountNum,
-        start_date:  startDate,
-        end_date:    endDate,
-        status:      contractStatus,
+        amount: amountNum,
+        start_date: startDate,
+        end_date: endDate,
+        status: contractStatus,
       }
+      CreateContractSchema.parse(payload)
       if (savedContractId) {
         await servicesApi.updateContract(savedServiceId, savedContractId, payload)
       } else {
@@ -231,7 +246,11 @@ export function ServiceFormDialog({ open, service, onClose }: Props) {
       invalidate()
       setStep('documents')
     } catch (err) {
-      toastApiError(err)
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
     } finally {
       setIsPending(false)
     }

@@ -8,7 +8,10 @@ import { cn } from '@/lib/utils'
 import { PostCard } from '../components/PostCard'
 import { PostSkeleton } from '../components/PostSkeleton'
 import type { FeedAbility } from '@i9amati/shared'
+import { CreateFeedPostSchema } from '@i9amati/shared'
+import { z } from 'zod'
 import { subject } from '@casl/ability'
+import { toastApiError } from '@/components/toast'
 
 interface PostFeedSectionProps {
   activeGroupId:      string | null
@@ -75,9 +78,18 @@ export function PostFeedSection({
 
   function submitPost() {
     if (!newPost.trim()) return
-    onCreatePost(newPost.trim(), selectedFile)
-    setNewPost('')
-    clearFile()
+    try {
+      CreateFeedPostSchema.parse({ content: newPost.trim() })
+      onCreatePost(newPost.trim(), selectedFile)
+      setNewPost('')
+      clearFile()
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
+    }
   }
 
   const canPost = ability?.can('create', subject('FeedPost', { groupId: activeGroupId ?? '', authorId: profileId })) ?? false
