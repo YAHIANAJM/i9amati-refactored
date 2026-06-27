@@ -10,10 +10,10 @@
 ```
 1. Login / Registration      ✅ Done
 2. Home Page                 ✅ Done
-3. Meetings & Voting         ← core legal feature, biggest remaining task
-4. Union Members             ← simpler data management
-5. Meetings Analytics Dash   ← already drafted, needs review/polish
-6. Union Analytics Dash      ← already drafted, needs review/polish
+3. Meetings & Voting         ✅ Done — full CRUD, drag-to-vote overlay, real-time polling
+4. Union Members             ← IN PROGRESS
+5. Meetings Analytics Dash   ✅ Done — KPI cards, charts, quorum tracking
+6. Union Analytics Dash      ← needs term expiry timeline
 ```
 
 > **Accounting is NOT Ayman's task.** Removed.
@@ -80,7 +80,7 @@ The home page is a **public marketing/landing page** — visible before login. I
 
 ## 3. Meetings & Voting
 
-**Tracker status**: ⬜ Not Started
+**Tracker status**: ✅ Done
 
 ### What already exists
 
@@ -136,7 +136,7 @@ The list page is a **solid base** — do not rewrite it.
 
 ## 4. Union Members
 
-**Tracker status**: ⬜ Not Started
+**Tracker status**: 🔄 In Progress
 
 ### What already exists
 
@@ -184,7 +184,7 @@ The table is a **solid base** — do not rewrite it.
 
 ## 5. Meetings Analytics Dashboard
 
-**Tracker status**: ⬜ Not Started (tracker) — but draft EXISTS
+**Tracker status**: ✅ Done
 
 ### What already exists
 

@@ -11,7 +11,7 @@ import {
   Plus, MapPin, Clock, ChevronDown, X, Trash2,
   CheckCircle2, XCircle, Activity, Play, FileText,
   Printer, UserCheck, UserX, AlertTriangle, Scale, Loader2,
-  Send, Building2, Home, Mail, CalendarDays, TrendingUp,
+  Send, Building2, Mail, CalendarDays, TrendingUp,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Meeting, AgendaItem } from '@/data/mock/meetings'
@@ -1052,6 +1052,7 @@ function PVModal({ meeting: m, onClose }: { meeting: Meeting; onClose: () => voi
               ['Date',        date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })],
               ['Heure',       date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })],
               ['Convocation', `${m.convocationNumber}ème`],
+              ...(m.buildingName ? [['Immeuble', m.buildingName]] : []),
               ...(m.location ? [['Lieu', m.location]] : []),
             ].map(([k, v]) => (
               <div key={k}><span className="text-muted-foreground">{k} : </span><span className="font-semibold">{v}</span></div>
@@ -1106,18 +1107,17 @@ function PVModal({ meeting: m, onClose }: { meeting: Meeting; onClose: () => voi
 
 // ─── CreateMeetingDrawer ──────────────────────────────────────────────────────
 
-type Residence  = { id: string; name: string; city?: string }
-type Building   = { id: string; name: string }
+type BuildingOption = { id: string; name: string; residence_name: string }
 type DraftMeeting = {
   title: string; type: Meeting['type']; convocationNumber: 1 | 2
   date: string; time: string; location: string
-  residenceId: string; buildingId: string
+  buildingId: string
   items: Array<{ id: string; title: string; description: string }>
 }
 
 const emptyDraft = (): DraftMeeting => ({
   title: '', type: 'GLOBAL', convocationNumber: 1, date: '', time: '', location: '',
-  residenceId: '', buildingId: '',
+  buildingId: '',
   items: [{ id: makeId(), title: '', description: '' }],
 })
 
@@ -1125,16 +1125,12 @@ function CreateMeetingDrawer({ onClose, onSubmit, loading }: {
   onClose: () => void; onSubmit: (d: DraftMeeting) => void; loading: boolean
 }) {
   const [draft, setDraft] = useState<DraftMeeting>(emptyDraft)
-  const { data: residences = [] } = useQuery<Residence[]>({ queryKey: ['residences'], queryFn: () => api.get('/api/residences') })
-  const { data: residenceDetail } = useQuery<{ buildings: Building[] }>({
-    queryKey: ['residence', draft.residenceId], queryFn: () => api.get(`/api/residences/${draft.residenceId}`), enabled: !!draft.residenceId,
-  })
-  const buildings = residenceDetail?.buildings ?? []
+  const { data: buildings = [] } = useQuery<BuildingOption[]>({ queryKey: ['union-buildings'], queryFn: () => api.get('/api/union/buildings') })
   const addItem    = () => setDraft(d => ({ ...d, items: [...d.items, { id: makeId(), title: '', description: '' }] }))
   const removeItem = (id: string) => setDraft(d => ({ ...d, items: d.items.filter(it => it.id !== id) }))
   const setItem    = (id: string, key: 'title' | 'description', val: string) =>
     setDraft(d => ({ ...d, items: d.items.map(it => it.id === id ? { ...it, [key]: val } : it) }))
-  const valid    = draft.title.trim() && draft.date && draft.items.every(it => it.title.trim())
+  const valid    = draft.title.trim() && draft.date && draft.buildingId && draft.items.every(it => it.title.trim())
   const inputCls = 'w-full h-10 px-3.5 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition placeholder:text-muted-foreground/60'
 
   return (
@@ -1187,24 +1183,12 @@ function CreateMeetingDrawer({ onClose, onSubmit, loading }: {
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lieu</label>
             <input className={inputCls} placeholder="Salle de réunion, en ligne..." value={draft.location} onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} />
           </div>
-          <div className="rounded-xl border bg-slate-50 p-4 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Portée</p>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5"><Home size={11} /> Résidence</label>
-              <select className={inputCls} value={draft.residenceId} onChange={e => setDraft(d => ({ ...d, residenceId: e.target.value, buildingId: '' }))}>
-                <option value="">— Sans résidence spécifique —</option>
-                {residences.map(r => <option key={r.id} value={r.id}>{r.name}{r.city ? ` · ${r.city}` : ''}</option>)}
-              </select>
-            </div>
-            {draft.residenceId && buildings.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5"><Building2 size={11} /> Bâtiment (optionnel)</label>
-                <select className={inputCls} value={draft.buildingId} onChange={e => setDraft(d => ({ ...d, buildingId: e.target.value }))}>
-                  <option value="">— Toute la résidence —</option>
-                  {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </div>
-            )}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Building2 size={10} /> Immeuble *</label>
+            <select className={inputCls} value={draft.buildingId} onChange={e => setDraft(d => ({ ...d, buildingId: e.target.value }))}>
+              <option value="">{buildings.length === 0 ? 'Aucun immeuble disponible' : '— Sélectionner un immeuble —'}</option>
+              {buildings.map(b => <option key={b.id} value={b.id}>{b.residence_name} — {b.name}</option>)}
+            </select>
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -1296,7 +1280,7 @@ export function Meetings() {
       title: draft.title, type: draft.type, convocationNumber: draft.convocationNumber,
       scheduledAt: `${draft.date}T${draft.time || '10:00'}:00`,
       location: draft.location || undefined, totalEligible: 8,
-      residenceId: draft.residenceId || undefined, buildingId: draft.buildingId || undefined,
+      buildingId: draft.buildingId,
       agenda: draft.items.map(it => ({ title: it.title, description: it.description || undefined })),
     }, { onSuccess: () => setDrawerOpen(false) })
   }
@@ -1401,6 +1385,7 @@ export function Meetings() {
                       {m.description && <p className="text-xs text-muted-foreground mb-2 line-clamp-1">{m.description}</p>}
                       <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-1"><Clock size={11} />{date.toLocaleTimeString('fr-MA', { hour: '2-digit', minute: '2-digit' })}</span>
+                        {m.buildingName && <span className="flex items-center gap-1"><Building2 size={11} /> {m.buildingName}</span>}
                         {m.location && <span className="flex items-center gap-1"><MapPin size={11} /> {m.location}</span>}
                         {m.attendeeList.length > 0 && <span className="flex items-center gap-1"><UserCheck size={11} /> {presentCount}/{m.totalEligible} présents</span>}
                         {m.agenda.length > 0 && <span className="flex items-center gap-1"><FileText size={11} /> {votedItems}/{m.agenda.length} points votés</span>}
