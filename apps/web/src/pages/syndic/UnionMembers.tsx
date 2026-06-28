@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
@@ -400,9 +400,9 @@ function EditPartnerModal({ ps, open, onClose }: { ps: PartnerSyndic | null; ope
   const [form, setForm]       = useState<EditPSForm>({ name: '', phone: '', note: '' })
   const [apiError, setApiErr] = useState<string | null>(null)
 
-  // Sync form when partner changes
-  useState(() => { if (ps) setForm({ name: ps.name, phone: ps.phone ?? '', note: ps.note ?? '' }) })
-  if (ps && form.name === '' && ps.name) setForm({ name: ps.name, phone: ps.phone ?? '', note: ps.note ?? '' })
+  useEffect(() => {
+    if (ps) setForm({ name: ps.name, phone: ps.phone ?? '', note: ps.note ?? '' })
+  }, [ps?.id])
 
   function set<K extends keyof EditPSForm>(k: K, v: string) {
     setForm(p => ({ ...p, [k]: v }))

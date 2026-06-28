@@ -1,72 +1,46 @@
 
 services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: i9amati
-    ports:
-      - "5434:5432"
+      POSTGRES_USER:     ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB:       ${POSTGRES_DB:-i9amati}
     volumes:
-      - postgres_test_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    # Port 5435 (not 5432/5434) to avoid conflict with other projects
+    ports:
+      - "5435:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d i9amati"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-i9amati}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ── Adminer (DB GUI — optional, remove if not needed) ────────────────────
   adminer:
     image: adminer:latest
+    restart: unless-stopped
+    # Port 8181 to avoid conflict with other adminer instances on 8080
     ports:
-      - "8080:8080"
+      - "8181:8080"
     depends_on:
       postgres:
         condition: service_healthy
 
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    environment:
-      - DATABASE_URL=postgresql://user:password@postgres:5432/i9amati
-      - JWT_SECRET=test-secret-key
-      - JWT_EXPIRES_IN=7d
-      - PORT=4000
-      - NODE_ENV=test
-      - CLIENT_URL=http://localhost:5173
-      - CLOUDINARY_CLOUD_NAME=test
-      - CLOUDINARY_API_KEY=test
-      - CLOUDINARY_API_SECRET=test
-      - GROQ_API_KEY=test
-      - BETTER_AUTH_SECRET=test-better-auth-secret-key-minimum-32-chars
-      - BETTER_AUTH_URL=http://localhost:4000/api/auth
-      - BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:5173
-    ports:
-      - "4000:4000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    environment:
-      - VITE_API_URL=http://localhost:4000
-    ports:
-      - "5173:5173"
-    depends_on:
-      - api
-
+  # ── MinIO (file storage) ──────────────────────────────────────────────────
   minio:
     image: minio/minio:latest
+    restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER:     ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9100:9000"   # 9100 on host → 9000 inside container (avoids conflict)
+      - "9101:9001"   # 9101 on host → MinIO web console
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -76,6 +50,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Creates the i9amati bucket on first start
   minio-init:
     image: minio/mc:latest
     depends_on:
@@ -83,11 +58,54 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} &&
       mc mb --ignore-existing local/i9amati &&
       mc anonymous set download local/i9amati"
     restart: "no"
 
+  # ── API (Express + Kysely) ────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production          # copy from .env.production.example and fill in values
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-i9amati}
+      PORT: 4000
+      NODE_ENV: production
+      MINIO_ENDPOINT:   minio
+      MINIO_PORT:       9000      # internal Docker port — always 9000 inside the network
+      MINIO_USE_SSL:    "false"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET:     i9amati
+    # API is NOT exposed on the host — nginx (web container) proxies to it internally.
+    # This means no port conflict with the other project's API.
+    expose:
+      - "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # ── Web (Vite SPA served by nginx) ───────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Empty → all /api/* calls are relative, nginx proxies them to api:4000 internally
+        VITE_API_URL: ""
+    restart: unless-stopped
+    # Port 3000 on host → avoids conflict with anything on port 80
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
 volumes:
-  postgres_test_data:
+  postgres_data:
   minio_data:
