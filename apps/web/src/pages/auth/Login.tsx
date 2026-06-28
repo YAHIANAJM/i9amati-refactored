@@ -5,6 +5,7 @@ import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff, UserCircle2, ChevronDown, X, Check } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
 import { toastError, toastSuccess } from '@/components/toast'
+import { useTranslation } from 'react-i18next'
 
 async function socialSignIn(provider: 'google' | 'facebook') {
   await authClient.signIn.social({ provider, callbackURL: `${window.location.origin}/syndic` })
@@ -28,6 +29,7 @@ function removeAccount(email: string) {
 }
 
 export function Login() {
+  const { t } = useTranslation()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
@@ -50,12 +52,12 @@ export function Login() {
     try {
       const { error, data } = await authClient.signIn.email({ email, password, callbackURL: '/syndic' }) as any
       if (error) {
-        toastError(error.message || 'فشل تسجيل الدخول', 'تحقق من البريد الإلكتروني وكلمة المرور')
+        toastError(error.message || t('login.loginFailed'), t('login.checkCredentials'))
       } else {
         const userName = data?.user?.name
         const alreadySaved = getSavedAccounts().some(a => a.email === email && a.password === password)
         if (alreadySaved) {
-          toastSuccess('مرحباً بك', 'تم تسجيل الدخول بنجاح')
+          toastSuccess(t('login.welcome'), t('login.loginSuccess'))
           window.location.href = '/syndic'
         } else {
           setShowSavePrompt({ email, password, name: userName })
@@ -97,7 +99,7 @@ export function Login() {
             IQAMATI
           </p>
           <p style={{ fontSize: 11, color: '#9CA3AF' }}>
-            IQAMATI – The Human Story
+            {t('login.subtitle')}
           </p>
         </div>
 
@@ -108,7 +110,9 @@ export function Login() {
               className="w-full flex items-center gap-3 h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-700 hover:border-gray-300 transition-colors bg-gray-50/60">
               <UserCircle2 size={16} className="text-gray-400 shrink-0" />
               <span className="flex-1 text-left text-gray-500 text-xs">
-                {savedAccounts.length === 1 ? `Continue as ${savedAccounts[0].name ?? savedAccounts[0].email}` : `${savedAccounts.length} saved accounts`}
+                {savedAccounts.length === 1
+                  ? t('login.continueAs', { name: savedAccounts[0].name ?? savedAccounts[0].email })
+                  : t('login.savedCount', { count: savedAccounts.length })}
               </span>
               <ChevronDown size={14} className={`text-gray-400 transition-transform ${showAccountPicker ? 'rotate-180' : ''}`} />
             </button>
@@ -119,7 +123,7 @@ export function Login() {
                   initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.15 }}
                   className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-1">Comptes enregistrés</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-1">{t('login.savedAccounts')}</p>
                   {savedAccounts.map(acc => (
                     <div key={acc.email} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 group cursor-pointer" onClick={() => pickAccount(acc)}>
                       <div className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
@@ -144,7 +148,7 @@ export function Login() {
 
         <form onSubmit={handleLogin} className="space-y-3">
             <input
-              type="email" required autoComplete="email" placeholder="Email or Phone ID"
+              type="email" required autoComplete="email" placeholder={t('login.email')}
               value={email} onChange={e => setEmail(e.target.value)}
               className="w-full h-11 rounded-xl border border-gray-200 px-4 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition"
               onFocus={e => (e.currentTarget.style.borderColor = TEAL)}
@@ -153,14 +157,14 @@ export function Login() {
 
             <div className="relative">
               <input
-                type={showPw ? 'text' : 'password'} required autoComplete="current-password" placeholder="Password"
+                type={showPw ? 'text' : 'password'} required autoComplete="current-password" placeholder={t('login.password')}
                 value={password} onChange={e => setPassword(e.target.value)}
                 className="w-full h-11 rounded-xl border border-gray-200 px-4 pr-20 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition"
                 onFocus={e => (e.currentTarget.style.borderColor = TEAL)}
                 onBlur={e => (e.currentTarget.style.borderColor = '#E5E7EB')}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <Link to="/auth/forgot" tabIndex={-1} className="text-xs font-semibold" style={{ color: TEAL }}>Forgot?</Link>
+                <Link to="/auth/forgot" tabIndex={-1} className="text-xs font-semibold" style={{ color: TEAL }}>{t('login.forgot')}</Link>
                 <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)} className="text-gray-400 hover:text-gray-600 transition-colors">
                   {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -171,7 +175,7 @@ export function Login() {
               className="w-full h-12 rounded-full text-white font-semibold text-sm tracking-wide transition-opacity disabled:opacity-70"
               style={{ background: TEAL }}
             >
-              {loading ? 'Connexion...' : 'Log in / دخول'}
+              {loading ? t('login.loading') : t('login.submit')}
             </button>
         </form>
 
@@ -190,7 +194,7 @@ export function Login() {
                   {(showSavePrompt.name ?? showSavePrompt.email).slice(0, 1).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900">Enregistrer le compte ?</p>
+                  <p className="text-sm font-bold text-gray-900">{t('login.savePrompt')}</p>
                   {showSavePrompt.name && <p className="text-xs text-gray-700 font-medium">{showSavePrompt.name}</p>}
                   <p className="text-xs text-gray-500 truncate">{showSavePrompt.email}</p>
                 </div>
@@ -202,19 +206,19 @@ export function Login() {
               <div className="flex border-t border-gray-100">
                 <button onClick={() => { setShowSavePrompt(null); window.location.href = '/syndic' }}
                   className="flex-1 py-2.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors">
-                  Pas maintenant
+                  {t('login.notNow')}
                 </button>
                 <div className="w-px bg-gray-100" />
                 <button onClick={() => {
                   saveAccount(showSavePrompt.email, showSavePrompt.password, showSavePrompt.name)
                   setSavedAccounts(getSavedAccounts())
                   setShowSavePrompt(null)
-                  toastSuccess('Compte enregistré', `${showSavePrompt.email} sera pré-rempli`)
+                  toastSuccess(t('login.savedConfirm'), t('login.savedDetail', { email: showSavePrompt.email }))
                   window.location.href = '/syndic'
                 }}
                   className="flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-gray-50 transition-colors"
                   style={{ color: TEAL }}>
-                  <Check size={13} />Enregistrer
+                  <Check size={13} />{t('login.save')}
                 </button>
               </div>
             </motion.div>
@@ -224,7 +228,7 @@ export function Login() {
         <div>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400 whitespace-nowrap">or continue with</span>
+            <span className="text-xs text-gray-400 whitespace-nowrap">{t('login.orWith')}</span>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           <div className="flex justify-center gap-3 mt-4">
@@ -232,8 +236,8 @@ export function Login() {
             <SocialBtn onClick={() => socialSignIn('facebook')}><FacebookIcon /></SocialBtn>
           </div>
           <p className="mt-4 text-center text-xs text-gray-400">
-            Première connexion ?{' '}
-            <Link to="/auth/register" style={{ color: TEAL }} className="font-semibold hover:underline">Créer un compte</Link>
+            {t('login.noAccount')}{' '}
+            <Link to="/auth/register" style={{ color: TEAL }} className="font-semibold hover:underline">{t('login.createAccount')}</Link>
           </p>
         </div>
       </div>
