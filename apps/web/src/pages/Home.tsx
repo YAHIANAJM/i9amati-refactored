@@ -5,7 +5,6 @@ import {
   Menu, X, CreditCard, Calendar, Users,
   FileText, Bell, Building2, CheckCircle2,
 } from 'lucide-react'
-import { ChatBot } from '@/components/chatbot/ChatBot'
 
 const TEAL = '#2B8C80'
 const ta = (a: number) => `rgba(43,140,128,${a})`
@@ -701,7 +700,6 @@ export function Home() {
       </AnimatePresence>
 
       {/* ── CHATBOT — transparent floating button ── */}
-      <ChatBot />
 
       {/* ── BOTTOM social ── */}
       <motion.div
