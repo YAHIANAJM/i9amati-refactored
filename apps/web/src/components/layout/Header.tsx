@@ -7,7 +7,6 @@ import { getInitials } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { LangSwitcher } from '@/components/ui/LangSwitcher'
 import {
   LayoutDashboard, Bot, MessageSquare, BellIcon, PieChart, TrendingUp,
 } from 'lucide-react'
@@ -339,9 +338,6 @@ export function Header() {
 
       {/* Right - lang + bell + user */}
       <div className="flex items-center gap-2">
-        {/* Language switcher */}
-        <LangSwitcher variant="dark" />
-
         {/* Global notification bell */}
         <div ref={notifRef} className="relative">
           <button
