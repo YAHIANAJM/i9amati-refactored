@@ -175,6 +175,7 @@ export interface BuildingTable {
   description: string | null
   residence_id: string
   quote_part: number | null      // millièmes dans la résidence (complexe only)
+  facilities: ColumnType<string[], string | undefined, string | undefined>  // jsonb, DEFAULT '[]'
   created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
