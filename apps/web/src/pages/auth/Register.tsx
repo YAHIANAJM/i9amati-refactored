@@ -5,6 +5,7 @@ import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
 import { useTranslation } from 'react-i18next'
+import { LangSwitcher } from '@/components/ui/LangSwitcher'
 
 async function socialSignIn(provider: 'google' | 'facebook') {
   await authClient.signIn.social({ provider, callbackURL: `${window.location.origin}/syndic` })
@@ -71,7 +72,10 @@ export function Register() {
       </div>
 
       {/* ── RIGHT — white form panel ── */}
-      <div className="flex flex-col justify-center gap-4 bg-white px-12 py-9" style={{ width: '50%', minWidth: 380 }}>
+      <div className="relative flex flex-col justify-center gap-4 bg-white px-12 py-9" style={{ width: '50%', minWidth: 380 }}>
+        <div className="absolute top-4 right-4">
+          <LangSwitcher variant="dark" />
+        </div>
         <div>
           <p style={{ fontFamily: 'Amiri, Georgia, serif', fontSize: 52, lineHeight: 1, color: TEAL, direction: 'rtl', marginBottom: 1 }}>
             إقامتي
