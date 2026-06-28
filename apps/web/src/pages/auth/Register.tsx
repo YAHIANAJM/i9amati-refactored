@@ -50,8 +50,8 @@ export function Register() {
     <motion.div
       className="w-full flex overflow-hidden"
       style={{
-        maxWidth: 920,
-        minHeight: 540,
+        maxWidth: 1060,
+        minHeight: 560,
         borderRadius: 28,
         boxShadow: '0 24px 80px rgba(0,0,0,0.40)',
         border: '3px solid rgb(255,255,255)',
@@ -65,81 +65,68 @@ export function Register() {
       {/* ── LEFT — transparent panel with 3D building ── */}
       <div className="relative flex-1">
         <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute top-6 left-6 z-10 flex items-center gap-6">
-          {[
-            { label: 'Home',     to: '/'            },
-            { label: 'About',    to: '/?s=about'    },
-            { label: 'Services', to: '/?s=services' },
-          ].map(({ label, to }) => (
-            <Link key={label} to={to}
-              className="text-white text-sm font-medium hover:opacity-80 transition-opacity"
-              style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
-              {label}
-            </Link>
-          ))}
-        </div>
         <Building3D />
       </div>
 
       {/* ── RIGHT — white form panel ── */}
-      <div className="flex flex-col justify-between bg-white px-10 py-9" style={{ width: '44%', minWidth: 340 }}>
+      <div className="flex flex-col justify-center gap-4 bg-white px-12 py-9" style={{ width: '50%', minWidth: 380 }}>
         <div>
-          <p style={{ fontFamily: 'Amiri, Georgia, serif', fontSize: 72, lineHeight: 1, color: TEAL, direction: 'rtl', marginBottom: 2 }}>
+          <p style={{ fontFamily: 'Amiri, Georgia, serif', fontSize: 52, lineHeight: 1, color: TEAL, direction: 'rtl', marginBottom: 1 }}>
             إقامتي
           </p>
-          <p style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#B84A2A', letterSpacing: '0.06em', fontStyle: 'italic', marginBottom: 4 }}>
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: '#B84A2A', letterSpacing: '0.06em', fontStyle: 'italic', marginBottom: 2 }}>
             IQAMATI
           </p>
-          <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 22 }}>
+          <p style={{ fontSize: 11, color: '#9CA3AF' }}>
             Créez votre espace syndic
           </p>
-
-          <form onSubmit={handleRegister} className="space-y-3">
-            {error && (
-              <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{error}</div>
-            )}
-
-            <div className="flex gap-2">
-              <input type="text" required placeholder="Prénom" value={form.firstName} onChange={set('firstName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
-              <input type="text" required placeholder="Nom" value={form.lastName} onChange={set('lastName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
-            </div>
-
-            <input type="email" required autoComplete="email" placeholder="Email or Phone ID" value={form.email} onChange={set('email')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
-
-            <div className="relative">
-              <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" placeholder="Password" value={form.password} onChange={set('password')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
-              <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-
-            <div className="relative">
-              <input type={showConfirm ? 'text' : 'password'} required autoComplete="new-password" placeholder="Confirmer le mot de passe" value={form.confirmPassword} onChange={set('confirmPassword')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
-              <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-
-            <button type="submit" disabled={loading}
-              className="w-full h-12 rounded-full text-white font-semibold text-sm tracking-wide transition-opacity disabled:opacity-70"
-              style={{ background: TEAL }}
-            >
-              {loading ? 'Création...' : 'Créer un compte / إنشاء حساب'}
-            </button>
-          </form>
         </div>
 
+        <form onSubmit={handleRegister} className="space-y-3">
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{error}</div>
+          )}
+
+          <div className="flex gap-2">
+            <input type="text" required placeholder="Prénom" value={form.firstName} onChange={set('firstName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+            <input type="text" required placeholder="Nom" value={form.lastName} onChange={set('lastName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+          </div>
+
+          <input type="email" required autoComplete="email" placeholder="Email or Phone ID" value={form.email} onChange={set('email')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+
+          <div className="relative">
+            <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" placeholder="Password" value={form.password} onChange={set('password')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
+            <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+              {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+
+          <div className="relative">
+            <input type={showConfirm ? 'text' : 'password'} required autoComplete="new-password" placeholder="Confirmer le mot de passe" value={form.confirmPassword} onChange={set('confirmPassword')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
+            <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+              {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+
+          <button type="submit" disabled={loading}
+            className="w-full h-12 rounded-full text-white font-semibold text-sm tracking-wide transition-opacity disabled:opacity-70"
+            style={{ background: TEAL }}
+          >
+            {loading ? 'Création...' : 'Créer un compte / إنشاء حساب'}
+          </button>
+        </form>
+
         <div>
-          <div className="flex items-center gap-3 my-5">
+          <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-100" />
             <span className="text-xs text-gray-400 whitespace-nowrap">or continue with</span>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 mt-4">
             <SocialBtn onClick={() => socialSignIn('google')}><GoogleIcon /></SocialBtn>
             <SocialBtn onClick={() => socialSignIn('facebook')}><FacebookIcon /></SocialBtn>
           </div>
-          <p className="mt-5 text-center text-xs text-gray-400">
+          <p className="mt-4 text-center text-xs text-gray-400">
             Déjà un compte ?{' '}
             <Link to="/auth/login" style={{ color: TEAL }} className="font-semibold hover:underline">Se connecter</Link>
           </p>
