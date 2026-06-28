@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Bell, ChevronDown, LogOut, User, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2, Home, BarChart3, Rss, Wrench, Users } from 'lucide-react'
+import { Search, Bell, ChevronDown, LogOut, User, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2, Home, BarChart3, Rss, Wrench, Users, Globe } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Link, useNavigate } from 'react-router-dom'
 import { authClient } from '@/lib/auth-client'
@@ -7,6 +7,7 @@ import { getInitials } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { LangSwitcher } from '@/components/ui/LangSwitcher'
 import {
   LayoutDashboard, Bot, MessageSquare, BellIcon, PieChart, TrendingUp,
 } from 'lucide-react'
@@ -109,14 +110,13 @@ function GlobalNotifPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClos
         onClick={onClose}
       />
       <motion.div
-        className="fixed right-4 top-14 z-50 w-88 rounded-xl border bg-white shadow-xl overflow-hidden flex flex-col"
+        className="fixed right-4 top-14 z-50 rounded-xl border bg-white shadow-xl overflow-hidden flex flex-col"
         style={{ width: 340, maxHeight: 'calc(100vh - 72px)' }}
         initial={{ opacity: 0, y: -8, scale: 0.97 }}
         animate={{ opacity: 1, y: 0,  scale: 1 }}
         exit={{   opacity: 0, y: -8, scale: 0.97 }}
         transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
           <div className="flex items-center gap-2">
             <Bell size={14} className="text-foreground" />
@@ -142,7 +142,6 @@ function GlobalNotifPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClos
           </div>
         </div>
 
-        {/* Body */}
         <div className="overflow-y-auto flex-1">
           {isLoading && (
             <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
@@ -193,8 +192,8 @@ function GlobalNotifPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClos
 // ─── Header ────────────────────────────────────────────────────────────────────
 
 export function Header() {
-  const navigate   = useNavigate()
-  const { t, i18n } = useTranslation()
+  const navigate         = useNavigate()
+  const { t, i18n }     = useTranslation()
   const { data: session } = authClient.useSession()
   const user = session?.user
 
@@ -202,12 +201,12 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [userOpen,   setUserOpen]   = useState(false)
   const [notifOpen,  setNotifOpen]  = useState(false)
+  const [langOpen,   setLangOpen]   = useState(false)
   const [readIds,    setReadIds]    = useState<Set<string>>(new Set())
-  const userRef   = useRef<HTMLDivElement>(null)
-  const langRef   = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const userRef   = useRef<HTMLDivElement>(null)
   const notifRef  = useRef<HTMLDivElement>(null)
+  const langRef   = useRef<HTMLDivElement>(null)
 
   const { data: rawNotifs = [], isLoading } = useQuery<ApiNotif[]>({
     queryKey: ['global-notifications'],
@@ -340,6 +339,9 @@ export function Header() {
 
       {/* Right - lang + bell + user */}
       <div className="flex items-center gap-2">
+        {/* Language switcher */}
+        <LangSwitcher variant="dark" />
+
         {/* Global notification bell */}
         <div ref={notifRef} className="relative">
           <button
@@ -377,7 +379,6 @@ export function Header() {
             <span className="text-xs font-medium hidden sm:inline">{currentLang.label}</span>
             <ChevronDown size={11} className={`hidden sm:block transition-transform ${langOpen ? 'rotate-180' : ''}`} />
           </button>
-
           {langOpen && (
             <div className="absolute right-0 top-full mt-1.5 z-50 w-44 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-3 pt-2.5 pb-1">
@@ -403,11 +404,6 @@ export function Header() {
             </div>
           )}
         </div>
-
-        <button className="relative flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors">
-          <Bell size={16} className="text-muted-foreground" />
-          <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-        </button>
 
         <div className="w-px h-5 bg-border mx-1" />
 
