@@ -96,6 +96,31 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 }
 
-export function requirePermission(_resource: string, _action: string) {
-  return (_req: Request, _res: Response, next: NextFunction) => next()
+// Role hierarchy — higher index = more access
+const ROLE_RANK: Record<string, number> = {
+  [ProfileRole.TENANT]: 0,
+  [ProfileRole.OWNER]:  1,
+  [ProfileRole.STAFF]:  2,
+  [ProfileRole.SYNDIC]: 3,
+}
+
+// Minimum role required per resource+action
+const REQUIRED_ROLE: Record<string, Record<string, ProfileRole>> = {
+  residence:  { read: ProfileRole.STAFF,  create: ProfileRole.SYNDIC, update: ProfileRole.SYNDIC, delete: ProfileRole.SYNDIC },
+  building:   { read: ProfileRole.STAFF,  create: ProfileRole.SYNDIC, update: ProfileRole.SYNDIC, delete: ProfileRole.SYNDIC },
+  apartment:  { read: ProfileRole.OWNER,  create: ProfileRole.SYNDIC, update: ProfileRole.SYNDIC, delete: ProfileRole.SYNDIC },
+  meeting:    { read: ProfileRole.OWNER,  create: ProfileRole.SYNDIC, update: ProfileRole.SYNDIC, delete: ProfileRole.SYNDIC },
+  feed:       { read: ProfileRole.TENANT, create: ProfileRole.TENANT, update: ProfileRole.TENANT, delete: ProfileRole.SYNDIC },
+  document:   { read: ProfileRole.OWNER,  create: ProfileRole.STAFF,  update: ProfileRole.STAFF,  delete: ProfileRole.SYNDIC },
+  accounting: { read: ProfileRole.STAFF,  create: ProfileRole.SYNDIC, update: ProfileRole.SYNDIC, delete: ProfileRole.SYNDIC },
+}
+
+export function requirePermission(resource: string, action: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { profileRole } = req as AuthRequest
+    const required = REQUIRED_ROLE[resource]?.[action]
+    if (!required) return next() // unknown resource — allow (fail open during dev)
+    if ((ROLE_RANK[profileRole] ?? -1) >= ROLE_RANK[required]) return next()
+    return res.status(403).json({ error: 'Forbidden', code: 'ERROR_FORBIDDEN' })
+  }
 }

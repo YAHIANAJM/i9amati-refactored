@@ -157,6 +157,7 @@ export interface ResidenceTable {
   status: 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE'
   image: string | null
   description: string | null
+  facilities: ColumnType<string[], string[], string[]>  // jsonb — array of facility keys
   created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
@@ -167,10 +168,13 @@ export interface BuildingTable {
   address: string | null
   image: string | null
   floors: number | null
+  area_sqm: number | null
   has_elevator: boolean
+  union_type: string | null
+  lot_number: string | null      // numéro de lot du bâtiment (Loi 18-00)
   description: string | null
   residence_id: string
-  quote_part: number | null
+  quote_part: number | null      // millièmes dans la résidence (complexe only)
   created_at: ColumnType<Date, Date | string | undefined, never>
   updated_at: Timestamp
 }
@@ -178,12 +182,13 @@ export interface BuildingTable {
 export interface ApartmentTable {
   id: Generated<string>
   unit_code: string
-  lot_number: string | null
+  lot_number: string | null      // numéro de lot (رقم القطعة) — Loi 18-00
   floor: number | null
   area_sqm: number | null
   status: 'OCCUPIED' | 'VACANT' | 'MAINTENANCE'
   usage_type: 'RESIDENTIAL' | 'COMMERCIAL' | 'PARKING' | 'MIXED'
-  quote_part: number | null
+  quote_part: number | null      // millièmes dans l'immeuble
+  quote_part_residence: number | null  // millièmes dans la résidence (complexe only)
   building_id: string
   owner_profile_id: string | null  // → public.profiles.id (DB FK in migration SQL)
   shareholders: ColumnType<unknown, unknown, unknown> // jsonb

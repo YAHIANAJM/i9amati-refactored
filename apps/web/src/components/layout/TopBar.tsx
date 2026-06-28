@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Search, Bell, Settings2, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2 } from 'lucide-react'
+import { Search, Bell, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 
@@ -133,10 +132,12 @@ interface TopBarProps {
   subtitle?:  React.ReactNode
   actions?:   React.ReactNode
   hideSearch?: boolean
+  searchValue?: string
+  onSearchChange?: (v: string) => void
+  searchPlaceholder?: string
 }
 
-export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
-  const navigate   = useNavigate()
+export function TopBar({ title, subtitle, actions, hideSearch, searchValue, onSearchChange, searchPlaceholder }: TopBarProps) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [readIds,   setReadIds]   = useState<Set<string>>(new Set())
 
@@ -169,10 +170,19 @@ export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
           <div className="relative hidden md:flex items-center">
             <Search size={14} className="absolute left-3 text-muted-foreground pointer-events-none" />
             <input
-              placeholder="Search..."
-              className="h-8 w-56 rounded-md border bg-secondary pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder={searchPlaceholder ?? 'Search...'}
+              value={searchValue ?? ''}
+              onChange={onSearchChange ? e => onSearchChange(e.target.value) : undefined}
+              readOnly={!onSearchChange}
+              className="h-8 w-80 rounded-md border bg-secondary pl-8 pr-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <kbd className="absolute right-2 text-[10px] text-muted-foreground hidden lg:block">⌘K</kbd>
+            {searchValue && onSearchChange ? (
+              <button onClick={() => onSearchChange('')} className="absolute right-2 text-muted-foreground hover:text-foreground transition-colors">
+                <X size={13} />
+              </button>
+            ) : (
+              <kbd className="absolute right-2 text-[10px] text-muted-foreground hidden lg:block">⌘K</kbd>
+            )}
           </div>
         )}
 
@@ -197,10 +207,6 @@ export function TopBar({ title, subtitle, actions, hideSearch }: TopBarProps) {
             )}
           </AnimatePresence>
         </div>
-
-        <Button variant="ghost" size="icon" onClick={() => navigate('/syndic/settings')}>
-          <Settings2 size={16} />
-        </Button>
 
         {actions}
       </div>

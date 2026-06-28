@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import type React from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { SyndicLayout } from '@/components/layout/SyndicLayout'
 import { authClient }   from '@/lib/auth-client'
 import { Toaster }      from '@/components/toast'
@@ -54,21 +55,47 @@ function SuspenseLayout() {
   )
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = authClient.useSession()
+const Spinner = () => (
+  <div className="flex h-screen items-center justify-center bg-[#d8dce3]">
+    <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+  </div>
+)
 
-  if (isPending) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#d8dce3]">
-        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-      </div>
-    )
-  }
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending: sessionPending } = authClient.useSession()
+
+  // Only fetch /api/me once we know a session exists
+  const { data: me, isPending: mePending } = useQuery({
+    queryKey: ['me'],
+    queryFn:  () => fetch('/api/me').then(r => r.json()),
+    enabled:  !!session,
+    retry:    false,
+    staleTime: 60_000,
+  })
+
+  if (sessionPending || (session && mePending)) return <Spinner />
 
   if (!session) return <Navigate to="/auth/login" replace />
 
   const activeOrgId = (session.session as any).activeOrganizationId
   if (!activeOrgId) return <Navigate to="/auth/setup" replace />
+
+  // Role gate — only SYNDIC and STAFF can access the syndic dashboard
+  if (me && me.profileRole !== 'SYNDIC' && me.profileRole !== 'STAFF') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#d8dce3]">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold text-slate-700">Accès refusé</p>
+          <p className="text-sm text-slate-500">Votre compte n'a pas les droits d'accès au tableau de bord syndic.</p>
+          <p className="text-xs text-slate-400">Rôle actuel : <span className="font-mono font-bold">{me.profileRole}</span></p>
+          <button onClick={() => { authClient.signOut(); window.location.href = '/auth/login' }}
+            className="mt-4 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold">
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return <>{children}</>
 }

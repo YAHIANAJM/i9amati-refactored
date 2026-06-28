@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { authClient } from '@/lib/auth-client'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, UserCircle2, ChevronDown, X, Check } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
 import { toastError, toastSuccess } from '@/components/toast'
 
@@ -11,24 +11,55 @@ async function socialSignIn(provider: 'google' | 'facebook') {
 }
 
 const TEAL = '#2B8C80'
+const STORAGE_KEY = 'iqamati_saved_accounts'
+
+type SavedAccount = { email: string; password: string; name?: string; savedAt: number }
+
+function getSavedAccounts(): SavedAccount[] {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') } catch { return [] }
+}
+function saveAccount(email: string, password: string, name?: string) {
+  const accounts = getSavedAccounts().filter(a => a.email !== email)
+  accounts.unshift({ email, password, name, savedAt: Date.now() })
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts.slice(0, 5)))
+}
+function removeAccount(email: string) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(getSavedAccounts().filter(a => a.email !== email)))
+}
 
 export function Login() {
-  const navigate = useNavigate()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [savedAccounts, setSavedAccounts]   = useState<SavedAccount[]>([])
+  const [showSavePrompt, setShowSavePrompt] = useState<{ email: string; password: string; name?: string } | null>(null)
+  const [showAccountPicker, setShowAccountPicker] = useState(false)
+
+  useEffect(() => { setSavedAccounts(getSavedAccounts()) }, [])
+
+  const pickAccount = (acc: SavedAccount) => {
+    setEmail(acc.email)
+    setPassword(acc.password)
+    setShowAccountPicker(false)
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const { error } = await authClient.signIn.email({ email, password })
+      const { error, data } = await authClient.signIn.email({ email, password, callbackURL: '/syndic' }) as any
       if (error) {
         toastError(error.message || 'فشل تسجيل الدخول', 'تحقق من البريد الإلكتروني وكلمة المرور')
       } else {
-        toastSuccess('مرحباً بك', 'تم تسجيل الدخول بنجاح')
-        navigate('/syndic')
+        const userName = data?.user?.name
+        const alreadySaved = getSavedAccounts().some(a => a.email === email && a.password === password)
+        if (alreadySaved) {
+          toastSuccess('مرحباً بك', 'تم تسجيل الدخول بنجاح')
+          window.location.href = '/syndic'
+        } else {
+          setShowSavePrompt({ email, password, name: userName })
+        }
       }
     } catch (err: any) {
       toastError('خطأ غير متوقع', err.message)
@@ -41,8 +72,8 @@ export function Login() {
     <motion.div
       className="w-full flex overflow-hidden"
       style={{
-        maxWidth: 920,
-        minHeight: 540,
+        maxWidth: 1060,
+        minHeight: 560,
         borderRadius: 28,
         boxShadow: '0 24px 80px rgba(0,0,0,0.40)',
         border: '3px solid rgb(255,255,255)',
@@ -55,21 +86,63 @@ export function Login() {
 
       {/* ── LEFT — white form panel ── */}
       <div
-        className="flex flex-col justify-between bg-white px-10 py-9"
-        style={{ width: '44%', minWidth: 340 }}
+        className="flex flex-col justify-center gap-5 bg-white px-12 py-9"
+        style={{ width: '50%', minWidth: 380 }}
       >
         <div>
-          <p style={{ fontFamily: 'Amiri, Georgia, serif', fontSize: 72, lineHeight: 1, color: TEAL, direction: 'rtl', marginBottom: 2 }}>
+          <p style={{ fontFamily: 'Amiri, Georgia, serif', fontSize: 52, lineHeight: 1, color: TEAL, direction: 'rtl', marginBottom: 1 }}>
             إقامتي
           </p>
-          <p style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#B84A2A', letterSpacing: '0.06em', fontStyle: 'italic', marginBottom: 4 }}>
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: '#B84A2A', letterSpacing: '0.06em', fontStyle: 'italic', marginBottom: 2 }}>
             IQAMATI
           </p>
-          <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 28 }}>
+          <p style={{ fontSize: 11, color: '#9CA3AF' }}>
             IQAMATI – The Human Story
           </p>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-3">
+        {/* Saved accounts picker */}
+        {savedAccounts.length > 0 && (
+          <div className="relative">
+            <button type="button" onClick={() => setShowAccountPicker(v => !v)}
+              className="w-full flex items-center gap-3 h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-700 hover:border-gray-300 transition-colors bg-gray-50/60">
+              <UserCircle2 size={16} className="text-gray-400 shrink-0" />
+              <span className="flex-1 text-left text-gray-500 text-xs">
+                {savedAccounts.length === 1 ? `Continue as ${savedAccounts[0].name ?? savedAccounts[0].email}` : `${savedAccounts.length} saved accounts`}
+              </span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showAccountPicker ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showAccountPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-1">Comptes enregistrés</p>
+                  {savedAccounts.map(acc => (
+                    <div key={acc.email} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 group cursor-pointer" onClick={() => pickAccount(acc)}>
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: TEAL }}>
+                        {(acc.name ?? acc.email).slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {acc.name && <p className="text-xs font-semibold text-gray-800 truncate">{acc.name}</p>}
+                        <p className="text-[11px] text-gray-500 truncate">{acc.email}</p>
+                      </div>
+                      <button type="button" onClick={ev => { ev.stopPropagation(); removeAccount(acc.email); setSavedAccounts(getSavedAccounts()) }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-3">
             <input
               type="email" required autoComplete="email" placeholder="Email or Phone ID"
               value={email} onChange={e => setEmail(e.target.value)}
@@ -100,20 +173,65 @@ export function Login() {
             >
               {loading ? 'Connexion...' : 'Log in / دخول'}
             </button>
-          </form>
-        </div>
+        </form>
+
+        {/* Google-style save account prompt */}
+        <AnimatePresence>
+          {showSavePrompt && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.96 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[340px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold shrink-0 text-base"
+                  style={{ background: TEAL }}>
+                  {(showSavePrompt.name ?? showSavePrompt.email).slice(0, 1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900">Enregistrer le compte ?</p>
+                  {showSavePrompt.name && <p className="text-xs text-gray-700 font-medium">{showSavePrompt.name}</p>}
+                  <p className="text-xs text-gray-500 truncate">{showSavePrompt.email}</p>
+                </div>
+                <button onClick={() => { setShowSavePrompt(null); window.location.href = '/syndic' }}
+                  className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex border-t border-gray-100">
+                <button onClick={() => { setShowSavePrompt(null); window.location.href = '/syndic' }}
+                  className="flex-1 py-2.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors">
+                  Pas maintenant
+                </button>
+                <div className="w-px bg-gray-100" />
+                <button onClick={() => {
+                  saveAccount(showSavePrompt.email, showSavePrompt.password, showSavePrompt.name)
+                  setSavedAccounts(getSavedAccounts())
+                  setShowSavePrompt(null)
+                  toastSuccess('Compte enregistré', `${showSavePrompt.email} sera pré-rempli`)
+                  window.location.href = '/syndic'
+                }}
+                  className="flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-gray-50 transition-colors"
+                  style={{ color: TEAL }}>
+                  <Check size={13} />Enregistrer
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div>
-          <div className="flex items-center gap-3 my-5">
+          <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-100" />
             <span className="text-xs text-gray-400 whitespace-nowrap">or continue with</span>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 mt-4">
             <SocialBtn onClick={() => socialSignIn('google')}><GoogleIcon /></SocialBtn>
             <SocialBtn onClick={() => socialSignIn('facebook')}><FacebookIcon /></SocialBtn>
           </div>
-          <p className="mt-5 text-center text-xs text-gray-400">
+          <p className="mt-4 text-center text-xs text-gray-400">
             Première connexion ?{' '}
             <Link to="/auth/register" style={{ color: TEAL }} className="font-semibold hover:underline">Créer un compte</Link>
           </p>
@@ -123,19 +241,6 @@ export function Login() {
       {/* ── RIGHT — transparent panel with 3D building ── */}
       <div className="relative flex-1">
         <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute top-6 right-6 z-10 flex items-center gap-6">
-          {[
-            { label: 'Home',     to: '/'           },
-            { label: 'About',    to: '/?s=about'   },
-            { label: 'Services', to: '/?s=services' },
-          ].map(({ label, to }) => (
-            <Link key={label} to={to}
-              className="text-white text-sm font-medium hover:opacity-80 transition-opacity"
-              style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
-              {label}
-            </Link>
-          ))}
-        </div>
         <Building3D />
       </div>
 
