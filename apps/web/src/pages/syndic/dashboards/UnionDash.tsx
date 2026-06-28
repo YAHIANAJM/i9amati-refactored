@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   BarChart, Bar,
@@ -96,10 +97,10 @@ function BarTooltip({ active, payload, label }: {
 
 type CoverageStatus = 'active' | 'pending' | 'uncovered'
 
-const STATUS_CFG: Record<CoverageStatus, { label: string; dot: string; bg: string; border: string; text: string }> = {
-  active:    { label: 'Covered',   dot: 'bg-emerald-500', bg: 'bg-emerald-50/60', border: 'border-emerald-100', text: 'text-emerald-700' },
-  pending:   { label: 'Pending',   dot: 'bg-amber-400',   bg: 'bg-amber-50/60',   border: 'border-amber-100',   text: 'text-amber-700'   },
-  uncovered: { label: 'Uncovered', dot: 'bg-slate-300',   bg: 'bg-slate-50',      border: 'border-slate-100',   text: 'text-slate-500'   },
+const STATUS_CFG: Record<CoverageStatus, { dot: string; bg: string; border: string; text: string }> = {
+  active:    { dot: 'bg-emerald-500', bg: 'bg-emerald-50/60', border: 'border-emerald-100', text: 'text-emerald-700' },
+  pending:   { dot: 'bg-amber-400',   bg: 'bg-amber-50/60',   border: 'border-amber-100',   text: 'text-amber-700'   },
+  uncovered: { dot: 'bg-slate-300',   bg: 'bg-slate-50',      border: 'border-slate-100',   text: 'text-slate-500'   },
 }
 
 function BuildingStatusCard({ building, delegates, pendingDelegates }: {
@@ -107,10 +108,12 @@ function BuildingStatusCard({ building, delegates, pendingDelegates }: {
   delegates: ActiveDelegate[]
   pendingDelegates: PendingDelegate[]
 }) {
+  const { t } = useTranslation()
   const activeHere  = delegates.filter(d => d.building_id === building.id)
   const pendingHere = pendingDelegates.filter(d => d.building_id === building.id)
   const status: CoverageStatus = activeHere.length > 0 ? 'active' : pendingHere.length > 0 ? 'pending' : 'uncovered'
   const cfg = STATUS_CFG[status]
+  const statusLabel = t(`unionDash.coverage.${status}`)
 
   return (
     <div className={cn('p-4 rounded-xl border', cfg.bg, cfg.border)}>
@@ -126,7 +129,7 @@ function BuildingStatusCard({ building, delegates, pendingDelegates }: {
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className={cn('h-2 w-2 rounded-full', cfg.dot)} />
-          <span className={cn('text-[10px] font-bold', cfg.text)}>{cfg.label}</span>
+          <span className={cn('text-[10px] font-bold', cfg.text)}>{statusLabel}</span>
         </div>
       </div>
 
@@ -150,7 +153,7 @@ function BuildingStatusCard({ building, delegates, pendingDelegates }: {
           ))}
         </div>
       ) : (
-        <p className="text-[11px] text-muted-foreground/70 italic">No delegate assigned</p>
+        <p className="text-[11px] text-muted-foreground/70 italic">{t('unionDash.coverage.noDelegate')}</p>
       )}
     </div>
   )
@@ -170,6 +173,7 @@ function ErrorBanner({ message }: { message: string }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export function UnionDash() {
+  const { t } = useTranslation()
   const buildingsQ = useQuery<Building[]>({
     queryKey: ['union-buildings'],
     queryFn: () => apiFetch<Building[]>('/api/union/buildings'),
@@ -195,17 +199,20 @@ export function UnionDash() {
   const coveredCount      = coveredBuildingIds.size
   const coverageRate      = buildings.length > 0 ? Math.round(coveredCount / buildings.length * 100) : 0
 
+  const tActive  = t('unionDash.charts.active')
+  const tPending = t('unionDash.charts.pending')
+
   // Per-building bar data
   const buildingBarData = buildings.map(b => ({
-    name:    b.name.length > 10 ? b.name.slice(0, 10) + '…' : b.name,
-    Active:  active.filter(d => d.building_id === b.id).length,
-    Pending: pending.filter(d => d.building_id === b.id).length,
+    name: b.name.length > 10 ? b.name.slice(0, 10) + '…' : b.name,
+    [tActive]:  active.filter(d => d.building_id === b.id).length,
+    [tPending]: pending.filter(d => d.building_id === b.id).length,
   }))
 
   // Radial donut data
   const delegateDonut = [
-    { name: 'Active',  value: active.length,  fill: '#10b981' },
-    { name: 'Pending', value: pending.length, fill: '#f59e0b' },
+    { name: tActive,  value: active.length,  fill: '#10b981' },
+    { name: tPending, value: pending.length, fill: '#f59e0b' },
   ]
 
   const now = new Date()
@@ -218,10 +225,10 @@ export function UnionDash() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-black text-foreground tracking-tight leading-none">
-            Union Analytics
+            {t('unionDash.title')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Building coverage · Delegates · Partner network
+            {t('unionDash.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-primary text-white rounded-xl px-4 py-2 text-sm font-semibold">
@@ -231,31 +238,31 @@ export function UnionDash() {
       </div>
 
       {/* ── Errors ───────────────────────────────────────────────────────── */}
-      {buildingsQ.isError && <ErrorBanner message="Failed to load buildings" />}
-      {delegatesQ.isError && <ErrorBanner message="Failed to load delegates" />}
-      {partnersQ.isError  && <ErrorBanner message="Failed to load partners"  />}
+      {buildingsQ.isError && <ErrorBanner message={t('unionDash.errors.buildings')} />}
+      {delegatesQ.isError && <ErrorBanner message={t('unionDash.errors.delegates')} />}
+      {partnersQ.isError  && <ErrorBanner message={t('unionDash.errors.partners')}  />}
 
       {/* ── 4 KPI cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard loading={loading}
-          icon={UserCheck} label="Active Delegates"
+          icon={UserCheck} label={t('unionDash.kpi.activeDelegates')}
           value={active.length}
-          sub={`${totalDelegates} total in system`}
+          sub={t('unionDash.kpi.totalInSystem', { count: totalDelegates })}
           accent="bg-emerald-500" accentLight="bg-emerald-50" accentIcon="text-emerald-500" />
         <KpiCard loading={loading}
-          icon={Clock} label="Pending Invites"
+          icon={Clock} label={t('unionDash.kpi.pendingInvites')}
           value={pending.length}
-          sub={pending.length > 0 ? 'Awaiting response' : 'All responded'}
+          sub={pending.length > 0 ? t('unionDash.kpi.awaitingResponse') : t('unionDash.kpi.allResponded')}
           accent="bg-amber-400" accentLight="bg-amber-50" accentIcon="text-amber-500" />
         <KpiCard loading={loading}
-          icon={Building2} label="Building Coverage"
+          icon={Building2} label={t('unionDash.kpi.buildingCoverage')}
           value={`${coverageRate}%`}
-          sub={`${coveredCount} of ${buildings.length} buildings`}
+          sub={t('unionDash.kpi.buildingsCovered', { covered: coveredCount, total: buildings.length })}
           accent="bg-blue-500" accentLight="bg-blue-50" accentIcon="text-blue-500" />
         <KpiCard loading={loading}
-          icon={Share2} label="Partner Syndics"
+          icon={Share2} label={t('unionDash.kpi.partnerSyndics')}
           value={partners.length}
-          sub={partners.length > 0 ? `${partners.length}-syndic network` : 'No partners yet'}
+          sub={partners.length > 0 ? t('unionDash.kpi.network', { count: partners.length }) : t('unionDash.kpi.noPartners')}
           accent="bg-violet-500" accentLight="bg-violet-50" accentIcon="text-violet-500" />
       </div>
 
@@ -267,14 +274,14 @@ export function UnionDash() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-sm font-semibold text-foreground">Delegates per Building</p>
+                <p className="text-sm font-semibold text-foreground">{t('unionDash.charts.delegatesPerBuilding')}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Active and pending assignment per building
                 </p>
               </div>
               <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Active</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Pending</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />{t('unionDash.charts.active')}</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />{t('unionDash.charts.pending')}</span>
               </div>
             </div>
 
@@ -295,8 +302,8 @@ export function UnionDash() {
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<BarTooltip />} />
-                  <Bar dataKey="Active"  stackId="a" fill="#10b981" fillOpacity={0.9} radius={[0, 0, 0, 0]} name="Active" />
-                  <Bar dataKey="Pending" stackId="a" fill="#f59e0b" fillOpacity={0.9} radius={[4, 4, 0, 0]} name="Pending" />
+                  <Bar dataKey={tActive}  stackId="a" fill="#10b981" fillOpacity={0.9} radius={[0, 0, 0, 0]} name={tActive} />
+                  <Bar dataKey={tPending} stackId="a" fill="#f59e0b" fillOpacity={0.9} radius={[4, 4, 0, 0]} name={tPending} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -307,7 +314,7 @@ export function UnionDash() {
         <Card>
           <CardContent className="p-5 flex flex-col">
             <div className="mb-4">
-              <p className="text-sm font-semibold text-foreground">Delegate Status</p>
+              <p className="text-sm font-semibold text-foreground">{t('unionDash.charts.delegateStatus')}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 Breakdown · {totalDelegates} total
               </p>
@@ -332,7 +339,7 @@ export function UnionDash() {
                     ? <Loader2 size={18} className="animate-spin text-muted-foreground" />
                     : <>
                         <p className="text-2xl font-black text-foreground">{active.length}</p>
-                        <p className="text-[10px] text-muted-foreground">Active</p>
+                        <p className="text-[10px] text-muted-foreground">{tActive}</p>
                       </>
                   }
                 </div>
@@ -340,8 +347,8 @@ export function UnionDash() {
 
               <div className="w-full flex flex-col gap-3">
                 {[
-                  { label: 'Active',   count: active.length,  color: '#10b981' },
-                  { label: 'Pending',  count: pending.length, color: '#f59e0b' },
+                  { label: tActive,  count: active.length,  color: '#10b981' },
+                  { label: tPending, count: pending.length, color: '#f59e0b' },
                 ].map(r => (
                   <div key={r.label}>
                     <div className="flex items-center justify-between mb-1">
@@ -383,16 +390,16 @@ export function UnionDash() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-sm font-semibold text-foreground">Building Coverage Map</p>
+                <p className="text-sm font-semibold text-foreground">{t('unionDash.charts.buildingCoverage')}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Delegate assignment status per building
                 </p>
               </div>
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                {Object.entries(STATUS_CFG).map(([k, v]) => (
+                {(Object.keys(STATUS_CFG) as CoverageStatus[]).map(k => (
                   <span key={k} className="flex items-center gap-1.5">
-                    <span className={cn('h-2 w-2 rounded-full', v.dot)} />
-                    {v.label}
+                    <span className={cn('h-2 w-2 rounded-full', STATUS_CFG[k].dot)} />
+                    {t(`unionDash.coverage.${k}`)}
                   </span>
                 ))}
               </div>
@@ -428,7 +435,7 @@ export function UnionDash() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-sm font-semibold text-foreground">Pending Invitations</p>
+                <p className="text-sm font-semibold text-foreground">{t('unionDash.sections.pendingInvites')}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Delegates awaiting response
                 </p>
@@ -492,7 +499,7 @@ export function UnionDash() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-sm font-semibold text-foreground">Partner Network</p>
+                <p className="text-sm font-semibold text-foreground">{t('unionDash.sections.partners')}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Linked syndics · {partners.length} partner{partners.length !== 1 ? 's' : ''}
                 </p>
@@ -551,7 +558,7 @@ export function UnionDash() {
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-sm font-semibold text-foreground">Active Delegates</p>
+                <p className="text-sm font-semibold text-foreground">{t('unionDash.sections.activeDelegates')}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Confirmed right-hand delegates
                 </p>

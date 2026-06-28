@@ -6,6 +6,8 @@ import { authClient } from '@/lib/auth-client'
 import { getInitials } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { LangSwitcher } from '@/components/ui/LangSwitcher'
 import {
   LayoutDashboard, Bot, MessageSquare, BellIcon, PieChart, TrendingUp,
 } from 'lucide-react'
@@ -101,14 +103,13 @@ function GlobalNotifPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClos
         onClick={onClose}
       />
       <motion.div
-        className="fixed right-4 top-14 z-50 w-88 rounded-xl border bg-white shadow-xl overflow-hidden flex flex-col"
+        className="fixed right-4 top-14 z-50 rounded-xl border bg-white shadow-xl overflow-hidden flex flex-col"
         style={{ width: 340, maxHeight: 'calc(100vh - 72px)' }}
         initial={{ opacity: 0, y: -8, scale: 0.97 }}
         animate={{ opacity: 1, y: 0,  scale: 1 }}
         exit={{   opacity: 0, y: -8, scale: 0.97 }}
         transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
           <div className="flex items-center gap-2">
             <Bell size={14} className="text-foreground" />
@@ -134,7 +135,6 @@ function GlobalNotifPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClos
           </div>
         </div>
 
-        {/* Body */}
         <div className="overflow-y-auto flex-1">
           {isLoading && (
             <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
@@ -185,7 +185,8 @@ function GlobalNotifPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClos
 // ─── Header ────────────────────────────────────────────────────────────────────
 
 export function Header() {
-  const navigate = useNavigate()
+  const navigate         = useNavigate()
+  const { t, i18n }     = useTranslation()
   const { data: session } = authClient.useSession()
   const user = session?.user
 
@@ -238,7 +239,7 @@ export function Header() {
     window.location.href = '/auth/login'
   }
 
-  const fullName = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name : 'Syndic'
+  const fullName = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name : t('nav.syndic')
   const initials = getInitials(fullName)
 
   return (
@@ -250,7 +251,7 @@ export function Header() {
         </div>
         <div>
           <span className="font-semibold text-sm text-foreground/90">i9amati</span>
-          <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">Gestion de Syndic</span>
+          <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">{t('nav.syndicMgmt')}</span>
         </div>
       </div>
 
@@ -262,7 +263,7 @@ export function Header() {
             value={query}
             onChange={e => { setQuery(e.target.value); setSearchOpen(true) }}
             onFocus={() => setSearchOpen(true)}
-            placeholder="Rechercher dans i9amati..."
+            placeholder={t('nav.search')}
             className="w-full h-8 rounded-lg bg-muted border border-border pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
           />
           {query && (
@@ -276,7 +277,7 @@ export function Header() {
         {searchOpen && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-4 pt-3 pb-1">
-              Pages correspondantes
+              {t('nav.matchingPages')}
             </p>
             {results.map(page => (
               <button
@@ -298,28 +299,31 @@ export function Header() {
 
         {searchOpen && query.trim().length > 0 && results.length === 0 && (
           <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl px-4 py-5 text-center">
-            <p className="text-sm font-medium text-foreground">Aucune page trouvée</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Essayez un autre mot-clé</p>
+            <p className="text-sm font-medium text-foreground">{t('nav.noPageFound')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('nav.tryAnother')}</p>
           </div>
         )}
       </div>
 
       {/* Nav links */}
       <nav className="hidden md:flex items-center gap-1 mr-3">
-        {[
-          { label: 'Home',     to: '/'          },
-          { label: 'About',    to: '/#about'    },
-          { label: 'Services', to: '/#services' },
-        ].map(({ label, to }) => (
-          <Link key={label} to={to}
+        {([
+          { key: 'home',     to: '/'          },
+          { key: 'about',    to: '/#about'    },
+          { key: 'services', to: '/#services' },
+        ] as const).map(({ key, to }) => (
+          <Link key={key} to={to}
             className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            {label}
+            {t(`nav.${key}`)}
           </Link>
         ))}
       </nav>
 
-      {/* Right - bell + user */}
+      {/* Right - lang + bell + user */}
       <div className="flex items-center gap-2">
+        {/* Language switcher */}
+        <LangSwitcher variant="dark" />
+
         {/* Global notification bell */}
         <div ref={notifRef} className="relative">
           <button
@@ -358,7 +362,7 @@ export function Header() {
             </Avatar>
             <div className="hidden sm:block text-left">
               <p className="text-xs font-medium leading-none text-foreground/90">{fullName}</p>
-              <p className="text-[10px] text-foreground/50 mt-0.5">Syndic</p>
+              <p className="text-[10px] text-foreground/50 mt-0.5">{t('nav.syndic')}</p>
             </div>
             <ChevronDown size={12} className={`text-foreground/50 hidden sm:block transition-transform ${userOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -373,13 +377,13 @@ export function Header() {
                 onClick={() => { navigate('/syndic/profile'); setUserOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted/60 transition-colors">
                 <User size={14} className="text-muted-foreground" />
-                Profile
+                {t('nav.profile')}
               </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-border/40">
                 <LogOut size={14} />
-                Logout
+                {t('nav.logout')}
               </button>
             </div>
           )}

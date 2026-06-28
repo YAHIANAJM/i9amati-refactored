@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { TopBar } from '@/components/layout/TopBar'
 import { Badge } from '@/components/ui/badge'
@@ -21,21 +22,27 @@ import { cn } from '@/lib/utils'
 
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-const typeLabel: Record<Meeting['type'], string> = {
-  GLOBAL:      'Assemblée Générale',
-  EXCEPTIONAL: 'AG Extraordinaire',
-  NORMAL:      'Réunion de Conseil',
+const STATUS_VARIANT: Record<Meeting['status'], { variant: 'info' | 'warning' | 'success' | 'secondary'; stripe: string }> = {
+  SCHEDULED:   { variant: 'info',      stripe: 'border-l-blue-400'    },
+  IN_PROGRESS: { variant: 'warning',   stripe: 'border-l-amber-400'   },
+  COMPLETED:   { variant: 'success',   stripe: 'border-l-emerald-400' },
+  CANCELLED:   { variant: 'secondary', stripe: 'border-l-slate-300'   },
 }
 
-const statusConfig: Record<Meeting['status'], {
-  label: string
-  variant: 'info' | 'warning' | 'success' | 'secondary'
-  stripe: string
-}> = {
-  SCHEDULED:   { label: 'Planifiée', variant: 'info',      stripe: 'border-l-blue-400'    },
-  IN_PROGRESS: { label: 'En cours',  variant: 'warning',   stripe: 'border-l-amber-400'   },
-  COMPLETED:   { label: 'Terminée',  variant: 'success',   stripe: 'border-l-emerald-400' },
-  CANCELLED:   { label: 'Annulée',   variant: 'secondary', stripe: 'border-l-slate-300'   },
+function useMeetingLabels() {
+  const { t } = useTranslation()
+  const typeLabel: Record<Meeting['type'], string> = {
+    GLOBAL:      t('meetings.types.GLOBAL'),
+    EXCEPTIONAL: t('meetings.types.EXCEPTIONAL'),
+    NORMAL:      t('meetings.types.NORMAL'),
+  }
+  const statusConfig: Record<Meeting['status'], { label: string; variant: 'info' | 'warning' | 'success' | 'secondary'; stripe: string }> = {
+    SCHEDULED:   { label: t('meetings.status.SCHEDULED'),   ...STATUS_VARIANT.SCHEDULED   },
+    IN_PROGRESS: { label: t('meetings.status.IN_PROGRESS'), ...STATUS_VARIANT.IN_PROGRESS },
+    COMPLETED:   { label: t('meetings.status.COMPLETED'),   ...STATUS_VARIANT.COMPLETED   },
+    CANCELLED:   { label: t('meetings.status.CANCELLED'),   ...STATUS_VARIANT.CANCELLED   },
+  }
+  return { typeLabel, statusConfig, t }
 }
 
 const dateColor: Record<Meeting['status'], string> = {
@@ -978,6 +985,7 @@ function DetailPanel({ meeting: m, mutations, onShowPV, onSendConvocation, onOpe
 function ConvocationModal({ meeting: m, onClose, onConfirm, loading }: {
   meeting: Meeting; onClose: () => void; onConfirm: () => void; loading: boolean
 }) {
+  const { typeLabel } = useMeetingLabels()
   const date = new Date(m.scheduledAt)
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -1032,6 +1040,7 @@ function ConvocationModal({ meeting: m, onClose, onConfirm, loading }: {
 // ─── PVModal ──────────────────────────────────────────────────────────────────
 
 function PVModal({ meeting: m, onClose }: { meeting: Meeting; onClose: () => void }) {
+  const { typeLabel } = useMeetingLabels()
   const date    = new Date(m.scheduledAt)
   const present = m.attendeeList.filter(a => a.present).length
   const qOk     = present >= quorumRequired(m.totalEligible) || m.convocationNumber === 2
@@ -1253,6 +1262,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 type ActiveVote = { meetingId: string; itemId: string }
 
 export function Meetings() {
+  const { typeLabel, statusConfig, t } = useMeetingLabels()
   const [expandedId,  setExpandedId]  = useState<string | null>(null)
   const [drawerOpen,  setDrawerOpen]  = useState(false)
   const [pvId,        setPvId]        = useState<string | null>(null)
@@ -1291,11 +1301,11 @@ export function Meetings() {
   return (
     <div className="flex flex-col min-h-full">
       <TopBar
-        title="Réunions & AG"
-        subtitle="Assemblées générales et réunions de copropriété"
+        title={t('meetings.title')}
+        subtitle=""
         actions={
           <Button size="sm" className="gap-1.5 text-xs" onClick={() => setDrawerOpen(true)}>
-            <Plus size={13} /> Planifier une réunion
+            <Plus size={13} /> {t('meetings.newMeeting')}
           </Button>
         }
       />
