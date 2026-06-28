@@ -207,7 +207,7 @@ router.get('/', requirePermission('residence', 'read'), async (req: Request, res
           .innerJoin('buildings', 'buildings.id', 'apartments.building_id')
           .select(eb.fn.countAll<string>().as('cnt'))
           .whereRef('buildings.residence_id', '=', 'residences.id')
-          .where(sql`jsonb_array_length(apartments.shareholders::jsonb) > 0`)
+          .where(sql<boolean>`jsonb_array_length(apartments.shareholders::jsonb) > 0`)
           .as('occupied_count'),
       ])
       .orderBy('residences.created_at', 'desc')
@@ -250,7 +250,7 @@ router.get('/:id/buildings', requirePermission('residence', 'read'), async (req:
         eb.selectFrom('apartments')
           .select(eb.fn.countAll<string>().as('cnt'))
           .whereRef('apartments.building_id', '=', 'buildings.id')
-          .where(sql`jsonb_array_length(apartments.shareholders::jsonb) > 0`)
+          .where(sql<boolean>`jsonb_array_length(apartments.shareholders::jsonb) > 0`)
           .as('occupied_count'),
       ])
       .where('buildings.residence_id', '=', req.params.id)
@@ -354,12 +354,12 @@ router.get('/:id', requirePermission('residence', 'read'), async (req: Request, 
 router.post('/', requirePermission('residence', 'create'), async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
-    const { name, address, city, status, image, description } = req.body
+    const { name, address, city, status, image, description, facilities = [] } = req.body
     if (!name || !address) throw new AppError(400, 'name and address are required')
 
     const residence = await tenantDb
       .insertInto('residences')
-      .values({ name, address, city, status, image, description, updated_at: new Date() })
+      .values({ name, address, city, status, image, description, facilities: JSON.stringify(facilities) as any, updated_at: new Date() })
       .returningAll()
       .executeTakeFirstOrThrow()
     res.status(201).json(residence)
