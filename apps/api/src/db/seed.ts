@@ -105,6 +105,73 @@ async function seed() {
     console.log('✓ Residence: Résidence Atlas, Casablanca')
   }
 
+  // ── Building ──────────────────────────────────────────────────────────────
+  let buildingId: string
+  const existingBuilding = await t.selectFrom('buildings').select('id').where('name', '=', 'Bloc A').executeTakeFirst()
+  if (existingBuilding) {
+    buildingId = existingBuilding.id
+    console.log('  ↳ Building already exists.')
+  } else {
+    buildingId = randomUUID()
+    await t.insertInto('buildings').values({
+      id: buildingId, name: 'Bloc A', address: '12 Rue Ibn Batouta, Bloc A',
+      floors: 6, has_elevator: true, residence_id: residenceId,
+      updated_at: now,
+    }).execute()
+    console.log('✓ Building: Bloc A (6 floors, elevator)')
+  }
+
+  // ── Apartments + owners ────────────────────────────────────────────────────
+  const existingApts = await t.selectFrom('apartments').select('id').where('building_id', '=', buildingId).executeTakeFirst()
+  if (!existingApts) {
+    const ownerData = [
+      { name: 'Ahmed Alaoui',       first: 'Ahmed',   last: 'Alaoui',     email: 'ahmed.alaoui@res-atlas.ma',       code: '1A', lot: 'L01', floor: 1, area: 85 },
+      { name: 'Fatima Benali',      first: 'Fatima',  last: 'Benali',     email: 'fatima.benali@res-atlas.ma',      code: '1B', lot: 'L02', floor: 1, area: 90 },
+      { name: 'Youssef El Idrissi', first: 'Youssef', last: 'El Idrissi', email: 'youssef.idrissi@res-atlas.ma',    code: '2A', lot: 'L03', floor: 2, area: 85 },
+      { name: 'Khadija Tazi',       first: 'Khadija', last: 'Tazi',       email: 'khadija.tazi@res-atlas.ma',       code: '2B', lot: 'L04', floor: 2, area: 90 },
+      { name: 'Rachid Benjelloun',  first: 'Rachid',  last: 'Benjelloun', email: 'rachid.benjelloun@res-atlas.ma',  code: '3A', lot: 'L05', floor: 3, area: 85 },
+      { name: 'Nadia Chaoui',       first: 'Nadia',   last: 'Chaoui',     email: 'nadia.chaoui@res-atlas.ma',       code: '3B', lot: 'L06', floor: 3, area: 90 },
+      { name: 'Hassan Berrada',     first: 'Hassan',  last: 'Berrada',    email: 'hassan.berrada@res-atlas.ma',     code: '4A', lot: 'L07', floor: 4, area: 85 },
+      { name: 'Laila Chraibi',      first: 'Laila',   last: 'Chraibi',    email: 'laila.chraibi@res-atlas.ma',      code: '4B', lot: 'L08', floor: 4, area: 90 },
+    ]
+
+    for (const o of ownerData) {
+      const existing = await db.selectFrom('user').select('id').where('email', '=', o.email).executeTakeFirst()
+      let ownerId: string
+      if (existing) {
+        ownerId = existing.id
+      } else {
+        ownerId = randomUUID()
+        await db.insertInto('user').values({
+          id: ownerId, name: o.name, email: o.email, emailVerified: true,
+          firstName: o.first, lastName: o.last, platformRole: 'USER',
+          createdAt: now, updatedAt: now,
+        }).execute()
+      }
+
+      let ownerProfileId: string
+      const ep = await db.selectFrom('profiles').select('id').where('user_id', '=', ownerId).where('organization_id', '=', orgId).executeTakeFirst()
+      if (ep) {
+        ownerProfileId = ep.id
+      } else {
+        ownerProfileId = randomUUID()
+        await db.insertInto('profiles').values({ id: ownerProfileId, user_id: ownerId, organization_id: orgId, role: 'OWNER', created_at: now, updated_at: now }).execute()
+      }
+
+      const aptId = randomUUID()
+      await t.insertInto('apartments').values({
+        id: aptId, unit_code: o.code, lot_number: o.lot, floor: o.floor,
+        area_sqm: o.area, status: 'OCCUPIED', usage_type: 'RESIDENTIAL',
+        quote_part: 1 / 8, building_id: buildingId,
+        owner_profile_id: ownerProfileId, shareholders: '[]',
+        updated_at: now,
+      }).execute()
+    }
+    console.log('✓ 8 apartments + 8 owners created')
+  } else {
+    console.log('  ↳ Apartments already seeded.')
+  }
+
   // ── Meetings ───────────────────────────────────────────────────────────────
   const existingMtg = await t.selectFrom('meetings').select('id').executeTakeFirst()
   if (existingMtg) { console.log('  ↳ Meetings already seeded — skipping.\n'); return }
@@ -127,7 +194,7 @@ async function seed() {
     description: 'Présentation des comptes annuels et élection du bureau syndical.',
     type: 'GLOBAL', status: 'SCHEDULED', convocation_number: 1,
     scheduled_at: new Date('2024-07-15T10:00:00'), location: 'Salle de réunion RDC',
-    total_eligible: 8, residence_id: residenceId, updated_at: now,
+    total_eligible: 8, building_id: buildingId, residence_id: null, updated_at: now,
   }).execute()
 
   await t.insertInto('agenda_items').values([
@@ -149,7 +216,7 @@ async function seed() {
     description: "Décision sur le remplacement du moteur de l'ascenseur en panne.",
     type: 'EXCEPTIONAL', status: 'IN_PROGRESS', convocation_number: 2,
     scheduled_at: new Date('2024-06-20T17:30:00'), location: 'En ligne (Zoom)',
-    total_eligible: 8, residence_id: residenceId, updated_at: now,
+    total_eligible: 8, building_id: buildingId, residence_id: null, updated_at: now,
   }).execute()
 
   const ai2a = randomUUID()
@@ -173,7 +240,7 @@ async function seed() {
     description: 'Discussion sur le devis pour la réfection complète de la toiture.',
     type: 'EXCEPTIONAL', status: 'COMPLETED', convocation_number: 1,
     scheduled_at: new Date('2024-05-20T18:00:00'), location: 'Salle de réunion RDC',
-    total_eligible: 8, residence_id: residenceId, updated_at: now,
+    total_eligible: 8, building_id: buildingId, residence_id: null, updated_at: now,
   }).execute()
 
   await t.insertInto('agenda_items').values([

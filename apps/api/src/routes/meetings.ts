@@ -57,9 +57,11 @@ router.get('/', async (req: Request, res, next) => {
     const { tenantDb } = req as AuthRequest
 
     const meetings = await tenantDb
-      .selectFrom('meetings')
-      .selectAll()
-      .orderBy('scheduled_at', 'desc')
+      .selectFrom('meetings as m')
+      .leftJoin('buildings as b', 'b.id', 'm.building_id')
+      .selectAll('m')
+      .select('b.name as building_name')
+      .orderBy('m.scheduled_at', 'desc')
       .execute()
 
     const ids = meetings.map(m => m.id)
@@ -71,7 +73,7 @@ router.get('/', async (req: Request, res, next) => {
         ])
       : [[], []]
 
-    res.json(meetings.map(m => fmtMeeting(m, agendaItems, attendees)))
+    res.json(meetings.map(m => ({ ...fmtMeeting(m, agendaItems, attendees), buildingName: (m as any).building_name ?? undefined })))
   } catch (e) { next(e) }
 })
 
@@ -81,9 +83,11 @@ router.get('/:id', async (req: Request, res, next) => {
   try {
     const { tenantDb } = req as AuthRequest
     const m = await tenantDb
-      .selectFrom('meetings')
-      .selectAll()
-      .where('id', '=', req.params.id)
+      .selectFrom('meetings as m')
+      .leftJoin('buildings as b', 'b.id', 'm.building_id')
+      .selectAll('m')
+      .select('b.name as building_name')
+      .where('m.id', '=', req.params.id)
       .executeTakeFirst()
     if (!m) throw new AppError(404, 'Meeting not found')
 
@@ -92,7 +96,7 @@ router.get('/:id', async (req: Request, res, next) => {
       tenantDb.selectFrom('meeting_attendees').selectAll().where('meeting_id', '=', m.id).execute(),
     ])
 
-    res.json(fmtMeeting(m, agendaItems, attendees))
+    res.json({ ...fmtMeeting(m, agendaItems, attendees), buildingName: (m as any).building_name ?? undefined })
   } catch (e) { next(e) }
 })
 
@@ -103,11 +107,15 @@ router.post('/', async (req: Request, res, next) => {
     const { tenantDb } = req as AuthRequest
     const {
       title, description, type = 'GLOBAL', convocationNumber = 1,
-      scheduledAt, location, totalEligible = 0, residenceId, buildingId,
+      scheduledAt, location, totalEligible = 0, buildingId,
       agenda = [],
     } = req.body
 
-    if (!title || !scheduledAt) throw new AppError(400, 'title and scheduledAt are required')
+    if (!title || !scheduledAt || !buildingId) throw new AppError(400, 'title, scheduledAt and buildingId are required')
+
+    // Derive residence from building
+    const building = await tenantDb.selectFrom('buildings').select(['residence_id']).where('id', '=', buildingId).executeTakeFirst()
+    if (!building) throw new AppError(404, 'Building not found')
 
     const now = new Date()
     const id  = randomUUID()
@@ -122,8 +130,8 @@ router.post('/', async (req: Request, res, next) => {
       scheduled_at:         new Date(scheduledAt),
       location:             location ?? null,
       total_eligible:       totalEligible,
-      residence_id:         residenceId ?? null,
-      building_id:          buildingId ?? null,
+      residence_id:         building.residence_id,
+      building_id:          buildingId,
       convocation_sent_at:  null,
       updated_at:           now,
     }).execute()

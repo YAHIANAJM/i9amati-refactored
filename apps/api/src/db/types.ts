@@ -376,6 +376,31 @@ export interface NotificationTable {
   expires_at: Timestamp | null
 }
 
+export interface DelegateInvitationTable {
+  id: Generated<string>
+  invitation_id: string          // → public.invitations.id (app-managed)
+  display_name: string
+  phone: string | null
+  gender: 'male' | 'female'
+  building_id: string | null     // → buildings.id (app-managed)
+  note: string | null
+  status: 'PENDING' | 'ACTIVE'
+  created_at: ColumnType<Date, Date | string | undefined, never>
+}
+
+export interface PartnerSyndicTable {
+  id: Generated<string>
+  name: string
+  email: string
+  phone: string | null
+  gender: 'male' | 'female'
+  residence: string        // free-text name of the partner's residence
+  note: string | null
+  linked_at: Timestamp
+  created_at: ColumnType<Date, Date | string | undefined, never>
+  updated_at: Timestamp
+}
+
 // ── DATABASE INTERFACE ────────────────────────────────────────────────────────
 // Public tables are prefixed with "public." — withSchema() never touches them.
 // Tenant tables have no prefix — withSchema(orgSlug) qualifies them at query time.
@@ -419,6 +444,8 @@ export interface Database {
   service_contracts: ServiceContractTable
   service_residences: ServiceResidenceTable
   notifications: NotificationTable
+  delegate_invitations: DelegateInvitationTable
+  partner_syndics: PartnerSyndicTable
 }
 
 // ── CONVENIENCE SELECT TYPES ──────────────────────────────────────────────────

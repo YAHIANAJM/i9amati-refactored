@@ -21,6 +21,139 @@ interface ConvocationEmailOpts {
   agendaItems:   { title: string; description?: string }[]
 }
 
+// ─── Shared HTML shell ────────────────────────────────────────────────────────
+
+function emailShell(headerColor: string, accentColor: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:system-ui,-apple-system,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+    <div style="background:${headerColor};padding:24px 28px">
+      <p style="margin:0;color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px">IQAMATI</p>
+      <p style="margin:4px 0 0;color:${accentColor};font-size:13px">Plateforme de gestion syndic</p>
+    </div>
+    <div style="padding:28px">${body}</div>
+  </div>
+</body>
+</html>`
+}
+
+const FOOTER = `<p style="margin:24px 0 0;font-size:12px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:16px">
+  Cet email a été envoyé via la plateforme IQAMATI.<br>
+  Si vous pensez avoir reçu cet email par erreur, ignorez-le.
+</p>`
+
+// ─── Delegate invitation ──────────────────────────────────────────────────────
+
+interface DelegateInvitationOpts {
+  to:            string
+  recipientName: string
+  building:      string
+  syndicName:    string
+  note?:         string
+}
+
+export async function sendDelegateInvitationEmail(opts: DelegateInvitationOpts): Promise<boolean> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    console.warn('[Mailer] SMTP not configured — skipping delegate invitation to', opts.to)
+    return false
+  }
+
+  const transport = createTransport()
+  await transport.sendMail({
+    from:    `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to:      opts.to,
+    subject: `[IQAMATI] Vous avez été désigné délégué d'immeuble`,
+    html: emailShell('#1e3a8a', '#93c5fd', `
+      <p style="margin:0 0 16px;color:#1e293b">Bonjour <strong>${opts.recipientName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#475569">
+        Le syndic <strong>${opts.syndicName}</strong> vous a désigné comme
+        <strong>délégué d'immeuble</strong> pour l'immeuble suivant&nbsp;:
+      </p>
+
+      <div style="background:#eff6ff;border-left:4px solid #1e3a8a;padding:18px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
+        <p style="margin:0 0 4px;font-size:17px;font-weight:700;color:#1e3a8a">🏢 ${opts.building}</p>
+        <p style="margin:0;font-size:13px;color:#3b82f6">Délégué désigné par ${opts.syndicName}</p>
+      </div>
+
+      ${opts.note ? `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+        <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Note du syndic</p>
+        <p style="margin:0;font-size:14px;color:#334155">${opts.note}</p>
+      </div>` : ''}
+
+      <p style="margin:0 0 8px;color:#475569;font-size:14px">
+        En tant que délégué, vous serez l'interface entre les résidents et le syndic pour cet immeuble.
+        Vos responsabilités peuvent inclure la collecte des charges, la gestion des réclamations quotidiennes
+        et la coordination des interventions.
+      </p>
+      <p style="margin:0;color:#475569;font-size:14px">
+        Connectez-vous à IQAMATI pour accéder à votre espace délégué.
+      </p>
+      ${FOOTER}
+    `),
+  })
+  return true
+}
+
+// ─── Partner syndic invitation ────────────────────────────────────────────────
+
+interface PartnerInvitationOpts {
+  to:           string
+  recipientName: string
+  residence:    string
+  sharedParts:  string[]
+  syndicName:   string
+  syndicResidence: string
+  note?:        string
+}
+
+export async function sendPartnerInvitationEmail(opts: PartnerInvitationOpts): Promise<boolean> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    console.warn('[Mailer] SMTP not configured — skipping partner invitation to', opts.to)
+    return false
+  }
+
+  const partsHtml = opts.sharedParts
+    .map(p => `<span style="display:inline-block;background:#d1fae5;color:#065f46;font-size:12px;font-weight:600;padding:3px 10px;border-radius:100px;margin:3px 3px 0 0">${p}</span>`)
+    .join('')
+
+  const transport = createTransport()
+  await transport.sendMail({
+    from:    `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to:      opts.to,
+    subject: `[IQAMATI] Invitation de partenariat syndic`,
+    html: emailShell('#064e3b', '#6ee7b7', `
+      <p style="margin:0 0 16px;color:#1e293b">Bonjour <strong>${opts.recipientName}</strong>,</p>
+      <p style="margin:0 0 20px;color:#475569">
+        Le syndic <strong>${opts.syndicName}</strong> (${opts.syndicResidence}) souhaite établir un
+        <strong>partenariat</strong> avec votre résidence pour la gestion des parties communes partagées.
+      </p>
+
+      <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:18px 20px;border-radius:0 8px 8px 0;margin-bottom:24px">
+        <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#15803d">🤝 ${opts.syndicResidence} × ${opts.residence}</p>
+        <p style="margin:0 0 10px;font-size:13px;color:#166534">Parties communes concernées&nbsp;:</p>
+        <div>${partsHtml}</div>
+      </div>
+
+      ${opts.note ? `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+        <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px">Message du syndic</p>
+        <p style="margin:0;font-size:14px;color:#334155">${opts.note}</p>
+      </div>` : ''}
+
+      <p style="margin:0;color:#475569;font-size:14px">
+        Pour confirmer ce partenariat et coordonner la gestion de ces espaces communs,
+        contactez le syndic ${opts.syndicName} ou connectez-vous à IQAMATI.
+      </p>
+      ${FOOTER}
+    `),
+  })
+  return true
+}
+
+// ─── Convocation ──────────────────────────────────────────────────────────────
+
 export async function sendConvocationEmail(opts: ConvocationEmailOpts): Promise<void> {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
     console.warn('[Mailer] SMTP not configured — skipping email to', opts.to)

@@ -19,7 +19,7 @@ import { mockApartments } from '@/data/mock/apartments'
 import { mockComplaints } from '@/data/mock/complaints'
 import { mockMeetings } from '@/data/mock/meetings'
 import { mockServices } from '@/data/mock/services'
-import { mockUnionMembers } from '@/data/mock/union'
+import { mockRightHands } from '@/data/mock/union'
 import { mockAccountingStats } from '@/data/mock/accounting'
 import { formatCurrency } from '@/lib/utils'
 
@@ -37,7 +37,7 @@ const resolvedComplaints = mockComplaints.filter(c => c.status === 'RESOLVED' ||
 const upcomingMeetings = mockMeetings.filter(m => m.status === 'SCHEDULED').length
 const activeServices = mockServices.filter(s => s.status === 'ACTIVE').length
 const pendingServices = mockServices.filter(s => s.status === 'PENDING').length
-const activeMembers = mockUnionMembers.filter(m => m.status === 'ACTIVE').length
+const activeMembers = mockRightHands.filter(m => m.status === 'ACTIVE').length
 
 // ── Chart data ───────────────────────────────────────────────────────
 const aptStatusData = [

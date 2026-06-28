@@ -35,6 +35,7 @@ export type Meeting = {
   location?: string
   residenceId: string
   buildingId?: string
+  buildingName?: string
   convocationSentAt?: string
   createdAt: string
   agenda: AgendaItem[]
