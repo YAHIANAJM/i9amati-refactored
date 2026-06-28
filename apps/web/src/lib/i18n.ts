@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next'
 import ar from '../locales/ar/translation'
 import en from '../locales/en/translation'
 import fr from '../locales/fr/translation'
+import tzm from '../locales/tzm/translation'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -17,9 +18,10 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      ar: { translation: ar },
-      en: { translation: en },
-      fr: { translation: fr },
+      ar:  { translation: ar  },
+      en:  { translation: en  },
+      fr:  { translation: fr  },
+      tzm: { translation: tzm as any },
     },
     lng: 'ar',
     fallbackLng: 'ar',

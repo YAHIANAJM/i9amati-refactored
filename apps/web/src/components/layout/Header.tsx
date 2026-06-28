@@ -1,13 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Bell, ChevronDown, LogOut, User, X } from 'lucide-react'
+import { Search, Bell, ChevronDown, LogOut, User, X, Globe } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Link, useNavigate } from 'react-router-dom'
 import { authClient } from '@/lib/auth-client'
 import { getInitials } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Home, CreditCard, FileText, CalendarCheck,
   BarChart3, Rss, Wrench, Bell as BellIcon, Users, PieChart, TrendingUp, Bot, MessageSquare,
 } from 'lucide-react'
+
+const LANGUAGES = [
+  { code: 'fr',  label: 'Français',   dir: 'ltr' },
+  { code: 'en',  label: 'English',    dir: 'ltr' },
+  { code: 'ar',  label: 'العربية',    dir: 'rtl' },
+  { code: 'tzm', label: 'ⵜⴰⵎⴰⵣⵉⵖⵜ', dir: 'ltr' },
+] as const
 
 // All sidebar pages — same source as Sidebar.tsx
 const ALL_PAGES = [
@@ -34,15 +42,18 @@ const ALL_PAGES = [
 ]
 
 export function Header() {
-  const navigate = useNavigate()
+  const navigate   = useNavigate()
+  const { t, i18n } = useTranslation()
   const { data: session } = authClient.useSession()
   const user = session?.user
 
-  const [query, setQuery]           = useState('')
+  const [query, setQuery]       = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [userOpen, setUserOpen]     = useState(false)
+  const [langOpen, setLangOpen]     = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const userRef   = useRef<HTMLDivElement>(null)
+  const langRef   = useRef<HTMLDivElement>(null)
 
   const results = query.trim().length > 0
     ? ALL_PAGES.filter(p =>
@@ -54,12 +65,9 @@ export function Header() {
   // Close dropdowns on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchOpen(false)
-      }
-      if (userRef.current && !userRef.current.contains(e.target as Node)) {
-        setUserOpen(false)
-      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false)
+      if (userRef.current   && !userRef.current.contains(e.target as Node))   setUserOpen(false)
+      if (langRef.current   && !langRef.current.contains(e.target as Node))   setLangOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -70,8 +78,15 @@ export function Header() {
     window.location.href = '/auth/login'
   }
 
-  const fullName = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name : 'Syndic'
-  const initials = getInitials(fullName)
+  const switchLang = (code: string) => {
+    i18n.changeLanguage(code)
+    document.documentElement.dir = LANGUAGES.find(l => l.code === code)?.dir ?? 'ltr'
+    setLangOpen(false)
+  }
+
+  const currentLang = LANGUAGES.find(l => l.code === i18n.language) ?? LANGUAGES[0]
+  const fullName    = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name : t('nav.syndic')
+  const initials    = getInitials(fullName)
 
   return (
     <header className="flex items-center justify-between px-5 py-3 shrink-0 bg-white rounded-b-xl shadow-sm border border-border/40 mx-36">
@@ -82,7 +97,7 @@ export function Header() {
         </div>
         <div>
           <span className="font-semibold text-sm text-foreground/90">i9amati</span>
-          <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">Gestion de Syndic</span>
+          <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">{t('nav.syndicMgmt')}</span>
         </div>
       </div>
 
@@ -94,7 +109,7 @@ export function Header() {
             value={query}
             onChange={e => { setQuery(e.target.value); setSearchOpen(true) }}
             onFocus={() => setSearchOpen(true)}
-            placeholder="Rechercher dans i9amati..."
+            placeholder={t('nav.search')}
             className="w-full h-8 rounded-lg bg-muted border border-border pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
           />
           {query ? (
@@ -107,11 +122,11 @@ export function Header() {
           )}
         </div>
 
-        {/* Search dropdown */}
+        {/* Search results */}
         {searchOpen && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-4 pt-3 pb-1">
-              Pages correspondantes
+              {t('nav.matchingPages')}
             </p>
             {results.map(page => (
               <button
@@ -133,28 +148,67 @@ export function Header() {
 
         {searchOpen && query.trim().length > 0 && results.length === 0 && (
           <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl px-4 py-5 text-center">
-            <p className="text-sm font-medium text-foreground">Aucune page trouvée</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Essayez un autre mot-clé</p>
+            <p className="text-sm font-medium text-foreground">{t('nav.noPageFound')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('nav.tryAnother')}</p>
           </div>
         )}
       </div>
 
       {/* Nav links */}
       <nav className="hidden md:flex items-center gap-1 mr-3">
-        {[
-          { label: 'Home',     to: '/'          },
-          { label: 'About',    to: '/#about'    },
-          { label: 'Services', to: '/#services' },
-        ].map(({ label, to }) => (
-          <Link key={label} to={to}
+        {([
+          { key: 'home',     to: '/'          },
+          { key: 'about',    to: '/#about'    },
+          { key: 'services', to: '/#services' },
+        ] as const).map(({ key, to }) => (
+          <Link key={key} to={to}
             className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            {label}
+            {t(`nav.${key}`)}
           </Link>
         ))}
       </nav>
 
-      {/* Right - bell + user */}
+      {/* Right - lang + bell + user */}
       <div className="flex items-center gap-2">
+
+        {/* Language switcher */}
+        <div ref={langRef} className="relative">
+          <button
+            onClick={() => setLangOpen(v => !v)}
+            title={t('nav.lang')}
+            className="flex items-center gap-1.5 h-8 px-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <Globe size={14} />
+            <span className="text-xs font-medium hidden sm:inline">{currentLang.label}</span>
+            <ChevronDown size={11} className={`hidden sm:block transition-transform ${langOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-1.5 z-50 w-44 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-3 pt-2.5 pb-1">
+                {t('nav.lang')}
+              </p>
+              {LANGUAGES.map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => switchLang(lang.code)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-muted/60 ${
+                    i18n.language === lang.code
+                      ? 'text-primary font-semibold bg-primary/5'
+                      : 'text-foreground'
+                  }`}
+                  dir={lang.dir}
+                >
+                  <span>{lang.label}</span>
+                  {i18n.language === lang.code && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button className="relative flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors">
           <Bell size={16} className="text-muted-foreground" />
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
@@ -172,7 +226,7 @@ export function Header() {
             </Avatar>
             <div className="hidden sm:block text-left">
               <p className="text-xs font-medium leading-none text-foreground/90">{fullName}</p>
-              <p className="text-[10px] text-foreground/50 mt-0.5">Syndic</p>
+              <p className="text-[10px] text-foreground/50 mt-0.5">{t('nav.syndic')}</p>
             </div>
             <ChevronDown size={12} className={`text-foreground/50 hidden sm:block transition-transform ${userOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -187,13 +241,13 @@ export function Header() {
                 onClick={() => { navigate('/syndic/profile'); setUserOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted/60 transition-colors">
                 <User size={14} className="text-muted-foreground" />
-                Profile
+                {t('nav.profile')}
               </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-border/40">
                 <LogOut size={14} />
-                Logout
+                {t('nav.logout')}
               </button>
             </div>
           )}

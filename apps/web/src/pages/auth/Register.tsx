@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { authClient } from '@/lib/auth-client'
 import { Eye, EyeOff } from 'lucide-react'
 import { Building3D } from '@/components/auth/Building3D'
+import { useTranslation } from 'react-i18next'
 
 async function socialSignIn(provider: 'google' | 'facebook') {
   await authClient.signIn.social({ provider, callbackURL: `${window.location.origin}/syndic` })
@@ -13,6 +14,7 @@ const TEAL = '#2B8C80'
 
 export function Register() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' })
   const [showPw, setShowPw]           = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -24,7 +26,7 @@ export function Register() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (form.password !== form.confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return }
+    if (form.password !== form.confirmPassword) { setError(t('register.mismatch')); return }
     setLoading(true)
     setError(null)
     try {
@@ -33,7 +35,7 @@ export function Register() {
         password: form.password,
         name: `${form.firstName} ${form.lastName}`,
       })
-      if (error) setError(error.message || "Échec de l'inscription")
+      if (error) setError(error.message || t('register.registerFailed'))
       else navigate('/auth/setup', { replace: true })
     } catch (err: any) {
       setError(err.message || 'Une erreur inattendue est survenue')
@@ -78,7 +80,7 @@ export function Register() {
             IQAMATI
           </p>
           <p style={{ fontSize: 11, color: '#9CA3AF' }}>
-            Créez votre espace syndic
+            {t('register.subtitle')}
           </p>
         </div>
 
@@ -88,21 +90,21 @@ export function Register() {
           )}
 
           <div className="flex gap-2">
-            <input type="text" required placeholder="Prénom" value={form.firstName} onChange={set('firstName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
-            <input type="text" required placeholder="Nom" value={form.lastName} onChange={set('lastName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+            <input type="text" required placeholder={t('register.firstName')} value={form.firstName} onChange={set('firstName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+            <input type="text" required placeholder={t('register.lastName')} value={form.lastName} onChange={set('lastName')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
           </div>
 
-          <input type="email" required autoComplete="email" placeholder="Email or Phone ID" value={form.email} onChange={set('email')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
+          <input type="email" required autoComplete="email" placeholder={t('register.email')} value={form.email} onChange={set('email')} className={inputClass} onFocus={focusTeal} onBlur={blurGray} />
 
           <div className="relative">
-            <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" placeholder="Password" value={form.password} onChange={set('password')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
+            <input type={showPw ? 'text' : 'password'} required autoComplete="new-password" placeholder={t('register.password')} value={form.password} onChange={set('password')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
             <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
 
           <div className="relative">
-            <input type={showConfirm ? 'text' : 'password'} required autoComplete="new-password" placeholder="Confirmer le mot de passe" value={form.confirmPassword} onChange={set('confirmPassword')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
+            <input type={showConfirm ? 'text' : 'password'} required autoComplete="new-password" placeholder={t('register.confirmPassword')} value={form.confirmPassword} onChange={set('confirmPassword')} className={`${inputClass} pr-10`} onFocus={focusTeal} onBlur={blurGray} />
             <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
@@ -112,14 +114,14 @@ export function Register() {
             className="w-full h-12 rounded-full text-white font-semibold text-sm tracking-wide transition-opacity disabled:opacity-70"
             style={{ background: TEAL }}
           >
-            {loading ? 'Création...' : 'Créer un compte / إنشاء حساب'}
+            {loading ? t('register.loading') : t('register.submit')}
           </button>
         </form>
 
         <div>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400 whitespace-nowrap">or continue with</span>
+            <span className="text-xs text-gray-400 whitespace-nowrap">{t('register.orWith')}</span>
             <div className="flex-1 h-px bg-gray-100" />
           </div>
           <div className="flex justify-center gap-3 mt-4">
@@ -127,8 +129,8 @@ export function Register() {
             <SocialBtn onClick={() => socialSignIn('facebook')}><FacebookIcon /></SocialBtn>
           </div>
           <p className="mt-4 text-center text-xs text-gray-400">
-            Déjà un compte ?{' '}
-            <Link to="/auth/login" style={{ color: TEAL }} className="font-semibold hover:underline">Se connecter</Link>
+            {t('register.haveAccount')}{' '}
+            <Link to="/auth/login" style={{ color: TEAL }} className="font-semibold hover:underline">{t('register.signIn')}</Link>
           </p>
         </div>
       </div>

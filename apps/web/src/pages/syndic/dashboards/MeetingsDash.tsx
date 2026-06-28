@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { TopBar } from '@/components/layout/TopBar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -138,21 +139,22 @@ function Skeleton({ className }: { className?: string }) {
 // ── component ──────────────────────────────────────────────────────────────────
 
 export function MeetingsDash() {
+  const { t } = useTranslation()
   const { data: meetings = [], isLoading } = useMeetings()
   const d = useMemo(() => derive(meetings), [meetings])
 
   const kpis = [
-    { label: 'Total réunions',     value: isLoading ? '—' : meetings.length,                                                icon: CalendarDays, color: 'text-blue-600',    bg: 'bg-blue-50' },
-    { label: 'Planifiées',         value: isLoading ? '—' : meetings.filter(m => m.status === 'SCHEDULED').length,         icon: CalendarDays, color: 'text-amber-600',   bg: 'bg-amber-50' },
-    { label: 'Votes actifs',       value: isLoading ? '—' : d.activeVotes.filter(v => v.voteStatus === 'OPEN').length,     icon: Vote,         color: 'text-purple-600',  bg: 'bg-purple-50' },
-    { label: 'Quorum moyen',       value: isLoading ? '—' : `${d.avgQuorum}%`,                                             icon: Users,        color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Taux d\'adoption',   value: isLoading ? '—' : `${d.adoptionRate}%`,                                          icon: TrendingUp,   color: 'text-green-600',   bg: 'bg-green-50' },
-    { label: 'Convocations',       value: isLoading ? '—' : d.convocSent,                                                  icon: Mail,         color: 'text-sky-600',     bg: 'bg-sky-50' },
+    { label: t('meetingsDash.kpi.total'),       value: isLoading ? '—' : meetings.length,                                             icon: CalendarDays, color: 'text-blue-600',    bg: 'bg-blue-50' },
+    { label: t('meetingsDash.kpi.scheduled'),   value: isLoading ? '—' : meetings.filter(m => m.status === 'SCHEDULED').length,       icon: CalendarDays, color: 'text-amber-600',   bg: 'bg-amber-50' },
+    { label: t('meetingsDash.kpi.activeVotes'), value: isLoading ? '—' : d.activeVotes.filter(v => v.voteStatus === 'OPEN').length,   icon: Vote,         color: 'text-purple-600',  bg: 'bg-purple-50' },
+    { label: t('meetingsDash.kpi.avgQuorum'),   value: isLoading ? '—' : `${d.avgQuorum}%`,                                          icon: Users,        color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: t('meetingsDash.kpi.adoptionRate'),value: isLoading ? '—' : `${d.adoptionRate}%`,                                       icon: TrendingUp,   color: 'text-green-600',   bg: 'bg-green-50' },
+    { label: t('meetingsDash.kpi.convocations'),value: isLoading ? '—' : d.convocSent,                                               icon: Mail,         color: 'text-sky-600',     bg: 'bg-sky-50' },
   ]
 
   return (
     <div className="flex flex-col min-h-full">
-      <TopBar title="Meetings & Voting Analytics" subtitle="Statistiques des réunions et votes" />
+      <TopBar title={t('meetingsDash.title')} subtitle={t('meetingsDash.subtitle')} />
       <div className="flex-1 p-6 space-y-5 animate-fade-in">
 
         {/* ── KPI row ── */}
@@ -176,7 +178,7 @@ export function MeetingsDash() {
         {/* ── Frequency bar + Status pie ── */}
         <div className="grid grid-cols-3 gap-5">
           <Card className="col-span-2">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Réunions par mois (6 derniers mois)</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t('meetingsDash.charts.frequency')}</CardTitle></CardHeader>
             <CardContent>
               {isLoading
                 ? <Skeleton className="h-44 w-full" />
@@ -187,7 +189,7 @@ export function MeetingsDash() {
                       <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={24} />
                       <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                      <Bar dataKey="count" name="Réunions" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="count" name={t('meetingsDash.charts.meetings')} fill="#3b82f6" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )
@@ -196,7 +198,7 @@ export function MeetingsDash() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Statuts</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t('meetingsDash.charts.statuses')}</CardTitle></CardHeader>
             <CardContent>
               {isLoading
                 ? <Skeleton className="h-44 w-full" />
@@ -219,12 +221,12 @@ export function MeetingsDash() {
         {/* ── RSVP engagement + Adoption donut ── */}
         <div className="grid grid-cols-3 gap-5">
           <Card className="col-span-2">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Engagement RSVP par réunion</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t('meetingsDash.charts.rsvp')}</CardTitle></CardHeader>
             <CardContent>
               {isLoading
                 ? <Skeleton className="h-44 w-full" />
                 : d.rsvpData.length === 0
-                  ? <p className="text-xs text-muted-foreground text-center py-14">Aucune donnée</p>
+                  ? <p className="text-xs text-muted-foreground text-center py-14">{t('meetingsDash.noData')}</p>
                   : (
                     <ResponsiveContainer width="100%" height={176}>
                       <BarChart data={d.rsvpData} layout="vertical" barSize={10}>
@@ -245,7 +247,7 @@ export function MeetingsDash() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Résolutions votées</CardTitle>
+              <CardTitle className="text-sm">{t('meetingsDash.charts.adoption')}</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading
@@ -265,12 +267,12 @@ export function MeetingsDash() {
                       <div className="flex justify-center gap-4 mt-1">
                         <div className="text-center">
                           <p className="text-lg font-bold text-emerald-600">{d.adopted}</p>
-                          <p className="text-[10px] text-muted-foreground">Adoptées</p>
+                          <p className="text-[10px] text-muted-foreground">{t('meetingsDash.charts.adopted')}</p>
                         </div>
                         <div className="w-px bg-border" />
                         <div className="text-center">
                           <p className="text-lg font-bold text-red-500">{d.rejected}</p>
-                          <p className="text-[10px] text-muted-foreground">Rejetées</p>
+                          <p className="text-[10px] text-muted-foreground">{t('meetingsDash.charts.rejected')}</p>
                         </div>
                       </div>
                     </>
@@ -283,7 +285,7 @@ export function MeetingsDash() {
         {/* ── Vote cards ── */}
         {(isLoading || d.activeVotes.length > 0) && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Détail des votes</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t('meetingsDash.sections.activeVotes')}</CardTitle></CardHeader>
             <CardContent>
               {isLoading
                 ? <div className="grid grid-cols-3 gap-3"><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
@@ -296,7 +298,7 @@ export function MeetingsDash() {
                           <div className="flex items-start justify-between mb-2">
                             <p className="text-xs font-medium leading-snug">{v.title}</p>
                             <Badge variant={v.voteStatus === 'OPEN' ? 'info' : 'secondary'} className="text-[10px] ml-2 shrink-0">
-                              {v.voteStatus === 'OPEN' ? 'Ouvert' : 'Fermé'}
+                              {v.voteStatus === 'OPEN' ? t('meetings.open') : t('meetings.closed')}
                             </Badge>
                           </div>
                           <div className="flex gap-3 text-[11px]">
@@ -322,12 +324,12 @@ export function MeetingsDash() {
         <div className="grid grid-cols-2 gap-5">
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Taux de quorum par réunion</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t('meetingsDash.sections.quorum')}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {isLoading
                 ? <><Skeleton className="h-14" /><Skeleton className="h-14" /></>
                 : d.quorumRows.length === 0
-                  ? <p className="text-xs text-muted-foreground text-center py-6">Aucune réunion tenue</p>
+                  ? <p className="text-xs text-muted-foreground text-center py-6">{t('meetingsDash.noData')}</p>
                   : d.quorumRows.map(r => (
                       <div key={r.id} className="p-3 rounded-lg border">
                         <div className="flex items-start justify-between gap-2">
@@ -351,7 +353,7 @@ export function MeetingsDash() {
                               variant={r.conv === 2 ? 'warning' : r.reached ? 'success' : 'destructive'}
                               className="text-[10px]"
                             >
-                              {r.conv === 2 ? '2ème conv.' : r.reached ? 'Atteint ✓' : 'Non atteint'}
+                              {r.conv === 2 ? '2ème conv.' : r.reached ? `${t('meetingsDash.quorum.reached')} ✓` : t('meetingsDash.quorum.notReached')}
                             </Badge>
                           </div>
                         </div>
@@ -362,12 +364,12 @@ export function MeetingsDash() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Historique des résolutions</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{t('meetingsDash.sections.resolutions')}</CardTitle></CardHeader>
             <CardContent>
               {isLoading
                 ? <><Skeleton className="h-14 mb-3" /><Skeleton className="h-14 mb-3" /><Skeleton className="h-14" /></>
                 : d.resolutions.length === 0
-                  ? <p className="text-xs text-muted-foreground text-center py-6">Aucune résolution votée</p>
+                  ? <p className="text-xs text-muted-foreground text-center py-6">{t('meetingsDash.noData')}</p>
                   : (
                     <div className="relative pl-5">
                       <div className="absolute left-[7px] top-1 bottom-1 w-px bg-border" />
@@ -400,7 +402,7 @@ export function MeetingsDash() {
                                   variant={r.result === 'ADOPTED' ? 'success' : 'destructive'}
                                   className="text-[10px] shrink-0 mt-0.5"
                                 >
-                                  {r.result === 'ADOPTED' ? 'Adopté ✓' : 'Rejeté ✗'}
+                                  {r.result === 'ADOPTED' ? `${t('meetingsDash.charts.adopted')} ✓` : `${t('meetingsDash.charts.rejected')} ✗`}
                                 </Badge>
                               </div>
                             </div>
