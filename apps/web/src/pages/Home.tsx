@@ -5,7 +5,6 @@ import {
   Menu, X, CreditCard, Calendar, Users,
   FileText, Bell, Building2, CheckCircle2,
 } from 'lucide-react'
-import { ChatBot } from '@/components/chatbot/ChatBot'
 import { useTranslation } from 'react-i18next'
 import { LangSwitcher } from '@/components/ui/LangSwitcher'
 
@@ -708,7 +707,6 @@ export function Home() {
       </AnimatePresence>
 
       {/* ── CHATBOT — transparent floating button ── */}
-      <ChatBot />
 
       {/* ── BOTTOM social ── */}
       <motion.div

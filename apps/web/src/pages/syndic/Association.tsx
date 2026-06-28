@@ -145,16 +145,18 @@ const FACILITY_ICONS: Record<string, LucideIcon> = {
   VENTILATION: Zap,
 }
 
+const STATUS_CLS = 'inline-flex items-center rounded-md px-2 py-0.5 font-semibold border'
+
 const residenceStatus = {
-  ACTIVE:      { label: 'Actif',    variant: 'success'   as const },
-  MAINTENANCE: { label: 'Travaux',  variant: 'warning'   as const },
-  INACTIVE:    { label: 'Inactif',  variant: 'secondary' as const },
+  ACTIVE:      { label: 'Actif',   cls: `${STATUS_CLS} bg-[#5A8F76]/[0.12] text-[#5A8F76] border-[#5A8F76]/30` },
+  MAINTENANCE: { label: 'Travaux', cls: `${STATUS_CLS} bg-amber-50 text-amber-600 border-amber-200` },
+  INACTIVE:    { label: 'Inactif', cls: `${STATUS_CLS} bg-[#8F5C64]/[0.12] text-[#8F5C64] border-[#8F5C64]/30` },
 }
 
 const aptStatus = {
-  OCCUPIED:    { label: 'Occupé',  variant: 'success'   as const },
-  VACANT:      { label: 'Vacant',  variant: 'secondary' as const },
-  MAINTENANCE: { label: 'Travaux', variant: 'warning'   as const },
+  OCCUPIED:    { label: 'Occupé',  cls: `${STATUS_CLS} bg-[#5A8F76]/[0.12] text-[#5A8F76] border-[#5A8F76]/30` },
+  VACANT:      { label: 'Vacant',  cls: `${STATUS_CLS} bg-[#33091B]/[0.08] text-[#33091B] border-[#33091B]/20` },
+  MAINTENANCE: { label: 'Travaux', cls: `${STATUS_CLS} bg-amber-50 text-amber-600 border-amber-200` },
 }
 
 /* â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -180,16 +182,16 @@ function FacilityPill({ name }: { name: string }) {
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
       transition={{ duration: 0.2, ease: EASE_OUT_QUART }}
-      className="flex items-center gap-1.5 h-6 px-1.5 rounded-md bg-muted overflow-hidden cursor-default select-none"
+      className="flex items-center gap-1.5 h-6 px-1.5 rounded-md bg-[#8F5C64]/[0.10] overflow-hidden cursor-default select-none"
     >
       {Icon
-        ? <Icon size={11} className="text-muted-foreground shrink-0" />
-        : <span className="text-[9px] font-medium text-muted-foreground">{name.slice(0, 2)}</span>
+        ? <Icon size={11} className="text-[#8F5C64] shrink-0" />
+        : <span className="text-[9px] font-medium text-[#8F5C64]">{name.slice(0, 2)}</span>
       }
       <AnimatePresence>
         {hovered && (
           <motion.span key={name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}
-            className="text-[10px] text-muted-foreground whitespace-nowrap pr-0.5"
+            className="text-[10px] text-[#8F5C64] whitespace-nowrap pr-0.5"
           >
             {name}
           </motion.span>
@@ -487,9 +489,9 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
                   <div className="absolute top-4 left-4 right-4 flex items-start justify-between gap-2">
                     <div className="flex gap-1.5 flex-wrap">
-                      <Badge variant={residenceStatus[residence.status].variant} className="text-[10px] shadow-sm">
+                      <span className={cn(residenceStatus[residence.status].cls, 'text-[10px]')}>
                         {residenceStatus[residence.status].label}
-                      </Badge>
+                      </span>
                       <Badge variant={isStandalone ? 'secondary' : 'info'} className="text-[10px] shadow-sm">
                         {buildingsLoading ? '…' : isStandalone ? 'Standalone' : 'Complex'}
                       </Badge>
@@ -521,7 +523,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                   ].map((s, i) => (
                     <div key={s.label} className={cn('flex-1 flex flex-col items-center py-3', i > 0 && 'border-l border-border/60')}>
                       <span className={`text-base font-bold tabular-nums leading-none ${s.color}`}>{s.value}</span>
-                      <span className="text-[10px] text-muted-foreground mt-1">{s.label}</span>
+                      <span className={`text-[10px] font-medium mt-1 ${s.color} opacity-70`}>{s.label}</span>
                     </div>
                   ))}
                 </div>
@@ -662,7 +664,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                       ].map(s => (
                         <div key={s.label} className="flex flex-col items-center py-3.5 rounded-xl bg-muted/40">
                           <span className={`text-2xl font-extrabold tabular-nums leading-none ${s.color}`}>{s.value}</span>
-                          <span className="text-[10px] text-muted-foreground mt-1.5">{s.label}</span>
+                          <span className={`text-[10px] font-medium mt-1.5 ${s.color} opacity-70`}>{s.label}</span>
                         </div>
                       ))}
                     </div>
@@ -706,7 +708,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                           </div>
                         ) : (
                           <button onClick={() => startEdit('building-info', { name: activeBuilding.name, floors: activeBuilding.floors, lotNumber: activeBuilding.lot_number ?? '', areaSqm: activeBuilding.area_sqm ?? '' })}
-                            className="p-1 rounded-lg hover:bg-muted text-muted-foreground/40 hover:text-primary transition-colors">
+                            className="p-1 rounded-lg hover:bg-muted text-muted-foreground/40 hover:text-[#C18D52] transition-colors">
                             <Pencil size={11} />
                           </button>
                         )}
@@ -758,7 +760,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Équipements</p>
                           {editSection !== 'building-facilities' && (
                             <button onClick={() => startEdit('building-facilities', { facilities: [...(activeBuilding.facilities ?? [])] })}
-                              className="p-1 rounded-lg hover:bg-muted text-muted-foreground/40 hover:text-primary transition-colors">
+                              className="p-1 rounded-lg hover:bg-muted text-muted-foreground/40 hover:text-[#C18D52] transition-colors">
                               <Pencil size={11} />
                             </button>
                           )}
@@ -873,9 +875,9 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                                             <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', sc.dot)} />
                                             <span className="text-[11px] font-medium text-muted-foreground">{aptStatus[apt.status].label}</span>
                                           </div>
-                                          <Badge variant={aptStatus[apt.status].variant} className="text-[9px] px-1.5 py-0">
+                                          <span className={cn(aptStatus[apt.status].cls, 'text-[9px]')}>
                                             {apt.usage_type === 'RESIDENTIAL' ? 'Residential' : apt.usage_type === 'COMMERCIAL' ? 'Commercial' : 'Mixed'}
-                                          </Badge>
+                                          </span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                                           <div className="flex flex-col bg-muted/40 rounded-lg px-2.5 py-2">
@@ -967,9 +969,9 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                     <div className="absolute bottom-3 left-4 flex items-center gap-2">
                       <span className="text-white text-xs font-semibold drop-shadow">Floor plan · {activeApt.unit_code}</span>
-                      <Badge variant={aptStatus[activeApt.status].variant} className="text-[9px]">
+                      <span className={cn(aptStatus[activeApt.status].cls, 'text-[9px]')}>
                         {aptStatus[activeApt.status].label}
-                      </Badge>
+                      </span>
                     </div>
                   </div>
                   <div className="p-5 space-y-4">
@@ -990,7 +992,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                       ].map(s => (
                         <div key={s.label} className="flex flex-col items-center py-3 rounded-xl bg-muted/40">
                           <span className={`text-lg font-extrabold tabular-nums leading-none ${s.color}`}>{s.value}</span>
-                          <span className="text-[10px] text-muted-foreground mt-1">{s.label}</span>
+                          <span className={`text-[10px] font-medium mt-1 ${s.color} opacity-70`}>{s.label}</span>
                         </div>
                       ))}
                     </div>
@@ -1007,7 +1009,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                           </div>
                         ) : (
                           <button onClick={() => startEdit('apt-info', { lotNumber: activeApt.lot_number ?? '', floor: activeApt.floor ?? 0, areaSqm: activeApt.area_sqm ?? '', quotePart: activeApt.quote_part ?? '', quotePartResidence: activeApt.quote_part_residence ?? '' })}
-                            className="p-1 rounded-lg hover:bg-muted text-muted-foreground/40 hover:text-primary transition-colors">
+                            className="p-1 rounded-lg hover:bg-muted text-muted-foreground/40 hover:text-[#C18D52] transition-colors">
                             <Pencil size={11} />
                           </button>
                         )}
@@ -1093,14 +1095,14 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                         </button>
                       ) : (
                         <button onClick={() => { setOwnerForm({ ...aptShareholders[selectedOwnerIdx] }); setOwnerEditMode(true) }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors">
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-[#C18D52] transition-colors">
                           <Pencil size={13} />
                         </button>
                       )
                     ) : (
-                      <Badge variant={aptStatus[activeApt.status].variant} className="text-[10px]">
+                      <span className={cn(aptStatus[activeApt.status].cls, 'text-[10px]')}>
                         {aptStatus[activeApt.status].label}
-                      </Badge>
+                      </span>
                     )}
                   </div>
 
@@ -1131,7 +1133,7 @@ function ResidenceModal({ residence, open, onClose, onManage, initialNav }: {
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">{o.email ?? 'Aucun email'}</p>
                               </div>
-                              <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
+                              <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-[#C18D52] transition-colors shrink-0" />
                             </div>
                             {activeApt.quote_part != null && (
                               <div className="border-t border-border/40 flex items-center gap-2.5 px-4 py-2.5">
@@ -1378,39 +1380,48 @@ export function Association() {
   const topBarPlaceholder = view === 'residences' ? 'Rechercher une résidence…' : view === 'buildings' ? 'Rechercher un bâtiment…' : 'Rechercher un propriétaire…'
   const onTopBarSearch = (v: string) => view === 'residences' ? setF('resSearch', v) : view === 'buildings' ? setF('bldSearch', v) : setF('aptOwner', v)
 
+  // Per-category chip color palette
+  const CHIP_CLASSES: Record<string, string> = {
+    '#33091B': 'bg-[#33091B]/[0.12] text-[#33091B] border-[#33091B]/30',
+    '#D97172': 'bg-[#D97172]/[0.12] text-[#D97172] border-[#D97172]/30',
+    '#8F5C64': 'bg-[#8F5C64]/[0.12] text-[#8F5C64] border-[#8F5C64]/30',
+    '#C18D52': 'bg-[#C18D52]/[0.12] text-[#C18D52] border-[#C18D52]/30',
+    '#203B37': 'bg-[#203B37]/[0.12] text-[#203B37] border-[#203B37]/30',
+  }
+
   // Active chips — computed per view
-  const activeChips: { label: string; remove: () => void }[] = []
+  const activeChips: { label: string; remove: () => void; color: string }[] = []
   if (view === 'residences') {
-    if (filters.resSearch) activeChips.push({ label: `”${filters.resSearch}”`, remove: () => setF('resSearch', '') })
-    if (filters.resCity) activeChips.push({ label: `Ville: ${filters.resCity}`, remove: () => setF('resCity', '') })
+    if (filters.resSearch) activeChips.push({ label: `”${filters.resSearch}”`, remove: () => setF('resSearch', ''), color: '#33091B' })
+    if (filters.resCity) activeChips.push({ label: `Ville: ${filters.resCity}`, remove: () => setF('resCity', ''), color: '#C18D52' })
     filters.resStatus.forEach(s => {
       const map: Record<string,string> = { ACTIVE: 'Actif', MAINTENANCE: 'Travaux', INACTIVE: 'Inactif' }
-      activeChips.push({ label: `Statut: ${map[s] ?? s}`, remove: () => toggleStatus('resStatus', s) })
+      activeChips.push({ label: `Statut: ${map[s] ?? s}`, remove: () => toggleStatus('resStatus', s), color: '#D97172' })
     })
     filters.resFacilities.forEach(f => {
       const fac = FACILITIES.find(x => x.key === f)
-      activeChips.push({ label: fac?.label ?? f, remove: () => toggleFacility('resFacilities', f) })
+      activeChips.push({ label: fac?.label ?? f, remove: () => toggleFacility('resFacilities', f), color: '#8F5C64' })
     })
-    if (filters.resMinBuildings) activeChips.push({ label: `≥${filters.resMinBuildings} bâtiments`, remove: () => setF('resMinBuildings', '') })
-    if (filters.resMinApts) activeChips.push({ label: `≥${filters.resMinApts} appts`, remove: () => setF('resMinApts', '') })
+    if (filters.resMinBuildings) activeChips.push({ label: `≥${filters.resMinBuildings} bâtiments`, remove: () => setF('resMinBuildings', ''), color: '#203B37' })
+    if (filters.resMinApts) activeChips.push({ label: `≥${filters.resMinApts} appts`, remove: () => setF('resMinApts', ''), color: '#203B37' })
   } else if (view === 'buildings') {
-    if (filters.bldSearch) activeChips.push({ label: `”${filters.bldSearch}”`, remove: () => setF('bldSearch', '') })
-    if (filters.bldMinFloors) activeChips.push({ label: `≥${filters.bldMinFloors} étages`, remove: () => setF('bldMinFloors', '') })
-    if (filters.bldMaxFloors) activeChips.push({ label: `≤${filters.bldMaxFloors} étages`, remove: () => setF('bldMaxFloors', '') })
+    if (filters.bldSearch) activeChips.push({ label: `”${filters.bldSearch}”`, remove: () => setF('bldSearch', ''), color: '#33091B' })
+    if (filters.bldMinFloors) activeChips.push({ label: `≥${filters.bldMinFloors} étages`, remove: () => setF('bldMinFloors', ''), color: '#203B37' })
+    if (filters.bldMaxFloors) activeChips.push({ label: `≤${filters.bldMaxFloors} étages`, remove: () => setF('bldMaxFloors', ''), color: '#203B37' })
     filters.bldFacilities.forEach(f => {
       const fac = FACILITIES.find(x => x.key === f)
-      activeChips.push({ label: fac?.label ?? f, remove: () => toggleFacility('bldFacilities', f) })
+      activeChips.push({ label: fac?.label ?? f, remove: () => toggleFacility('bldFacilities', f), color: '#8F5C64' })
     })
-    if (filters.bldMinApts) activeChips.push({ label: `≥${filters.bldMinApts} appts`, remove: () => setF('bldMinApts', '') })
+    if (filters.bldMinApts) activeChips.push({ label: `≥${filters.bldMinApts} appts`, remove: () => setF('bldMinApts', ''), color: '#203B37' })
   } else if (view === 'apartments') {
-    if (filters.aptOwner) activeChips.push({ label: `”${filters.aptOwner}”`, remove: () => setF('aptOwner', '') })
-    if (filters.aptFloor) activeChips.push({ label: `Étage ${filters.aptFloor}`, remove: () => setF('aptFloor', '') })
-    if (filters.aptUsage) activeChips.push({ label: filters.aptUsage === 'RESIDENTIAL' ? 'Résidentiel' : filters.aptUsage === 'COMMERCIAL' ? 'Commercial' : 'Mixte', remove: () => setF('aptUsage', '') })
-    if (filters.aptMinArea) activeChips.push({ label: `≥${filters.aptMinArea}m²`, remove: () => setF('aptMinArea', '') })
-    if (filters.aptMaxArea) activeChips.push({ label: `≤${filters.aptMaxArea}m²`, remove: () => setF('aptMaxArea', '') })
+    if (filters.aptOwner) activeChips.push({ label: `”${filters.aptOwner}”`, remove: () => setF('aptOwner', ''), color: '#33091B' })
+    if (filters.aptFloor) activeChips.push({ label: `Étage ${filters.aptFloor}`, remove: () => setF('aptFloor', ''), color: '#203B37' })
+    if (filters.aptUsage) activeChips.push({ label: filters.aptUsage === 'RESIDENTIAL' ? 'Résidentiel' : filters.aptUsage === 'COMMERCIAL' ? 'Commercial' : 'Mixte', remove: () => setF('aptUsage', ''), color: '#D97172' })
+    if (filters.aptMinArea) activeChips.push({ label: `≥${filters.aptMinArea}m²`, remove: () => setF('aptMinArea', ''), color: '#203B37' })
+    if (filters.aptMaxArea) activeChips.push({ label: `≤${filters.aptMaxArea}m²`, remove: () => setF('aptMaxArea', ''), color: '#203B37' })
     filters.aptStatus.forEach(s => {
       const map: Record<string,string> = { VACANT: 'Vacant', OCCUPIED: 'Occupé', MAINTENANCE: 'Travaux' }
-      activeChips.push({ label: map[s] ?? s, remove: () => toggleStatus('aptStatus', s) })
+      activeChips.push({ label: map[s] ?? s, remove: () => toggleStatus('aptStatus', s), color: '#D97172' })
     })
   }
 
@@ -1475,14 +1486,14 @@ export function Association() {
   const Breadcrumb = () => (
     <div className="flex items-center gap-1 text-xs text-muted-foreground">
       <button onClick={() => { setView('residences'); setSelectedResidence(null); setSelectedBuilding(null) }}
-        className={cn('hover:text-primary transition-colors', view === 'residences' && 'text-foreground font-medium pointer-events-none')}>
+        className={cn('hover:text-[#C18D52] transition-colors', view === 'residences' && 'text-foreground font-medium pointer-events-none')}>
         Owners' Association
       </button>
       {selectedResidence && (
         <>
           <ChevronRight size={12} />
           <button onClick={() => { setView('buildings'); setSelectedBuilding(null) }}
-            className={cn('hover:text-primary transition-colors', view === 'buildings' && 'text-foreground font-medium pointer-events-none')}>
+            className={cn('hover:text-[#C18D52] transition-colors', view === 'buildings' && 'text-foreground font-medium pointer-events-none')}>
             {selectedResidence.name}
           </button>
         </>
@@ -1504,20 +1515,22 @@ export function Association() {
   const HeaderSubtitle = () => {
     if (view === 'residences') return (
       <div className="flex items-center flex-row gap-1 mt-0.5">
-        <StatItem value={totalCount}                label="Residences" color="text-[#C18D52]" />
+        <StatItem value={totalCount}                 label="Residences" color="text-[#C18D52]" />
         {dot}
-        <StatItem value={totalUnits}                label="Units"      color="text-[#203B37]" />
+        <StatItem value={totalUnits}                 label="Units"      color="text-[#33091B]" />
         {dot}
-        <StatItem value={totalOccupied}             label="Occupied"   color="text-[#5A8F76]" />
+        <StatItem value={totalOccupied}              label="Occupied"   color="text-[#D97172]" />
         {dot}
-        <StatItem value={totalUnits - totalOccupied} label="Vacant"   color="text-[#9ABCAB]" />
+        <StatItem value={totalUnits - totalOccupied} label="Vacant"     color="text-[#9ABCAB]" />
       </div>
     )
     if (view === 'buildings' && selectedResidence) return (
       <div className="flex items-center flex-row gap-1 mt-0.5">
-        <StatItem value={selectedResidence.building_count}  label={selectedResidence.building_count === 1 ? 'Building' : 'Buildings'} color="text-[#C18D52]" />
+        <StatItem value={selectedResidence.building_count}  label={selectedResidence.building_count === 1 ? 'Building' : 'Buildings'} color="text-[#33091B]" />
         {dot}
-        <StatItem value={selectedResidence.apartment_count} label="Units" color="text-[#203B37]" />
+        <StatItem value={selectedResidence.apartment_count} label="Units"    color="text-[#203B37]" />
+        {dot}
+        <StatItem value={selectedResidence.occupied_count}  label="Occupied" color="text-[#D97172]" />
         {dot}
         <span className="text-xs text-muted-foreground">{selectedResidence.name}</span>
       </div>
@@ -1527,7 +1540,7 @@ export function Association() {
         <div className="flex items-center flex-row gap-1 mt-0.5">
           <StatItem value={selectedBuilding.apartment_count} label="Apartments" color="text-[#203B37]" />
           {dot}
-          <StatItem value={selectedBuilding.occupied_count}  label="Occupied"   color="text-[#5A8F76]" />
+          <StatItem value={selectedBuilding.occupied_count}  label="Occupied"   color="text-[#D97172]" />
           {dot}
           <span className="text-xs text-muted-foreground">{selectedBuilding.name}</span>
         </div>
@@ -1564,6 +1577,7 @@ export function Association() {
         searchValue={topBarSearch}
         onSearchChange={onTopBarSearch}
         searchPlaceholder={topBarPlaceholder}
+        searchTextColor="#33091B"
         actions={
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -1573,7 +1587,7 @@ export function Association() {
                 'relative flex items-center justify-center h-8 w-8 rounded-lg border transition-all',
                 filterOpen || activeChips.length > 0
                   ? 'border-[#C18D52] bg-[#C18D52] text-white'
-                  : 'border-border bg-background text-muted-foreground hover:text-[#C18D52] hover:border-[#C18D52]/50'
+                  : 'border-[#C18D52]/30 bg-[#C18D52]/[0.06] text-[#C18D52] hover:bg-[#C18D52]/[0.14] hover:border-[#C18D52]/60'
               )}>
               <SlidersHorizontal size={14} />
               {activeChips.length > 0 && !filterOpen && (
@@ -1601,7 +1615,7 @@ export function Association() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setFilters(EMPTY_FILTERS)}
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors px-1.5 py-1 rounded-md hover:bg-muted">
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-[#C18D52] transition-colors px-1.5 py-1 rounded-md hover:bg-muted">
                         <RotateCcw size={10} />Réinitialiser
                       </button>
                       <button onClick={() => setFilterOpen(false)}
@@ -1616,30 +1630,34 @@ export function Association() {
                     {/* ── RESIDENCES ── */}
                     {view === 'residences' && (<>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Statut</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#D97172]/60 mb-2">Statut</p>
                         <div className="flex gap-2">
                           {([['ACTIVE','Actif','bg-[#5A8F76]'],['MAINTENANCE','Travaux','bg-amber-400'],['INACTIVE','Inactif','bg-slate-400']] as const).map(([val, label, dot]) => (
                             <button key={val} onClick={() => toggleStatus('resStatus', val)}
                               className={cn('flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-semibold transition-all',
-                                filters.resStatus.includes(val) ? 'border-[#C18D52] bg-[#C18D52]/[0.10] text-[#C18D52]' : 'border-border text-muted-foreground hover:border-[#C18D52]/30')}>
+                                filters.resStatus.includes(val)
+                                  ? 'border-[#D97172] bg-[#D97172]/[0.10] text-[#D97172]'
+                                  : 'border-[#D97172]/30 text-[#D97172]/60 hover:border-[#D97172]/60 hover:text-[#D97172]')}>
                               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dot}`} />{label}
                             </button>
                           ))}
                         </div>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Ville</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#C18D52]/60 mb-2">Ville</p>
                         <input value={filters.resCity} onChange={e => setF('resCity', e.target.value)}
                           placeholder="ex. Casablanca"
-                          className="w-full h-8 rounded-lg border border-border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#C18D52]/30 placeholder:text-muted-foreground/40" />
+                          className="w-full h-8 rounded-lg border border-[#C18D52]/35 bg-background px-3 text-xs text-[#C18D52] focus:outline-none focus:ring-2 focus:ring-[#C18D52]/30 placeholder:text-[#C18D52]/30" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Équipements requis</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#8F5C64]/60 mb-2">Équipements requis</p>
                         <div className="grid grid-cols-2 gap-1.5">
                           {FACILITIES.map(({ key, label, icon: Icon }) => (
                             <button key={key} onClick={() => toggleFacility('resFacilities', key)}
                               className={cn('flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all',
-                                filters.resFacilities.includes(key) ? 'border-[#5A8F76] bg-[#5A8F76]/[0.10] text-[#5A8F76]' : 'border-border text-muted-foreground hover:border-[#5A8F76]/30')}>
+                                filters.resFacilities.includes(key)
+                                  ? 'border-[#8F5C64] bg-[#8F5C64]/[0.10] text-[#8F5C64]'
+                                  : 'border-[#8F5C64]/30 text-[#8F5C64]/60 hover:border-[#8F5C64]/60 hover:text-[#8F5C64]')}>
                               <Icon size={11} />{label}
                             </button>
                           ))}
@@ -1647,16 +1665,16 @@ export function Association() {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Min bâtiments</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#203B37]/60 mb-2">Min bâtiments</p>
                           <input type="number" min={1} value={filters.resMinBuildings} onChange={e => setF('resMinBuildings', e.target.value)}
                             placeholder="ex. 2"
-                            className="w-full h-8 rounded-lg border border-border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#C18D52]/30 placeholder:text-muted-foreground/40" />
+                            className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background px-3 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Min appartements</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#203B37]/60 mb-2">Min appartements</p>
                           <input type="number" min={1} value={filters.resMinApts} onChange={e => setF('resMinApts', e.target.value)}
                             placeholder="ex. 10"
-                            className="w-full h-8 rounded-lg border border-border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#C18D52]/30 placeholder:text-muted-foreground/40" />
+                            className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background px-3 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                         </div>
                       </div>
                     </>)}
@@ -1664,51 +1682,55 @@ export function Association() {
                     {/* ── BUILDINGS ── */}
                     {view === 'buildings' && (<>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Nombre d'étages</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#203B37]/60 mb-2">Nombre d'étages</p>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-bold">MIN</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[#203B37]/40 font-bold">MIN</span>
                             <input type="number" min={1} value={filters.bldMinFloors} onChange={e => setF('bldMinFloors', e.target.value)}
                               placeholder="1"
-                              className="w-full h-8 rounded-lg border border-border bg-background pl-9 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-muted-foreground/40" />
+                              className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background pl-9 pr-2 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                           </div>
                           <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-bold">MAX</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[#203B37]/40 font-bold">MAX</span>
                             <input type="number" min={1} value={filters.bldMaxFloors} onChange={e => setF('bldMaxFloors', e.target.value)}
                               placeholder="∞"
-                              className="w-full h-8 rounded-lg border border-border bg-background pl-9 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-muted-foreground/40" />
+                              className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background pl-9 pr-2 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                           </div>
                         </div>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Équipements requis</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#8F5C64]/60 mb-2">Équipements requis</p>
                         <div className="grid grid-cols-2 gap-1.5">
                           {FACILITIES.map(({ key, label, icon: Icon }) => (
                             <button key={key} onClick={() => toggleFacility('bldFacilities', key)}
                               className={cn('flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all',
-                                filters.bldFacilities.includes(key) ? 'border-[#203B37] bg-[#203B37]/[0.10] text-[#203B37]' : 'border-border text-muted-foreground hover:border-[#203B37]/30')}>
+                                filters.bldFacilities.includes(key)
+                                  ? 'border-[#8F5C64] bg-[#8F5C64]/[0.10] text-[#8F5C64]'
+                                  : 'border-[#8F5C64]/30 text-[#8F5C64]/60 hover:border-[#8F5C64]/60 hover:text-[#8F5C64]')}>
                               <Icon size={11} />{label}
                             </button>
                           ))}
                         </div>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Min appartements</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#203B37]/60 mb-2">Min appartements</p>
                         <input type="number" min={1} value={filters.bldMinApts} onChange={e => setF('bldMinApts', e.target.value)}
                           placeholder="ex. 5"
-                          className="w-full h-8 rounded-lg border border-border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-muted-foreground/40" />
+                          className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background px-3 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                       </div>
                     </>)}
 
                     {/* ── APARTMENTS ── */}
                     {view === 'apartments' && (<>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Statut</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#D97172]/60 mb-2">Statut</p>
                         <div className="flex gap-2">
                           {([['VACANT','Vacant','bg-[#9ABCAB]'],['OCCUPIED','Occupé','bg-[#5A8F76]'],['MAINTENANCE','Travaux','bg-amber-400']] as const).map(([val, label, dot]) => (
                             <button key={val} onClick={() => toggleStatus('aptStatus', val)}
                               className={cn('flex-1 flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-semibold transition-all',
-                                filters.aptStatus.includes(val) ? 'border-[#5A8F76] bg-[#5A8F76]/[0.10] text-[#5A8F76]' : 'border-border text-muted-foreground hover:border-[#5A8F76]/30')}>
+                                filters.aptStatus.includes(val)
+                                  ? 'border-[#D97172] bg-[#D97172]/[0.10] text-[#D97172]'
+                                  : 'border-[#D97172]/30 text-[#D97172]/60 hover:border-[#D97172]/60 hover:text-[#D97172]')}>
                               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dot}`} />{label}
                             </button>
                           ))}
@@ -1716,15 +1738,15 @@ export function Association() {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Étage</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#203B37]/60 mb-2">Étage</p>
                           <input type="number" min={0} value={filters.aptFloor} onChange={e => setF('aptFloor', e.target.value)}
                             placeholder="ex. 2"
-                            className="w-full h-8 rounded-lg border border-border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/40" />
+                            className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background px-3 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Usage</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#D97172]/60 mb-2">Usage</p>
                           <select value={filters.aptUsage} onChange={e => setF('aptUsage', e.target.value)}
-                            className="w-full h-8 rounded-lg border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 text-muted-foreground">
+                            className="w-full h-8 rounded-lg border border-[#D97172]/35 bg-background px-2 text-xs text-[#D97172]/70 focus:outline-none focus:ring-2 focus:ring-[#D97172]/30">
                             <option value="">Tous</option>
                             <option value="RESIDENTIAL">Résidentiel</option>
                             <option value="COMMERCIAL">Commercial</option>
@@ -1733,19 +1755,19 @@ export function Association() {
                         </div>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Surface (m²)</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#203B37]/60 mb-2">Surface (m²)</p>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-bold">MIN</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[#203B37]/40 font-bold">MIN</span>
                             <input type="number" min={0} value={filters.aptMinArea} onChange={e => setF('aptMinArea', e.target.value)}
                               placeholder="0"
-                              className="w-full h-8 rounded-lg border border-border bg-background pl-9 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/40" />
+                              className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background pl-9 pr-2 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                           </div>
                           <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-bold">MAX</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[#203B37]/40 font-bold">MAX</span>
                             <input type="number" min={0} value={filters.aptMaxArea} onChange={e => setF('aptMaxArea', e.target.value)}
                               placeholder="∞"
-                              className="w-full h-8 rounded-lg border border-border bg-background pl-9 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/40" />
+                              className="w-full h-8 rounded-lg border border-[#203B37]/35 bg-background pl-9 pr-2 text-xs text-[#203B37] focus:outline-none focus:ring-2 focus:ring-[#203B37]/30 placeholder:text-[#203B37]/30" />
                           </div>
                         </div>
                       </div>
@@ -1779,7 +1801,7 @@ export function Association() {
         {view !== 'residences' && (
           <div className="flex items-center justify-between">
             <Breadcrumb />
-            <button onClick={goBack} className="text-xs text-muted-foreground hover:text-primary transition-colors">← Retour</button>
+            <button onClick={goBack} className="text-xs text-muted-foreground hover:text-[#C18D52] transition-colors">← Retour</button>
           </div>
         )}
 
@@ -1787,9 +1809,9 @@ export function Association() {
         {activeChips.length > 0 && (
           <div className="relative z-50 flex items-center gap-2 flex-wrap -mt-1">
             {activeChips.map((chip, i) => (
-              <span key={i} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#C18D52]/12 text-[#C18D52] text-xs font-semibold border border-[#C18D52]/30 select-none">
+              <span key={i} className={cn('inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold border select-none', CHIP_CLASSES[chip.color])}>
                 {chip.label}
-                <button onClick={chip.remove} className="flex items-center justify-center rounded-full hover:bg-[#C18D52]/20 transition-colors p-0.5">
+                <button onClick={chip.remove} className="flex items-center justify-center rounded-full transition-colors p-0.5 opacity-70 hover:opacity-100">
                   <X size={11} />
                 </button>
               </span>
@@ -1827,9 +1849,9 @@ export function Association() {
                         <CardContent className="px-4 pt-2.5 pb-3">
                           <div className="flex items-center justify-between mb-0.5">
                             <h3 className="font-semibold text-sm">{r.name}</h3>
-                            <Badge variant={residenceStatus[r.status].variant} className="text-[10px]">
+                            <span className={cn(residenceStatus[r.status].cls, 'text-[10px]')}>
                               {residenceStatus[r.status].label}
-                            </Badge>
+                            </span>
                           </div>
                           <p className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
                             <MapPin size={10} />{r.city ?? r.address}
@@ -1838,13 +1860,13 @@ export function Association() {
                           <div className="grid grid-cols-3 gap-2 mb-2">
                             {[
                               { value: r.building_count,  label: 'Buildings', Icon: Building2, color: 'text-[#C18D52]', bg: 'bg-[#C18D52]/[0.12]' },
-                              { value: r.apartment_count, label: 'Units',     Icon: Home,      color: 'text-[#203B37]', bg: 'bg-[#203B37]/[0.08]' },
-                              { value: r.occupied_count,  label: 'Occupied',  Icon: Users,     color: 'text-[#5A8F76]', bg: 'bg-[#5A8F76]/[0.12]' },
+                              { value: r.apartment_count, label: 'Units',     Icon: Home,      color: 'text-[#33091B]', bg: 'bg-[#33091B]/[0.10]' },
+                              { value: r.occupied_count,  label: 'Occupied',  Icon: Users,     color: 'text-[#D97172]', bg: 'bg-[#D97172]/[0.10]' },
                             ].map(s => (
                               <div key={s.label} className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg ${s.bg}`}>
                                 <s.Icon size={14} strokeWidth={1.5} className={s.color} />
                                 <p className={`text-sm font-bold leading-none ${s.color}`}>{s.value}</p>
-                                <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                                <p className={`text-[10px] font-medium ${s.color} opacity-70`}>{s.label}</p>
                               </div>
                             ))}
                           </div>
@@ -1861,7 +1883,7 @@ export function Association() {
                                     />
                                   ))}
                                 </div>
-                                <span className="text-[11px] text-muted-foreground">
+                                <span className="text-[11px] text-[#8F5C64]">
                                   {r.occupied_count} propriétaire{r.occupied_count > 1 ? 's' : ''}
                                 </span>
                               </div>
@@ -1953,19 +1975,19 @@ export function Association() {
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       {[
                         { value: b.floors,           label: 'Étages',  color: 'text-[#C18D52]', bg: 'bg-[#C18D52]/[0.12]' },
-                        { value: b.apartment_count,  label: 'Unités',  color: 'text-[#203B37]', bg: 'bg-[#203B37]/[0.10]' },
-                        { value: b.occupied_count,   label: 'Occupés', color: 'text-[#5A8F76]', bg: 'bg-[#5A8F76]/[0.12]' },
+                        { value: b.apartment_count,  label: 'Unités',  color: 'text-[#33091B]', bg: 'bg-[#33091B]/[0.10]' },
+                        { value: b.occupied_count,   label: 'Occupés', color: 'text-[#D97172]', bg: 'bg-[#D97172]/[0.10]' },
                       ].map(s => (
                         <div key={s.label} className={`text-center p-1.5 rounded-lg ${s.bg}`}>
                           <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
-                          <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                          <p className={`text-[10px] font-medium ${s.color} opacity-70`}>{s.label}</p>
                         </div>
                       ))}
                     </div>
-                    <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground mb-3">
-                      {b.has_elevator        && <span className="bg-muted px-1.5 py-0.5 rounded">Elevator</span>}
-                      {b.has_garage          && <span className="bg-muted px-1.5 py-0.5 rounded">Garage</span>}
-                      {b.property_plan_number && <span className="bg-muted px-1.5 py-0.5 rounded font-mono">{b.property_plan_number}</span>}
+                    <div className="flex flex-wrap gap-1 text-[10px] mb-3">
+                      {b.has_elevator         && <span className="bg-[#8F5C64]/[0.10] text-[#8F5C64] font-medium px-1.5 py-0.5 rounded">Ascenseur</span>}
+                      {b.has_garage           && <span className="bg-[#8F5C64]/[0.10] text-[#8F5C64] font-medium px-1.5 py-0.5 rounded">Garage</span>}
+                      {b.property_plan_number && <span className="bg-[#203B37]/[0.08] text-[#203B37] font-mono px-1.5 py-0.5 rounded">{b.property_plan_number}</span>}
                     </div>
                     <div className="flex items-center justify-between">
                       {b.occupied_count === 0 ? (
@@ -1976,7 +1998,7 @@ export function Association() {
                               <span className="text-[10px] font-semibold text-muted-foreground">+0</span>
                             </div>
                           </div>
-                          <span className="ml-2 text-[11px] text-muted-foreground">No owners yet</span>
+                          <span className="ml-2 text-[11px] text-[#8F5C64]/60">No owners yet</span>
                         </div>
                       ) : (
                         <div className="flex items-center">
@@ -1996,7 +2018,7 @@ export function Association() {
                               </div>
                             )}
                           </div>
-                          <span className="ml-2 text-[11px] text-muted-foreground">
+                          <span className="ml-2 text-[11px] text-[#8F5C64]">
                             {b.occupied_count} propriétaire{b.occupied_count !== 1 ? 's' : ''}
                           </span>
                         </div>
@@ -2090,11 +2112,17 @@ export function Association() {
                             </td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{apt.floor ?? '-'}</td>
                             <td className="px-4 py-3 text-sm">{apt.area_sqm ? `${apt.area_sqm} m²` : '-'}</td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {apt.usage_type === 'RESIDENTIAL' ? 'Résidentiel' : apt.usage_type === 'COMMERCIAL' ? 'Commercial' : 'Mixte'}
+                            <td className="px-4 py-3 text-xs font-medium">
+                              <span className={cn('px-2 py-0.5 rounded-md',
+                                apt.usage_type === 'RESIDENTIAL' ? 'bg-[#203B37]/[0.10] text-[#203B37]'
+                                : apt.usage_type === 'COMMERCIAL' ? 'bg-[#D97172]/[0.10] text-[#D97172]'
+                                : 'bg-[#C18D52]/[0.10] text-[#C18D52]'
+                              )}>
+                                {apt.usage_type === 'RESIDENTIAL' ? 'Résidentiel' : apt.usage_type === 'COMMERCIAL' ? 'Commercial' : 'Mixte'}
+                              </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{apt.quote_part != null ? `${apt.quote_part}‰` : '-'}</td>
-                            <td className="px-4 py-3"><Badge variant={aptStatus[apt.status].variant}>{aptStatus[apt.status].label}</Badge></td>
+                            <td className="px-4 py-3"><span className={cn(aptStatus[apt.status].cls, 'text-[10px]')}>{aptStatus[apt.status].label}</span></td>
                             <td className="px-4 py-3">
                               {primaryName ? (
                                 <div className="flex items-center gap-2">
@@ -2110,7 +2138,7 @@ export function Association() {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <button className="text-muted-foreground hover:text-primary transition-colors" onClick={e => { e.stopPropagation(); setExpandedApt(isOpen ? null : apt.id) }}>
+                              <button className="text-[#C18D52]/50 hover:text-[#C18D52] transition-colors" onClick={e => { e.stopPropagation(); setExpandedApt(isOpen ? null : apt.id) }}>
                                 {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                               </button>
                             </td>
@@ -2118,7 +2146,7 @@ export function Association() {
                           {isOpen && (
                             <tr className="bg-[#5A8F76]/5 border-b">
                               <td colSpan={8} className="px-6 py-4">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                                <p className="text-xs font-semibold text-[#8F5C64] uppercase tracking-wide mb-3">
                                   Propriétaires — {apt.unit_code}
                                 </p>
                                 <div className="flex flex-wrap gap-3">

@@ -8,12 +8,9 @@ import { TypingIndicator } from './TypingIndicator'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
-// How long the circle is visible before sliding away (ms)
-const HIDE_DELAY = 8000
-// How often the circle peeks back to remind the user (ms)
-const REMIND_INTERVAL = 25000
-// How long the peek reminder lasts before hiding again (ms)
-const REMIND_DURATION = 3000
+const HIDE_DELAY      = 10_000  // hide after 10s of no interaction
+const REMIND_INTERVAL = 25_000  // peek back every 25s while hidden
+const REMIND_DURATION =  3_000  // peek lasts 3s
 
 type BubbleState = 'visible' | 'hidden' | 'peeking'
 
@@ -32,42 +29,57 @@ const SUGGESTED_CHOICES = [
 
 export function ChatBot() {
   const navigate = useNavigate()
-  const [isOpen, setIsOpen] = useState(false)
-  const [bubble, setBubble] = useState<BubbleState>('visible')
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
+  const [isOpen,    setIsOpen]    = useState(false)
+  const [bubble,    setBubble]    = useState<BubbleState>('visible')
+  const [messages,  setMessages]  = useState<Message[]>([WELCOME_MESSAGE])
   const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const hasNewMessage = useRef(false)
+  const scrollRef      = useRef<HTMLDivElement>(null)
+  const hasNewMessage  = useRef(false)
+  const hideTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Bubble lifecycle ────────────────────────────────────────────────────────
+  // ── Timer helpers ────────────────────────────────────────────────────────────
+  const startHideTimer = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    hideTimerRef.current = setTimeout(() => setBubble('hidden'), HIDE_DELAY)
+  }, [])
+
+  // On mount, start the 10s hide countdown
   useEffect(() => {
-    if (isOpen) return // freeze all animations while chat panel is open
+    startHideTimer()
+    return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    let hideTimer: ReturnType<typeof setTimeout>
-    let remindInterval: ReturnType<typeof setInterval>
-    let peekBackTimer: ReturnType<typeof setTimeout>
-
-    if (bubble === 'visible') {
-      // After HIDE_DELAY, slide the circle away
-      hideTimer = setTimeout(() => setBubble('hidden'), HIDE_DELAY)
-    }
-
-    if (bubble === 'hidden') {
-      // Every REMIND_INTERVAL, briefly peek back, then hide again
-      remindInterval = setInterval(() => {
-        setBubble('peeking')
-        peekBackTimer = setTimeout(() => setBubble('hidden'), REMIND_DURATION)
-      }, REMIND_INTERVAL)
-    }
-
-    return () => {
-      clearTimeout(hideTimer)
-      clearTimeout(peekBackTimer)
-      clearInterval(remindInterval)
-    }
+  // Peek reminder while hidden (every 25s, show for 3s then hide again)
+  useEffect(() => {
+    if (isOpen || bubble !== 'hidden') return
+    const interval = setInterval(() => setBubble('peeking'), REMIND_INTERVAL)
+    return () => clearInterval(interval)
   }, [bubble, isOpen])
 
-  // ── Auto-scroll ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (bubble !== 'peeking') return
+    const t = setTimeout(() => setBubble('hidden'), REMIND_DURATION)
+    return () => clearTimeout(t)
+  }, [bubble])
+
+  // Freeze timer while chat panel is open; restart when closed
+  useEffect(() => {
+    if (isOpen) {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    } else {
+      setBubble('visible')
+      startHideTimer()
+    }
+  }, [isOpen, startHideTimer])
+
+  // Reset hide timer on any interaction with the bubble
+  const handleInteraction = useCallback(() => {
+    if (isOpen) return
+    setBubble('visible')
+    startHideTimer()
+  }, [isOpen, startHideTimer])
+
+  // ── Auto-scroll ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (scrollRef.current && hasNewMessage.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -117,31 +129,47 @@ export function ChatBot() {
       {/* ── Floating bubble ──────────────────────────────────────────────────── */}
       {!isOpen && (
         <>
-          {/* motion.div IS the fixed element — it slides right/left directly */}
           <motion.div
             className="fixed bottom-6 right-6 z-50"
-            animate={{ x: shown ? 0 : 132 }}
+            animate={{ x: shown ? 0 : 120 }}
             transition={{ type: 'spring', damping: 24, stiffness: 180 }}
           >
             <motion.button
-              whileHover={shown ? { scale: 1.07 } : {}}
-              whileTap={shown ? { scale: 0.93 } : {}}
+              onMouseEnter={handleInteraction}
+              onTouchStart={handleInteraction}
+              whileHover={shown ? { scale: 1.08 } : {}}
+              whileTap={shown ? { scale: 0.92 } : {}}
               onClick={() => { setBubble('visible'); setIsOpen(true) }}
-              className="cursor-pointer block"
+              className="flex flex-col items-center cursor-pointer select-none"
               style={{ pointerEvents: shown ? 'auto' : 'none' }}
             >
-              {/* Float animation is separate so it doesn't fight the x slide */}
+              {/* Circle with image — float animation */}
               <motion.span
                 animate={{ y: [0, -9, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="flex items-center justify-center w-20 h-20"
+                className="flex items-center justify-center w-[72px] h-[72px] rounded-full bg-white border border-slate-100 shadow-xl"
               >
-                <img src="/chatbot.png" alt="IQAMATI Chat" className="w-20 h-20 object-contain drop-shadow-2xl" />
+                <img
+                  src="/chatbot.png"
+                  alt="IQAMATI Chat"
+                  className="w-[52px] h-[52px] object-contain"
+                />
               </motion.span>
+
+              {/* Shadow blob — counter-animates for depth illusion */}
+              <motion.span
+                animate={{
+                  scaleX:  [1, 0.55, 1],
+                  opacity: [0.22, 0.09, 0.22],
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="block w-14 h-[10px] rounded-full bg-black/40 blur-md mt-0.5"
+                aria-hidden
+              />
             </motion.button>
           </motion.div>
 
-          {/* Arrow tab — fixed at right edge, visible only when circle is hidden */}
+          {/* Arrow tab — only when circle is fully hidden */}
           <AnimatePresence>
             {!shown && (
               <motion.button
@@ -150,7 +178,7 @@ export function ChatBot() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 16 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
-                onClick={() => setBubble('visible')}
+                onClick={() => handleInteraction()}
                 title="Open chat"
                 className="fixed bottom-14 right-0 z-50 flex items-center justify-center h-11 w-6 rounded-l-xl bg-primary shadow-lg hover:bg-primary/80 transition-colors"
               >
@@ -161,7 +189,7 @@ export function ChatBot() {
         </>
       )}
 
-      {/* ── Chat panel ──────────────────────────────────────────────────────── */}
+      {/* ── Chat panel ───────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {isOpen && (
           <>

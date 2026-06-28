@@ -76,7 +76,7 @@ function NotificationPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClo
           </div>
           <div className="flex items-center gap-1">
             {unread > 0 && (
-              <button className="text-[11px] text-primary hover:underline font-medium px-1" onClick={onMarkAllRead}>
+              <button className="text-[11px] text-[#C18D52] hover:text-[#C18D52]/70 font-medium px-1 transition-colors" onClick={onMarkAllRead}>
                 Tout lire
               </button>
             )}
@@ -104,7 +104,7 @@ function NotificationPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClo
             <button
               key={n.id}
               onClick={() => onMarkRead(n.id)}
-              className={`w-full flex items-start gap-3 px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-muted/50 ${!n.read ? 'bg-primary/[0.03]' : ''}`}
+              className={`w-full flex items-start gap-3 px-4 py-3 border-b last:border-0 text-left transition-colors hover:bg-muted/50 ${!n.read ? 'bg-[#C18D52]/[0.04]' : ''}`}
             >
               <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${notifColor[n.type]}`}>
                 {notifIcon[n.type]}
@@ -112,7 +112,7 @@ function NotificationPanel({ notifs, isLoading, onMarkRead, onMarkAllRead, onClo
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <p className={`text-[11px] font-semibold leading-tight ${!n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
-                  {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1 shrink-0" />}
+                  {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-[#C18D52] mt-1 shrink-0" />}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>
                 <p className="text-[10px] text-muted-foreground/60 mt-1">{n.time}</p>
@@ -135,9 +135,10 @@ interface TopBarProps {
   searchValue?: string
   onSearchChange?: (v: string) => void
   searchPlaceholder?: string
+  searchTextColor?: string
 }
 
-export function TopBar({ title, subtitle, actions, hideSearch, searchValue, onSearchChange, searchPlaceholder }: TopBarProps) {
+export function TopBar({ title, subtitle, actions, hideSearch, searchValue, onSearchChange, searchPlaceholder, searchTextColor }: TopBarProps) {
   const [notifOpen, setNotifOpen] = useState(false)
   const [readIds,   setReadIds]   = useState<Set<string>>(new Set())
 
@@ -168,33 +169,34 @@ export function TopBar({ title, subtitle, actions, hideSearch, searchValue, onSe
       <div className="flex items-center gap-2">
         {!hideSearch && (
           <div className="relative hidden md:flex items-center">
-            <Search size={14} className="absolute left-3 text-muted-foreground pointer-events-none" />
+            <Search size={14} className="absolute left-3 text-[#C18D52]/50 pointer-events-none" />
             <input
               placeholder={searchPlaceholder ?? 'Search...'}
               value={searchValue ?? ''}
               onChange={onSearchChange ? e => onSearchChange(e.target.value) : undefined}
               readOnly={!onSearchChange}
-              className="h-8 w-80 rounded-md border bg-secondary pl-8 pr-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-8 w-80 rounded-md border border-[#C18D52]/30 bg-[#F9D3C0]/[0.18] pl-8 pr-8 text-sm placeholder:text-[#C18D52]/60 focus:outline-none focus:ring-2 focus:ring-[#C18D52]/40 focus:border-[#C18D52]/60"
+              style={searchTextColor ? { color: searchTextColor } : undefined}
             />
-            {searchValue && onSearchChange ? (
+            {searchValue && onSearchChange && (
               <button onClick={() => onSearchChange('')} className="absolute right-2 text-muted-foreground hover:text-foreground transition-colors">
                 <X size={13} />
               </button>
-            ) : (
-              <kbd className="absolute right-2 text-[10px] text-muted-foreground hidden lg:block">⌘K</kbd>
             )}
           </div>
         )}
 
         <div className="relative">
-          <Button variant="ghost" size="icon" className="relative" onClick={() => setNotifOpen(v => !v)}>
+          <button
+            onClick={() => setNotifOpen(v => !v)}
+            className="relative flex items-center justify-center h-8 w-8 rounded-lg border border-[#C18D52]/30 bg-[#C18D52]/[0.06] text-[#C18D52] hover:bg-[#C18D52]/[0.14] hover:border-[#C18D52]/60 transition-all">
             <Bell size={16} />
             {unreadCount > 0 && (
               <span className="absolute top-1 right-1 flex items-center justify-center text-[8px] font-bold text-white bg-destructive rounded-full min-w-[14px] h-[14px] px-[3px]">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
-          </Button>
+          </button>
           <AnimatePresence>
             {notifOpen && (
               <NotificationPanel
