@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/button'
@@ -397,6 +398,7 @@ type EditPSForm = { name: string; phone: string; note: string }
 
 function EditPartnerModal({ ps, open, onClose }: { ps: PartnerSyndic | null; open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
+  const { t: tr } = useTranslation()
   const [form, setForm]       = useState<EditPSForm>({ name: '', phone: '', note: '' })
   const [apiError, setApiErr] = useState<string | null>(null)
 
@@ -442,7 +444,7 @@ function EditPartnerModal({ ps, open, onClose }: { ps: PartnerSyndic | null; ope
             <Pencil size={15} className="text-emerald-700" />
           </div>
           <div className="flex-1">
-            <h2 className="text-sm font-black text-foreground">Modifier le partenaire</h2>
+            <h2 className="text-sm font-black text-foreground">{tr('unionMembers.partners.edit')}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{ps.residence}</p>
           </div>
           <button onClick={close} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">×</button>
@@ -485,11 +487,11 @@ function EditPartnerModal({ ps, open, onClose }: { ps: PartnerSyndic | null; ope
               ? <p className="text-xs text-red-600 flex items-center gap-1.5"><AlertCircle size={12} />{apiError}</p>
               : <span />}
             <div className="flex gap-3 ml-auto">
-              <Button type="button" variant="outline" size="sm" onClick={close} className="h-9 px-5">Annuler</Button>
+              <Button type="button" variant="outline" size="sm" onClick={close} className="h-9 px-5">{tr('unionMembers.confirm.cancel')}</Button>
               <Button type="submit" size="sm" disabled={mutation.isPending || !form.name.trim()}
                 className="h-9 px-6 gap-2 bg-emerald-600 hover:bg-emerald-500 text-white">
                 {mutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Pencil size={13} />}
-                {mutation.isPending ? 'Sauvegarde…' : 'Enregistrer'}
+                {mutation.isPending ? tr('unionMembers.partners.saving') : tr('unionMembers.partners.save')}
               </Button>
             </div>
           </div>
@@ -504,6 +506,7 @@ function EditPartnerModal({ ps, open, onClose }: { ps: PartnerSyndic | null; ope
 function DeleteDialog({ name, open, onClose, onConfirm, loading }: {
   name: string; open: boolean; onClose: () => void; onConfirm: () => void; loading?: boolean
 }) {
+  const { t: tr } = useTranslation()
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-sm p-0 overflow-hidden" showClose={false}>
@@ -513,18 +516,17 @@ function DeleteDialog({ name, open, onClose, onConfirm, loading }: {
             <Trash2 size={17} className="text-red-600" />
           </div>
           <div>
-            <p className="text-sm font-black text-red-800">Supprimer ?</p>
+            <p className="text-sm font-black text-red-800">{tr('unionMembers.confirm.deleteDelegate')}</p>
             <p className="text-xs text-red-600 mt-0.5">{name}</p>
           </div>
         </div>
         <div className="px-6 py-4 space-y-4">
-          <p className="text-sm text-muted-foreground">Cette action est irréversible.</p>
           <div className="flex justify-end gap-2.5">
-            <Button variant="outline" size="sm" onClick={onClose} className="h-9 px-5">Annuler</Button>
+            <Button variant="outline" size="sm" onClick={onClose} className="h-9 px-5">{tr('unionMembers.confirm.cancel')}</Button>
             <Button size="sm" onClick={onConfirm} disabled={loading}
               className="h-9 px-5 bg-red-600 hover:bg-red-500 text-white gap-1.5">
               {loading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-              Supprimer
+              {tr('unionMembers.confirm.yes')}
             </Button>
           </div>
         </div>
@@ -538,6 +540,7 @@ function DeleteDialog({ name, open, onClose, onConfirm, loading }: {
 type Tab = 'delegates' | 'partners'
 
 export function UnionMembers() {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const [tab, setTab]           = useState<Tab>('delegates')
   const [showAddRH, setAddRH]   = useState(false)
@@ -585,12 +588,12 @@ export function UnionMembers() {
   return (
     <div className="flex flex-col min-h-full">
       <TopBar
-        title="Gestion du syndicat"
-        subtitle="Délégués d'immeubles et syndics partenaires"
+        title={tr('unionMembers.title')}
+        subtitle=""
         actions={
           tab === 'delegates'
             ? <Button size="sm" className="gap-1.5 text-xs" onClick={() => setAddRH(true)}>
-                <Plus size={13} /> Affecter délégué
+                <Plus size={13} /> {tr('unionMembers.delegates.invite')}
               </Button>
             : undefined
         }
@@ -600,21 +603,21 @@ export function UnionMembers() {
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
           {([
-            { key: 'delegates' as Tab, label: "Délégués d'immeuble", icon: <UserCheck size={13} />, count: allDelegates.length },
-            { key: 'partners'  as Tab, label: 'Syndics partenaires',  icon: <Share2 size={13} />,    count: partners.length },
-          ] as const).map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            { key: 'delegates' as Tab, label: tr('unionMembers.tabs.delegates'), icon: <UserCheck size={13} />, count: allDelegates.length },
+            { key: 'partners'  as Tab, label: tr('unionMembers.tabs.partners'),  icon: <Share2 size={13} />,   count: partners.length },
+          ] as const).map(item => (
+            <button key={item.key} onClick={() => setTab(item.key)}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-                tab === t.key ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+                tab === item.key ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
               )}>
-              {t.icon} {t.label}
+              {item.icon} {item.label}
               <span className={cn(
                 'text-[10px] font-black px-1.5 py-0.5 rounded-full tabular-nums',
-                tab === t.key
-                  ? t.key === 'partners' ? 'bg-emerald-100 text-emerald-700' : 'bg-primary/10 text-primary'
+                tab === item.key
+                  ? item.key === 'partners' ? 'bg-emerald-100 text-emerald-700' : 'bg-primary/10 text-primary'
                   : 'bg-slate-200 text-muted-foreground',
-              )}>{t.count}</span>
+              )}>{item.count}</span>
             </button>
           ))}
         </div>
@@ -630,9 +633,9 @@ export function UnionMembers() {
               ) : allDelegates.length === 0 ? (
                 <div className="py-24 flex flex-col items-center gap-3 text-muted-foreground">
                   <UserCheck size={40} className="text-slate-300" />
-                  <p className="text-sm font-semibold">Aucun délégué affecté</p>
+                  <p className="text-sm font-semibold">{tr('unionMembers.delegates.noActive')}</p>
                   <Button size="sm" className="gap-1.5 mt-2" onClick={() => setAddRH(true)}>
-                    <Plus size={13} /> Affecter un délégué
+                    <Plus size={13} /> {tr('unionMembers.delegates.invite')}
                   </Button>
                 </div>
               ) : (
@@ -656,7 +659,7 @@ export function UnionMembers() {
               ) : partners.length === 0 ? (
                 <div className="py-24 flex flex-col items-center gap-3 text-muted-foreground">
                   <Share2 size={40} className="text-slate-300" />
-                  <p className="text-sm font-semibold">Aucun syndic partenaire</p>
+                  <p className="text-sm font-semibold">{tr('unionMembers.partners.noPartners')}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">

@@ -5,6 +5,8 @@ import {
   Menu, X, CreditCard, Calendar, Users,
   FileText, Bell, Building2, CheckCircle2,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { LangSwitcher } from '@/components/ui/LangSwitcher'
 
 const TEAL = '#2B8C80'
 const ta = (a: number) => `rgba(43,140,128,${a})`
@@ -109,6 +111,7 @@ function RadarRings({ size }: { size: number }) {
 
 // ── Section panels ────────────────────────────────────────────────────────
 function SlidePanel({ activeIdx, setActiveIdx }: { activeIdx: number; setActiveIdx: (i: number) => void }) {
+  const { t } = useTranslation()
   const slide = SLIDES[activeIdx]
   const SlideIcon = slide.Icon
   return (
@@ -140,7 +143,7 @@ function SlidePanel({ activeIdx, setActiveIdx }: { activeIdx: number; setActiveI
           <Link to="/auth/register"
             className="flex items-center gap-2 px-7 py-3.5 rounded-full text-white font-semibold hover:opacity-85 transition-opacity"
             style={{ background: TEAL, fontSize: 15 }}>
-            Commencer →
+            {t('home.getStarted')} →
           </Link>
           <Link to="/auth/login"
             className="flex items-center gap-2 px-7 py-3.5 rounded-full font-medium hover:bg-white/15 transition-all"
@@ -150,7 +153,7 @@ function SlidePanel({ activeIdx, setActiveIdx }: { activeIdx: number; setActiveI
               border: '1px solid rgba(255,255,255,0.18)',
               color: 'rgba(255,255,255,0.92)',
             }}>
-            Se connecter
+            {t('login.submit')}
           </Link>
         </div>
 
@@ -173,6 +176,7 @@ function SlidePanel({ activeIdx, setActiveIdx }: { activeIdx: number; setActiveI
 }
 
 function AboutPanel() {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
@@ -208,13 +212,14 @@ function AboutPanel() {
       <Link to="/auth/register"
         className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-white font-semibold hover:opacity-85 transition-opacity"
         style={{ background: TEAL, fontSize: 15 }}>
-        Rejoindre IQAMATI →
+        {t('home.getStarted')} →
       </Link>
     </motion.div>
   )
 }
 
 function ServicesPanel() {
+  const { t } = useTranslation()
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
@@ -268,7 +273,7 @@ function ServicesPanel() {
       <Link to="/auth/register"
         className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-white font-semibold hover:opacity-85 transition-opacity"
         style={{ background: TEAL, fontSize: 15 }}>
-        Démarrer gratuitement →
+        {t('home.getStarted')} →
       </Link>
     </motion.div>
   )
@@ -276,6 +281,7 @@ function ServicesPanel() {
 
 // ── Home ──────────────────────────────────────────────────────────────────
 export function Home() {
+  const { t } = useTranslation()
   const [section, setSection]     = useState<Section>('home')
   const [activeIdx, setActiveIdx] = useState(1)
   const [menuOpen, setMenuOpen]   = useState(false)
@@ -305,9 +311,9 @@ export function Home() {
   }, [section])
 
   const navItems: { label: string; sec: Section }[] = [
-    { label: 'Home',     sec: 'home'     },
-    { label: 'About',    sec: 'about'    },
-    { label: 'Services', sec: 'services' },
+    { label: t('nav.home'),     sec: 'home'     },
+    { label: t('nav.about'),    sec: 'about'    },
+    { label: t('nav.services'), sec: 'services' },
   ]
 
   return (
@@ -366,10 +372,11 @@ export function Home() {
               </div>
             )
           })}
+          <LangSwitcher variant="light" />
           <Link to="/auth/register"
             className="px-5 py-2.5 rounded-full text-white text-sm font-semibold hover:opacity-85 transition-opacity"
             style={{ background: TEAL }}>
-            Get Started
+            {t('home.getStarted')}
           </Link>
         </nav>
       </motion.div>
@@ -685,13 +692,13 @@ export function Home() {
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2 px-7 py-3.5 rounded-full text-white font-semibold hover:opacity-85 transition-opacity"
                   style={{ background: TEAL, fontSize: 15 }}>
-                  Get Started →
+                  {t('home.getStarted')} →
                 </Link>
                 <Link to="/auth/login"
                   onClick={() => setMenuOpen(false)}
                   className="text-sm font-medium transition-colors hover:text-white"
                   style={{ color: 'rgba(255,255,255,0.40)' }}>
-                  Se connecter
+                  {t('login.submit')}
                 </Link>
               </motion.div>
             </div>
