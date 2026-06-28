@@ -17,8 +17,9 @@ COPY apps/web/package.json         ./apps/web/
 RUN npm install --ignore-scripts
 
 # Copy source
-COPY packages/shared/ ./packages/shared/
-COPY apps/web/        ./apps/web/
+COPY tsconfig.base.json   ./
+COPY packages/shared/     ./packages/shared/
+COPY apps/web/            ./apps/web/
 
 # Build shared package first (web imports from it)
 RUN npm --workspace packages/shared run build

@@ -11,8 +11,9 @@ COPY apps/api/package.json         ./apps/api/
 RUN npm install --ignore-scripts
 
 # Copy source
-COPY packages/shared/ ./packages/shared/
-COPY apps/api/        ./apps/api/
+COPY tsconfig.base.json   ./
+COPY packages/shared/     ./packages/shared/
+COPY apps/api/            ./apps/api/
 
 # Build shared package first (API imports from it)
 RUN npm --workspace packages/shared run build
