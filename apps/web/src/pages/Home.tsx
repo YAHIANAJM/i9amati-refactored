@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { ChatBot } from '@/components/chatbot/ChatBot'
 import { useTranslation } from 'react-i18next'
+import { LangSwitcher } from '@/components/ui/LangSwitcher'
 
 const TEAL = '#2B8C80'
 const ta = (a: number) => `rgba(43,140,128,${a})`
@@ -372,6 +373,7 @@ export function Home() {
               </div>
             )
           })}
+          <LangSwitcher variant="light" />
           <Link to="/auth/register"
             className="px-5 py-2.5 rounded-full text-white text-sm font-semibold hover:opacity-85 transition-opacity"
             style={{ background: TEAL }}>
