@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Bell, ChevronDown, LogOut, User, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2, Home, BarChart3, Rss, Wrench, Users } from 'lucide-react'
+import { Search, Bell, ChevronDown, LogOut, User, X, CreditCard, CalendarClock, MessageSquareWarning, FileText, CheckCircle2, Loader2, Home, BarChart3, Rss, Wrench, Users, Globe } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Link, useNavigate } from 'react-router-dom'
 import { authClient } from '@/lib/auth-client'
@@ -12,7 +12,14 @@ import {
   LayoutDashboard, Bot, MessageSquare, BellIcon, PieChart, TrendingUp,
 } from 'lucide-react'
 
-// All sidebar pages
+const LANGUAGES = [
+  { code: 'fr',  label: 'Français',   dir: 'ltr' },
+  { code: 'en',  label: 'English',    dir: 'ltr' },
+  { code: 'ar',  label: 'العربية',    dir: 'rtl' },
+  { code: 'tzm', label: 'ⵜⴰⵎⴰⵣⵉⵖⵜ', dir: 'ltr' },
+] as const
+
+// All sidebar pages — same source as Sidebar.tsx
 const ALL_PAGES = [
   { label: 'Global Overview',        to: '/syndic',                  section: 'Dashboards',  icon: LayoutDashboard },
   { label: "Owners' Association",    to: '/syndic/dash/apartments',  section: 'Dashboards',  icon: PieChart        },
@@ -194,11 +201,12 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [userOpen,   setUserOpen]   = useState(false)
   const [notifOpen,  setNotifOpen]  = useState(false)
+  const [langOpen,   setLangOpen]   = useState(false)
   const [readIds,    setReadIds]    = useState<Set<string>>(new Set())
-
   const searchRef = useRef<HTMLDivElement>(null)
   const userRef   = useRef<HTMLDivElement>(null)
   const notifRef  = useRef<HTMLDivElement>(null)
+  const langRef   = useRef<HTMLDivElement>(null)
 
   const { data: rawNotifs = [], isLoading } = useQuery<ApiNotif[]>({
     queryKey: ['global-notifications'],
@@ -217,6 +225,7 @@ export function Header() {
   const markRead    = (id: string) => setReadIds(prev => new Set([...prev, id]))
   const markAllRead = ()           => setReadIds(new Set(rawNotifs.map(n => n.id)))
 
+
   const results = query.trim().length > 0
     ? ALL_PAGES.filter(p =>
         p.label.toLowerCase().includes(query.toLowerCase()) ||
@@ -229,6 +238,7 @@ export function Header() {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false)
       if (userRef.current   && !userRef.current.contains(e.target as Node))   setUserOpen(false)
       if (notifRef.current  && !notifRef.current.contains(e.target as Node))  setNotifOpen(false)
+      if (langRef.current   && !langRef.current.contains(e.target as Node))   setLangOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -239,8 +249,15 @@ export function Header() {
     window.location.href = '/auth/login'
   }
 
-  const fullName = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name : t('nav.syndic')
-  const initials = getInitials(fullName)
+  const switchLang = (code: string) => {
+    i18n.changeLanguage(code)
+    document.documentElement.dir = LANGUAGES.find(l => l.code === code)?.dir ?? 'ltr'
+    setLangOpen(false)
+  }
+
+  const currentLang = LANGUAGES.find(l => l.code === i18n.language) ?? LANGUAGES[0]
+  const fullName    = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.name : t('nav.syndic')
+  const initials    = getInitials(fullName)
 
   return (
     <header className="flex items-center justify-between px-5 py-3 shrink-0 bg-white rounded-b-xl shadow-sm border border-border/40 mx-36">
@@ -274,6 +291,7 @@ export function Header() {
           )}
         </div>
 
+        {/* Search results */}
         {searchOpen && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-4 pt-3 pb-1">
@@ -348,6 +366,43 @@ export function Header() {
               />
             )}
           </AnimatePresence>
+        </div>
+
+        {/* Language switcher */}
+        <div ref={langRef} className="relative">
+          <button
+            onClick={() => setLangOpen(v => !v)}
+            title={t('nav.lang')}
+            className="flex items-center gap-1.5 h-8 px-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <Globe size={14} />
+            <span className="text-xs font-medium hidden sm:inline">{currentLang.label}</span>
+            <ChevronDown size={11} className={`hidden sm:block transition-transform ${langOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-1.5 z-50 w-44 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-3 pt-2.5 pb-1">
+                {t('nav.lang')}
+              </p>
+              {LANGUAGES.map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => switchLang(lang.code)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-muted/60 ${
+                    i18n.language === lang.code
+                      ? 'text-primary font-semibold bg-primary/5'
+                      : 'text-foreground'
+                  }`}
+                  dir={lang.dir}
+                >
+                  <span>{lang.label}</span>
+                  {i18n.language === lang.code && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="w-px h-5 bg-border mx-1" />
