@@ -8,11 +8,12 @@ COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json         ./apps/api/
 
 # Install all deps (dev included — needed to compile TypeScript)
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Copy source
-COPY packages/shared/ ./packages/shared/
-COPY apps/api/        ./apps/api/
+COPY tsconfig.base.json   ./
+COPY packages/shared/     ./packages/shared/
+COPY apps/api/            ./apps/api/
 
 # Build shared package first (API imports from it)
 RUN npm --workspace packages/shared run build
@@ -31,7 +32,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json         ./apps/api/
 
 # Install production deps only (workspace symlinks are created automatically)
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm install --omit=dev --ignore-scripts
 
 # Copy compiled output from builder
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist

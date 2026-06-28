@@ -14,11 +14,12 @@ COPY packages/shared/package.json ./packages/shared/
 COPY apps/web/package.json         ./apps/web/
 
 # Install all deps (dev included — needed to compile TypeScript + Vite build)
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Copy source
-COPY packages/shared/ ./packages/shared/
-COPY apps/web/        ./apps/web/
+COPY tsconfig.base.json   ./
+COPY packages/shared/     ./packages/shared/
+COPY apps/web/            ./apps/web/
 
 # Build shared package first (web imports from it)
 RUN npm --workspace packages/shared run build
