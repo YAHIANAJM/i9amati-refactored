@@ -112,7 +112,11 @@ export async function ensureProfileExistsForEmail(
 
     try {
       await auth.api.signInMagicLink({
-        body: { email: opts.email, callbackURL: process.env.FRONTEND_URL || 'http://localhost:3000' }
+        body: { email: opts.email, callbackURL: process.env.FRONTEND_URL || 'http://localhost:3000' },
+        headers: new Headers({
+          'content-type': 'application/json',
+          origin: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
+        }),
       } as any)
     } catch (e) {
       console.error('Failed to send magic link to', opts.email, e)
