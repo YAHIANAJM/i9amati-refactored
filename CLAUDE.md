@@ -60,15 +60,50 @@ The single shared `db` instance lives in `apps/api/src/db/db.ts`. The `Database`
 
 Migration files live in `apps/api/migrations/public/` and `apps/api/migrations/tenant/`. Adding a new domain table means writing a migration in `migrations/tenant/`.
 
+## Group & Membership Architecture
+
+`groups` (tenant schema) are scoped by **exactly one** FK — either `residence_id` or `building_id` — enforced by a CHECK constraint: `residence_id IS NULL OR building_id IS NULL`. Groups with both null are global.
+
+**Auto-creation rules** (wired into residences.ts, buildings.ts, apartments.ts):
+- Residence created → residence group created, all SYNDICs added as ADMIN
+- Building created → building group created, all SYNDICs added as ADMIN
+- Apartment owner set (via any write path) → owner linked to the building's group AND the building's parent residence group
+
+**`apps/api/src/services/groupMembership.ts`** — use these for all group membership operations:
+
+```ts
+linkProfileToGroup(db, { profileId, groupId, organizationId, role? })
+  // validates: profile exists + belongs to org + not deleted; group exists
+  // derives role: SYNDIC → ADMIN, others → USER (unless role overridden)
+  // idempotent: duplicate inserts are silently ignored
+
+findProfileByEmail(db, { email, organizationId })
+  // looks up public.user by email → public.profiles by user_id + org
+  // returns profile id or null
+
+addSyndicsToGroup(db, { groupId, organizationId })
+  // batch-inserts all SYNDIC profiles as ADMIN; safe to call multiple times
+```
+
+All three accept `Kysely<Database>` or a `Transaction<Database>` — Kysely transactions extend the base type.
+
+**`_profile_groups` has `UNIQUE(group_id, profile_id)`** — all inserts use `.onConflict(oc => oc.doNothing())`.
+
+`feed_posts.author_id` is an FK to `_profile_groups.id` (not `profiles.id`) — even SYNDICs must have a `_profile_groups` row to post.
+
 ## API Architecture
 
 `apps/api/src/index.ts` mounts handlers on Express:
 - `/api/auth/*` — Better Auth handler via `toNodeHandler(auth)` — sign-in, sign-up, session, 2FA, magic link, OTP
 - `/api/setup` — initial org/residence onboarding after first login
-- `/api/residences` — residence CRUD
-- `/api/apartments` — apartment CRUD
+- `/api/me` — current profile info
+- `/api/residences` — residence + building + apartment CRUD (bulk creation via `POST /bulk`)
+- `/api/apartments` — apartment CRUD, shareholders
+- `/api/buildings` — building CRUD, apartments under a building
 - `/api/meetings` — meeting CRUD
 - `/api/notifications` — notification list/read
+- `/api/services` — service contracts, staff assignments, payments
+- `/api/union` — union-related routes
 - `/api/chatbot` — LangGraph chatbot endpoint
 - `/api/feed` — community feed: groups, posts, comments, likes (CASL-authorized)
 - `/api/upload` — file upload to MinIO; `POST /api/upload?scope=feed|profile|documents|residences` with `multipart/form-data`, field `file`; returns `{ url, key }`
@@ -102,6 +137,17 @@ enum ProfileRole { SYNDIC, OWNER, TENANT, STAFF }  // profiles.role — per-org
 Import as `import { PlatformRole, ProfileRole } from '@i9amati/shared'`.
 
 Note: `requirePermission` middleware is a no-op stub — per-resource permission enforcement is not yet implemented.
+
+## Validation Error Contract (API ↔ Web)
+
+When a route validates with Zod and fails, throw using `formatZodError`:
+```ts
+import { formatZodError } from '../lib/zod-errors'
+// ...
+if (!parsed.success) throw new AppError(400, formatZodError(parsed.error), 'VALIDATION_ERROR')
+```
+
+`formatZodError` joins all Zod issue messages with `|`. The web `toastApiError` splits on `|`, calls `i18n.t(key)` on each part, and falls back to a generic string if the key isn't found. **Therefore: all Zod `.min()` / `.refine()` messages in API routes must be i18n translation keys** (e.g. `'validation.apartment.numberRequired'`), not raw English strings. Keys must exist in all four locales: `apps/web/src/locales/{ar,en,fr,tzm}/translation.ts`.
 
 **Feed authorization** uses CASL instead. `packages/shared/src/feed-ability.ts` exports `defineFeedAbility(profileRole, profileId, memberships)` which returns a CASL `MongoAbility`. Feed routes call this directly:
 
@@ -140,7 +186,7 @@ START → sanitize → safetyCheck → (conditional)
 
 **Data**: `src/data/mock/` — the web app currently uses local mock data typed against `@i9amati/shared`. API integration is in progress; `@tanstack/react-query` is available for server state when connecting to the API.
 
-**i18n**: `src/lib/i18n.ts` configures `i18next` with three locales (Arabic, English, French) loaded from `src/locales/{ar,en,fr}/translation.ts`. Default language is Arabic. Use `useTranslation()` from `react-i18next` to access translated strings.
+**i18n**: `src/lib/i18n.ts` configures `i18next` with four locales (Arabic, English, French, Tamazight) loaded from `src/locales/{ar,en,fr,tzm}/translation.ts`. Default language is Arabic. Use `useTranslation()` from `react-i18next` to access translated strings. When adding new translation keys, add them to **all four** locale files.
 
 **Path alias**: `@/` resolves to `apps/web/src/` (configured in `vite.config.ts`).
 
