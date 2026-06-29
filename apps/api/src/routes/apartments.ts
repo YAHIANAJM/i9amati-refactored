@@ -2,7 +2,7 @@ import { Router, Request } from 'express'
 import { z } from 'zod'
 import { authenticate, requirePermission, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
-import { linkProfileToGroup, findProfileByEmail } from '../services/groupMembership'
+import { linkProfileToGroup, findProfileByEmail, ensureProfileExistsForEmail } from '../services/groupMembership'
 
 const router = Router()
 router.use(authenticate)
@@ -118,8 +118,13 @@ router.post('/:id/shareholders', requirePermission('apartment', 'update'), async
       .where('id', '=', req.params.id).returningAll().executeTakeFirstOrThrow()
 
     if (body.email) {
-      const profileId = await findProfileByEmail(tenantDb, { email: body.email, organizationId: activeOrganizationId })
-      if (profileId) await syncOwnerToGroups(tenantDb, apt.building_id, profileId, activeOrganizationId)
+      const profileId = await ensureProfileExistsForEmail(tenantDb, { 
+        email: body.email, 
+        firstName: body.firstName,
+        lastName: body.lastName,
+        organizationId: activeOrganizationId 
+      })
+      await syncOwnerToGroups(tenantDb, apt.building_id, profileId, activeOrganizationId)
     }
 
     res.status(201).json(result)

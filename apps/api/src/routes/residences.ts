@@ -4,7 +4,7 @@ import { sql } from 'kysely'
 import { authenticate, requirePermission, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
 import { formatZodError } from '../lib/zod-errors'
-import { linkProfileToGroup, findProfileByEmail, addSyndicsToGroup } from '../services/groupMembership'
+import { linkProfileToGroup, findProfileByEmail, addSyndicsToGroup, ensureProfileExistsForEmail } from '../services/groupMembership'
 
 const router = Router()
 router.use(authenticate)
@@ -185,7 +185,12 @@ router.post('/bulk', requirePermission('residence', 'create'), async (req: Reque
           if (aptInput.ownerProfileId) ownerIds.add(aptInput.ownerProfileId)
           for (const owner of aptInput.owners) {
             if (!owner.email) continue
-            const pid = await findProfileByEmail(trx, { email: owner.email, organizationId: activeOrganizationId })
+            const pid = await ensureProfileExistsForEmail(trx, {
+              email: owner.email,
+              firstName: owner.firstName,
+              lastName: owner.lastName,
+              organizationId: activeOrganizationId
+            })
             if (pid) ownerIds.add(pid)
           }
           for (const pid of ownerIds) {
@@ -391,7 +396,12 @@ router.post('/:id/buildings', requirePermission('residence', 'create'), async (r
           if (aptInput.ownerProfileId) ownerIds.add(aptInput.ownerProfileId)
           for (const owner of aptInput.owners) {
             if (!owner.email) continue
-            const pid = await findProfileByEmail(trx, { email: owner.email, organizationId: activeOrganizationId })
+            const pid = await ensureProfileExistsForEmail(trx, {
+              email: owner.email,
+              firstName: owner.firstName,
+              lastName: owner.lastName,
+              organizationId: activeOrganizationId
+            })
             if (pid) ownerIds.add(pid)
           }
           for (const pid of ownerIds) {

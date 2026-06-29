@@ -1,5 +1,7 @@
 import { Kysely } from 'kysely'
 import type { Database } from '../db/types'
+import { auth } from '../auth'
+import { randomUUID } from 'crypto'
 
 type MemberRole = 'USER' | 'ADMIN' | 'RIGHT_HAND'
 
@@ -16,10 +18,10 @@ type MemberRole = 'USER' | 'ADMIN' | 'RIGHT_HAND'
 export async function linkProfileToGroup(
   db: Kysely<Database>,
   opts: {
-    profileId:      string
-    groupId:        string
+    profileId: string
+    groupId: string
     organizationId: string
-    role?:          MemberRole
+    role?: MemberRole
   },
 ): Promise<boolean> {
   const { profileId, groupId, organizationId, role } = opts
@@ -78,6 +80,79 @@ export async function findProfileByEmail(
     .executeTakeFirst()
 
   return profile?.id ?? null
+}
+
+/**
+ * Ensures a user account and an organization profile exist for the given email.
+ * If the user does not exist, it creates one and sends a magic link.
+ * If the profile does not exist for the org, it creates one with role 'OWNER' or 'USER'.
+ * Returns the profile ID.
+ */
+export async function ensureProfileExistsForEmail(
+  db: Kysely<Database>,
+  opts: { email: string; firstName?: string; lastName?: string; organizationId: string }
+): Promise<string> {
+  // 1. Find user by email
+  const user = await db.selectFrom('public.user').select('id').where('email', '=', opts.email).executeTakeFirst()
+  let userId = user?.id
+
+  if (!userId) {
+    userId = randomUUID()
+    await db.insertInto('public.user').values({
+      id: userId,
+      email: opts.email,
+      name: `${opts.firstName || ''} ${opts.lastName || ''}`.trim() || opts.email.split('@')[0],
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      firstName: opts.firstName || '',
+      lastName: opts.lastName || '',
+      platformRole: 'USER',
+    }).execute()
+
+    try {
+      await auth.api.signInMagicLink({
+        body: { email: opts.email, callbackURL: process.env.FRONTEND_URL || 'http://localhost:3000' }
+      } as any)
+    } catch (e) {
+      console.error('Failed to send magic link to', opts.email, e)
+    }
+  }
+
+  // 2. Check if profile exists
+  const profile = await db.selectFrom('public.profiles')
+    .select('id')
+    .where('user_id', '=', userId)
+    .where('organization_id', '=', opts.organizationId)
+    .executeTakeFirst()
+
+  if (profile) {
+    const activeProfile = await db.selectFrom('public.profiles')
+      .select('id')
+      .where('id', '=', profile.id)
+      .where('deleted_at', 'is', null)
+      .executeTakeFirst()
+
+    if (activeProfile) return activeProfile.id
+
+    await db.updateTable('public.profiles')
+      .set({ deleted_at: null, updated_at: new Date() })
+      .where('id', '=', profile.id)
+      .execute()
+    return profile.id
+  }
+
+  // 3. Create profile
+  const profileId = randomUUID()
+  await db.insertInto('public.profiles').values({
+    id: profileId,
+    user_id: userId,
+    organization_id: opts.organizationId,
+    role: 'OWNER', // Since they are apartment owners/shareholders
+    updated_at: new Date()
+  }).execute()
+
+  return profileId
 }
 
 /**
