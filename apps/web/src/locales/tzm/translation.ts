@@ -490,6 +490,22 @@ export const tzm = {
   validation: {
     date: {
       endBeforeStart: "ⴰⵙⵙ ⵏ ⵓⴽⵎⵎⴻⵍ ⵉⵍⴰⵇ ⴰⴷ ⵉⵍⵉ ⵙⴳ ⵓⵙⵙ ⵏ ⵓⴱⴷⵓ."
+    },
+    apartment: {
+      numberRequired: "Apartment number is required"
+    },
+    owner: {
+      firstNameRequired: "Owner first name is required",
+      lastNameRequired:  "Owner last name is required"
+    },
+    building: {
+      nameRequired:  "Building name is required",
+      floorsMin:     "Building must have at least 1 floor"
+    },
+    residence: {
+      nameRequired:     "Residence name is required",
+      addressRequired:  "Address is required",
+      buildingRequired: "At least one building is required"
     }
   }
 } as const

@@ -3,33 +3,46 @@ import { z } from 'zod'
 import { sql } from 'kysely'
 import { authenticate, requirePermission, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
+import { formatZodError } from '../lib/zod-errors'
+import { linkProfileToGroup, findProfileByEmail, addSyndicsToGroup } from '../services/groupMembership'
 
 const router = Router()
 router.use(authenticate)
 
+function makeSlug(name: string, id: string) {
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  return `${base}-${id.slice(0, 6)}`
+}
+
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 
 const ownerSchema = z.object({
-  firstName:  z.string().min(1),
-  lastName:   z.string().min(1),
+  firstName:  z.string().min(1, 'validation.owner.firstNameRequired'),
+  lastName:   z.string().min(1, 'validation.owner.lastNameRequired'),
   email:      z.string().email().optional().or(z.literal('')),
   isPrimary:  z.boolean(),
   gender:     z.enum(['MALE', 'FEMALE']).default('MALE'),
 })
 
 const apartmentSchema = z.object({
-  number:             z.string().min(1, 'Apartment number is required'),
+  number:             z.string().min(1, 'validation.apartment.numberRequired'),
   floor:              z.number().int().min(0),
   lotNumber:          z.string().optional(),   // numéro de lot (رقم القطعة) — Loi 18-00
   quotePart:          z.number().optional(),   // millièmes dans l'immeuble
   quotePartResidence: z.number().optional(),   // millièmes dans la résidence (complexe only)
   areaSqm:            z.number().positive().optional(),
-  owners:             z.array(ownerSchema).min(0).default([]),
+  ownerProfileId:     z.string().uuid().optional(),
+  owners: z.preprocess(
+    (arr) => Array.isArray(arr)
+      ? arr.filter((o: any) => o?.firstName?.trim() || o?.lastName?.trim())
+      : [],
+    z.array(ownerSchema).default([]),
+  ),
 })
 
 const buildingSchema = z.object({
-  name:       z.string().min(1, 'Building name is required'),
-  floors:     z.number().int().min(1),
+  name:       z.string().min(1, 'validation.building.nameRequired'),
+  floors:     z.number().int().min(1, 'validation.building.floorsMin'),
   unionType:  z.string().optional(),
   lotNumber:  z.string().optional(),   // numéro de lot du bâtiment (Loi 18-00)
   quotePart:  z.number().optional(),   // millièmes dans la résidence (complexe only)
@@ -39,14 +52,14 @@ const buildingSchema = z.object({
 })
 
 const bulkResidenceSchema = z.object({
-  name:          z.string().min(1, 'Residence name is required'),
-  address:       z.string().min(1, 'Address is required'),
+  name:          z.string().min(1, 'validation.residence.nameRequired'),
+  address:       z.string().min(1, 'validation.residence.addressRequired'),
   city:          z.string().optional(),
   description:   z.string().optional(),
   titreFoncier:  z.string().optional(),
   status:        z.enum(['ACTIVE', 'MAINTENANCE', 'INACTIVE']).default('ACTIVE'),
   facilities:    z.array(z.string()).default([]),
-  buildings:     z.array(buildingSchema).min(1, 'At least one building is required'),
+  buildings:     z.array(buildingSchema).min(1, 'validation.residence.buildingRequired'),
 })
 
 // ── POST /api/residences/bulk ─────────────────────────────────────────────────
@@ -54,13 +67,13 @@ const bulkResidenceSchema = z.object({
 router.post('/bulk', requirePermission('residence', 'create'), async (req: Request, res, next) => {
   const label = '[POST /residences/bulk]'
   try {
-    const { tenantDb } = req as AuthRequest
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
 
     // Validate
     const parsed = bulkResidenceSchema.safeParse(req.body)
     if (!parsed.success) {
       console.error(`${label} Validation failed`, parsed.error.flatten())
-      throw new AppError(400, 'Invalid payload', 'VALIDATION_ERROR')
+      throw new AppError(400, formatZodError(parsed.error), 'VALIDATION_ERROR')
     }
     const data = parsed.data
     console.log(`${label} Creating residence "${data.name}" with ${data.buildings.length} building(s)`)
@@ -86,7 +99,18 @@ router.post('/bulk', requirePermission('residence', 'create'), async (req: Reque
 
       console.log(`${label} ✓ Residence created → ${residenceId}`)
 
-      // 2 — Create buildings + their apartments in parallel per building
+      // 2 — Create residence group and add SYNDICs
+      const residenceGroupId = crypto.randomUUID()
+      await trx.insertInto('groups').values({
+        id:           residenceGroupId,
+        name:         data.name,
+        slug:         makeSlug(data.name, residenceGroupId),
+        residence_id: residenceId,
+        building_id:  null,
+        updated_at:   new Date(),
+      }).execute()
+      await addSyndicsToGroup(trx, { groupId: residenceGroupId, organizationId: activeOrganizationId })
+
       const buildings: any[] = []
       const apartments: any[] = []
 
@@ -113,7 +137,19 @@ router.post('/bulk', requirePermission('residence', 'create'), async (req: Reque
         console.log(`${label}   ✓ Building "${bldInput.name}" → ${buildingId} (${bldInput.apartments.length} apt(s))`)
         buildings.push(building)
 
-        // 3 — Create apartments for this building
+        // 3 — Create building group and add SYNDICs
+        const buildingGroupId = crypto.randomUUID()
+        await trx.insertInto('groups').values({
+          id:           buildingGroupId,
+          name:         bldInput.name,
+          slug:         makeSlug(bldInput.name, buildingGroupId),
+          residence_id: null,
+          building_id:  buildingId,
+          updated_at:   new Date(),
+        }).execute()
+        await addSyndicsToGroup(trx, { groupId: buildingGroupId, organizationId: activeOrganizationId })
+
+        // 4 — Create apartments; link owner to both groups (explicit ID or by email)
         for (const aptInput of bldInput.apartments) {
           const shareholders = aptInput.owners.map((o) => ({
             firstName:  o.firstName,
@@ -134,7 +170,7 @@ router.post('/bulk', requirePermission('residence', 'create'), async (req: Reque
               quote_part:           aptInput.quotePart ?? null,
               quote_part_residence: aptInput.quotePartResidence ?? null,
               building_id:          buildingId,
-              owner_profile_id:     null,  // linked when owner registers
+              owner_profile_id:     aptInput.ownerProfileId ?? null,
               shareholders:         JSON.stringify(shareholders) as any,
               status:               'VACANT',
               usage_type:           'RESIDENTIAL',
@@ -144,6 +180,18 @@ router.post('/bulk', requirePermission('residence', 'create'), async (req: Reque
             .executeTakeFirstOrThrow()
 
           apartments.push(apartment)
+
+          const ownerIds = new Set<string>()
+          if (aptInput.ownerProfileId) ownerIds.add(aptInput.ownerProfileId)
+          for (const owner of aptInput.owners) {
+            if (!owner.email) continue
+            const pid = await findProfileByEmail(trx, { email: owner.email, organizationId: activeOrganizationId })
+            if (pid) ownerIds.add(pid)
+          }
+          for (const pid of ownerIds) {
+            await linkProfileToGroup(trx, { profileId: pid, groupId: residenceGroupId, organizationId: activeOrganizationId })
+            await linkProfileToGroup(trx, { profileId: pid, groupId: buildingGroupId,  organizationId: activeOrganizationId })
+          }
         }
       }
 
@@ -271,7 +319,7 @@ router.get('/:id/buildings', requirePermission('residence', 'read'), async (req:
 router.post('/:id/buildings', requirePermission('residence', 'create'), async (req: Request, res, next) => {
   const label = '[POST /residences/:id/buildings]'
   try {
-    const { tenantDb } = req as AuthRequest
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
 
     const residence = await tenantDb.selectFrom('residences').select('id')
       .where('id', '=', req.params.id).executeTakeFirst()
@@ -280,9 +328,15 @@ router.post('/:id/buildings', requirePermission('residence', 'create'), async (r
     const parsed = z.object({
       buildings: z.array(buildingSchema).min(1),
     }).safeParse(req.body)
-    if (!parsed.success) throw new AppError(400, 'Invalid payload', 'VALIDATION_ERROR')
+    if (!parsed.success) throw new AppError(400, formatZodError(parsed.error), 'VALIDATION_ERROR')
 
     const result = await tenantDb.transaction().execute(async (trx) => {
+      const residenceGroup = await trx
+        .selectFrom('groups').select('id')
+        .where('residence_id', '=', req.params.id)
+        .executeTakeFirst()
+      const residenceGroupId = residenceGroup?.id ?? null
+
       const buildings: any[] = []
       const apartments: any[] = []
       for (const bldInput of parsed.data.buildings) {
@@ -301,6 +355,17 @@ router.post('/:id/buildings', requirePermission('residence', 'create'), async (r
         }).returningAll().executeTakeFirstOrThrow()
         buildings.push(building)
 
+        const buildingGroupId = crypto.randomUUID()
+        await trx.insertInto('groups').values({
+          id:           buildingGroupId,
+          name:         bldInput.name,
+          slug:         makeSlug(bldInput.name, buildingGroupId),
+          residence_id: null,
+          building_id:  buildingId,
+          updated_at:   new Date(),
+        }).execute()
+        await addSyndicsToGroup(trx, { groupId: buildingGroupId, organizationId: activeOrganizationId })
+
         for (const aptInput of bldInput.apartments) {
           const shareholders = aptInput.owners.map(o => ({
             firstName: o.firstName, lastName: o.lastName, email: o.email || null, isPrimary: o.isPrimary,
@@ -314,13 +379,25 @@ router.post('/:id/buildings', requirePermission('residence', 'create'), async (r
             quote_part:           aptInput.quotePart ?? null,
             quote_part_residence: aptInput.quotePartResidence ?? null,
             building_id:          buildingId,
-            owner_profile_id:     null,
+            owner_profile_id:     aptInput.ownerProfileId ?? null,
             shareholders:         JSON.stringify(shareholders) as any,
             status:               'VACANT',
             usage_type:           'RESIDENTIAL',
             updated_at:           new Date(),
           }).returningAll().executeTakeFirstOrThrow()
           apartments.push(apartment)
+
+          const ownerIds = new Set<string>()
+          if (aptInput.ownerProfileId) ownerIds.add(aptInput.ownerProfileId)
+          for (const owner of aptInput.owners) {
+            if (!owner.email) continue
+            const pid = await findProfileByEmail(trx, { email: owner.email, organizationId: activeOrganizationId })
+            if (pid) ownerIds.add(pid)
+          }
+          for (const pid of ownerIds) {
+            await linkProfileToGroup(trx, { profileId: pid, groupId: buildingGroupId, organizationId: activeOrganizationId })
+            if (residenceGroupId) await linkProfileToGroup(trx, { profileId: pid, groupId: residenceGroupId, organizationId: activeOrganizationId })
+          }
         }
       }
       return { buildings, apartments }
@@ -353,15 +430,32 @@ router.get('/:id', requirePermission('residence', 'read'), async (req: Request, 
 
 router.post('/', requirePermission('residence', 'create'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
     const { name, address, city, status, image, description, facilities = [] } = req.body
     if (!name || !address) throw new AppError(400, 'name and address are required')
 
-    const residence = await tenantDb
-      .insertInto('residences')
-      .values({ name, address, city, status, image, description, facilities: JSON.stringify(facilities) as any, updated_at: new Date() })
-      .returningAll()
-      .executeTakeFirstOrThrow()
+    const residence = await tenantDb.transaction().execute(async (trx) => {
+      const r = await trx
+        .insertInto('residences')
+        .values({ name, address, city, status, image, description, facilities: JSON.stringify(facilities) as any, updated_at: new Date() })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+
+      const groupId = crypto.randomUUID()
+      await trx.insertInto('groups').values({
+        id:           groupId,
+        name:         r.name,
+        slug:         makeSlug(r.name, groupId),
+        residence_id: r.id,
+        building_id:  null,
+        updated_at:   new Date(),
+      }).execute()
+
+      await addSyndicsToGroup(trx, { groupId, organizationId: activeOrganizationId })
+
+      return r
+    })
+
     res.status(201).json(residence)
   } catch (e) { next(e) }
 })

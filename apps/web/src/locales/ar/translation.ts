@@ -490,6 +490,22 @@ export const ar = {
   validation: {
     date: {
       endBeforeStart: "يجب أن يكون تاريخ النهاية بعد تاريخ البداية."
+    },
+    apartment: {
+      numberRequired: "رقم الشقة مطلوب"
+    },
+    owner: {
+      firstNameRequired: "الاسم الأول للمالك مطلوب",
+      lastNameRequired:  "اسم العائلة للمالك مطلوب"
+    },
+    building: {
+      nameRequired:  "اسم البناية مطلوب",
+      floorsMin:     "يجب أن تحتوي البناية على طابق واحد على الأقل"
+    },
+    residence: {
+      nameRequired:     "اسم الإقامة مطلوب",
+      addressRequired:  "العنوان مطلوب",
+      buildingRequired: "مطلوب بناية واحدة على الأقل"
     }
   }
 } as const

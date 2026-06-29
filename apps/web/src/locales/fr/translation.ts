@@ -490,6 +490,22 @@ export const fr = {
   validation: {
     date: {
       endBeforeStart: "La date de fin doit être postérieure à la date de début."
+    },
+    apartment: {
+      numberRequired: "Le numéro de l'appartement est requis"
+    },
+    owner: {
+      firstNameRequired: "Le prénom du propriétaire est requis",
+      lastNameRequired:  "Le nom du propriétaire est requis"
+    },
+    building: {
+      nameRequired:  "Le nom de l'immeuble est requis",
+      floorsMin:     "L'immeuble doit avoir au moins 1 étage"
+    },
+    residence: {
+      nameRequired:     "Le nom de la résidence est requis",
+      addressRequired:  "L'adresse est requise",
+      buildingRequired: "Au moins un bâtiment est requis"
     }
   }
 } as const
