@@ -51,7 +51,7 @@ export function AssignStaffDialog({ open, service, onClose }: AssignStaffDialogP
         <div className="mb-4">
           <DialogTitle className="text-xl font-bold">{t('services.assignStaff')}</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            {t('services.assignStaffDesc', { serviceName: service?.name })}
+            {t('services.assignStaffDesc', { serviceName: service?.name ?? '' })}
           </p>
         </div>
 
