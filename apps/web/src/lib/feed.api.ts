@@ -3,7 +3,7 @@ import { deriveGroupType, UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, mimeToMe
 import type {
   FeedGroup, FeedGroupsResponse, FeedPost, FeedComment,
   FeedMember, FeedOrgProfile, GroupType,
-  FeedAnalyticsResponse, UploadMediaType,
+  FeedAnalyticsResponse, UploadMediaType, OrgProfilesQuery,
 } from '@i9amati/shared'
 
 const BASE = import.meta.env.VITE_API_URL || ''
@@ -171,11 +171,14 @@ export const feedApi = {
     return res.json()
   },
 
-  // ── Org profiles (for member picker) ───────────────────────────────────────
+  // ── Org profiles (for member picker, cursor-paginated) ────────────────────
 
-  async getOrgProfiles(): Promise<ApiOrgProfile[]> {
-    const data = await api.get<{ profiles: ApiOrgProfile[] }>('/api/feed/org-profiles')
-    return data.profiles
+  async getOrgProfiles(params?: Partial<OrgProfilesQuery>): Promise<{ profiles: ApiOrgProfile[]; hasMore: boolean; nextCursor: string | null }> {
+    const p = new URLSearchParams()
+    if (params?.cursor)         p.set('cursor',         params.cursor)
+    if (params?.limit)          p.set('limit',          String(params.limit))
+    if (params?.excludeGroupId) p.set('excludeGroupId', params.excludeGroupId)
+    return api.get(`/api/feed/org-profiles?${p}`)
   },
 
   // ── Analytics (SYNDIC only) ─────────────────────────────────────────────────

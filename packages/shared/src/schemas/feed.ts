@@ -1,5 +1,12 @@
 import { z } from 'zod'
 
+export const OrgProfilesQuerySchema = z.object({
+  cursor: z.string().uuid().optional(),
+  limit:  z.coerce.number().int().min(1).max(50).default(20),
+  excludeGroupId: z.string().uuid().optional(),
+})
+export type OrgProfilesQuery = z.infer<typeof OrgProfilesQuerySchema>
+
 export const CreateFeedPostSchema = z.object({
   content: z.string({
     required_error: 'validation.postContent.required',

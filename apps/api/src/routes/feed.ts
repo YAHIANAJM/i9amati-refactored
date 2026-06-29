@@ -7,7 +7,7 @@ import { AppError } from '../middleware/errorHandler'
 import { db } from '../db/db'
 import { defineFeedAbility, subject } from '../lib/ability'
 import type { MembershipInfo } from '../lib/ability'
-import { ProfileRole } from '@i9amati/shared'
+import { ProfileRole, OrgProfilesQuerySchema } from '@i9amati/shared'
 
 const router = Router()
 router.use(authenticate)
@@ -1026,22 +1026,36 @@ router.get('/analytics', async (req: Request, res, next) => {
 })
 
 // ── GET /feed/org-profiles ────────────────────────────────────────────────────
-// Returns all profiles in this org — used by the member picker when adding members to a group.
+// Cursor-paginated (by profile id) list of org profiles for the member picker.
 
 router.get('/org-profiles', async (req: Request, res, next) => {
   try {
-    const { activeOrganizationId } = req as AuthRequest
+    const { activeOrganizationId, tenantDb } = req as AuthRequest
+    const { cursor, limit, excludeGroupId }  = OrgProfilesQuerySchema.parse(req.query)
 
-    const profiles = await db
+    let query = tenantDb
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as u', 'prof.user_id', 'u.id')
+      .leftJoin('_profile_groups as pg', join =>
+        join.onRef('pg.profile_id', '=', 'prof.id').on('pg.group_id', '=', excludeGroupId ?? null)
+      )
       .where('prof.organization_id', '=', activeOrganizationId)
       .where('prof.deleted_at', 'is', null)
+      .where('pg.profile_id', 'is', null)
+
+    if (cursor) query = query.where('prof.id', '>', cursor)
+
+    const rows = await query
       .select(['prof.id as profileId', 'u.name', 'u.image', 'prof.role as orgRole'])
-      .orderBy('u.name', 'asc')
+      .orderBy('prof.id', 'asc')
+      .limit(limit + 1)
       .execute()
 
-    res.json({ profiles })
+    const hasMore    = rows.length > limit
+    const profiles   = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore ? profiles[profiles.length - 1].profileId : null
+
+    res.json({ profiles, hasMore, nextCursor })
   } catch (err) { next(err) }
 })
 
