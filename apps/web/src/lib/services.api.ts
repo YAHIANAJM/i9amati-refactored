@@ -3,39 +3,39 @@ import { api } from './api'
 export type ServiceContractStatus = 'ACTIVE' | 'PENDING' | 'EXPIRED' | 'CANCELLED'
 
 export interface ContractFile {
-  id:          string
-  name:        string
-  size:        number | null
-  url:         string | null
+  id: string
+  name: string
+  size: number | null
+  url: string | null
   uploaded_at: string
 }
 
 export interface ApiServiceContract {
-  id:           string
-  service_id:   string
-  name:         string
-  description:  string | null
-  amount:       number
-  amount_paid:  number
-  start_date:   string
-  end_date:     string
-  status:       ServiceContractStatus
-  files:        ContractFile[]
+  id: string
+  service_id: string
+  name: string
+  description: string | null
+  amount: number
+  amount_paid: number
+  start_date: string
+  end_date: string
+  status: ServiceContractStatus
+  files: ContractFile[]
 }
 
 export interface ApiService {
-  id:           string
-  name:         string
-  slug:         string
-  type:         string | null
+  id: string
+  name: string
+  slug: string
+  type: string | null
   contact_info: { phone?: string; email?: string } | null
-  contracts:    ApiServiceContract[]
+  contracts: ApiServiceContract[]
 }
 
 export interface ServicesResponse {
-  profileId:   string
+  profileId: string
   profileRole: string
-  services:    ApiService[]
+  services: ApiService[]
 }
 
 export interface ApiStaffProfile {
@@ -50,12 +50,12 @@ export interface ApiStaffProfile {
 }
 
 export interface StaffPage {
-  staff:      ApiStaffProfile[]
+  staff: ApiStaffProfile[]
   nextCursor: string | null
 }
 
 export interface SessionsPage {
-  sessions:   ApiServiceSession[]
+  sessions: ApiServiceSession[]
   nextCursor: string | null
 }
 
@@ -78,8 +78,8 @@ export const servicesApi = {
   },
 
   async create(payload: {
-    name:          string
-    type?:         string | null
+    name: string
+    type?: string | null
     contact_info?: { phone?: string; email?: string } | null
   }): Promise<ApiService> {
     return api.post('/api/services', payload)
@@ -98,24 +98,24 @@ export const servicesApi = {
   },
 
   async addContract(serviceId: string, payload: {
-    name:          string
-    description?:  string | null
-    amount:        number
-    start_date:    string
-    end_date:      string
-    status?:       ServiceContractStatus
+    name: string
+    description?: string | null
+    amount: number
+    start_date: string
+    end_date: string
+    status?: ServiceContractStatus
   }): Promise<ApiServiceContract> {
     return api.post(`/api/services/${serviceId}/contracts`, payload)
   },
 
   async updateContract(serviceId: string, contractId: string, payload: {
-    name?:         string
-    description?:  string | null
-    amount?:       number
-    amount_paid?:  number
-    start_date?:   string
-    end_date?:     string
-    status?:       ServiceContractStatus
+    name?: string
+    description?: string | null
+    amount?: number
+    amount_paid?: number
+    start_date?: string
+    end_date?: string
+    status?: ServiceContractStatus
   }): Promise<ApiServiceContract> {
     return api.patch(`/api/services/${serviceId}/contracts/${contractId}`, payload)
   },
@@ -144,9 +144,12 @@ export const servicesApi = {
     return api.delete(`/api/services/${serviceId}/contracts/${contractId}/files/${docId}`)
   },
 
-  async getStaff(serviceId: string, cursor?: string, limit = 20): Promise<StaffPage> {
+  async getStaff(serviceId: string, cursor?: string, limit = 20, filter?: { name?: string; dateFrom?: string; dateTo?: string }): Promise<StaffPage> {
     const params = new URLSearchParams({ serviceId, limit: String(limit) })
     if (cursor) params.set('cursor', cursor)
+    if (filter?.name) params.set('name', filter.name)
+    if (filter?.dateFrom) params.set('dateFrom', filter.dateFrom)
+    if (filter?.dateTo) params.set('dateTo', filter.dateTo)
     return api.get<StaffPage>(`/api/services/staff?${params}`)
   },
 

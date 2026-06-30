@@ -116,7 +116,7 @@ router.get('/', async (req: Request, res, next) => {
     const { tenantDb, profileRole, profileId } = req as AuthRequest
 
     let servicesQuery = tenantDb.selectFrom('services').selectAll('services')
-    
+
     if (profileRole === 'STAFF') {
       servicesQuery = servicesQuery
         .innerJoin('service_staff_assignments as ssa', 'ssa.service_id', 'services.id')
@@ -181,8 +181,11 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
   try {
     const { tenantDb, activeOrganizationId, profileRole, profileId, orgSlug } = req as AuthRequest
     const serviceId = req.query.serviceId as string | undefined
-    const limit     = Math.min(Number(req.query.limit)  || 20, 50)
-    const cursor    = req.query.cursor as string | undefined
+    const limit = Math.min(Number(req.query.limit) || 20, 50)
+    const cursor = req.query.cursor as string | undefined
+    const nameFilter = req.query.name as string | undefined
+    const dateFromFilter = req.query.dateFrom as string | undefined
+    const dateToFilter = req.query.dateTo as string | undefined
 
     if (!serviceId) {
       return res.json({ staff: [], nextCursor: null })
@@ -218,33 +221,50 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
       query = query.where('prof.id', '=', profileId)
     }
 
+    if (nameFilter) {
+      nameFilter.trim().split(' ').forEach(e => {
+        query = query.where((eb) => eb.or([
+          eb('usr.firstName', 'ilike', `%${e}%`),
+          eb('usr.lastName', 'ilike', `%${e}%`)
+        ]))
+      })
+    }
+
+    if (dateFromFilter) {
+      query = query.where('ssa.assigned_at', '>=', new Date(dateFromFilter) as any)
+    }
+
+    if (dateToFilter) {
+      query = query.where('ssa.assigned_at', '<=', new Date(dateToFilter) as any)
+    }
+
     if (cursor) {
       const { d, id: cursorId } = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as { d: string; id: string }
       const cursorDate = new Date(d)
       query = query.where(sql<SqlBool>`(ssa.assigned_at, prof.id) > (${cursorDate}, ${cursorId})`)
     }
 
-    const rows  = await query.limit(limit + 1).execute()
+    const rows = await query.limit(limit + 1).execute()
     const hasMore = rows.length > limit
-    const items   = hasMore ? rows.slice(0, limit) : rows
-    const last    = items[items.length - 1]
+    const items = hasMore ? rows.slice(0, limit) : rows
+    const last = items[items.length - 1]
     const nextCursor = hasMore && last
       ? Buffer.from(JSON.stringify({
-          d: last.assigned_at instanceof Date ? last.assigned_at.toISOString() : String(last.assigned_at),
-          id: last.id,
-        })).toString('base64url')
+        d: last.assigned_at instanceof Date ? last.assigned_at.toISOString() : String(last.assigned_at),
+        id: last.id,
+      })).toString('base64url')
       : null
 
     return res.json({
       staff: items.map(s => ({
-        id:          s.id,
-        role:        s.role,
-        firstName:   s.firstName,
-        lastName:    s.lastName,
-        image:       s.image,
+        id: s.id,
+        role: s.role,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        image: s.image,
         assigned_at: s.assigned_at instanceof Date ? s.assigned_at.toISOString() : s.assigned_at,
         is_assigned: true,
-        is_active:   Boolean(s.is_active),
+        is_active: Boolean(s.is_active),
       })),
       nextCursor,
     })
@@ -756,7 +776,7 @@ router.delete('/:serviceId/contracts/:contractId/files/:docId', guard('update', 
 router.get('/:serviceId/sessions', guard('read', 'ServiceSession'), async (req: Request, res, next) => {
   try {
     const { tenantDb, profileRole, profileId: myProfileId } = req as AuthRequest
-    const limit  = Math.min(Number(req.query.limit)  || 20, 50)
+    const limit = Math.min(Number(req.query.limit) || 20, 50)
     const cursor = req.query.cursor as string | undefined
 
     // STAFF can only see their own sessions; SYNDIC must pass profileId
@@ -793,15 +813,15 @@ router.get('/:serviceId/sessions', guard('read', 'ServiceSession'), async (req: 
       query = query.where(sql<SqlBool>`(sesh.check_in_at, sesh.id) < (${cursorDate}, ${cursorId})`)
     }
 
-    const rows    = await query.limit(limit + 1).execute()
+    const rows = await query.limit(limit + 1).execute()
     const hasMore = rows.length > limit
-    const items   = hasMore ? rows.slice(0, limit) : rows
-    const last    = items[items.length - 1]
+    const items = hasMore ? rows.slice(0, limit) : rows
+    const last = items[items.length - 1]
     const nextCursor = hasMore && last?.check_in_at
       ? Buffer.from(JSON.stringify({
-          d: last.check_in_at instanceof Date ? last.check_in_at.toISOString() : String(last.check_in_at),
-          id: last.id,
-        })).toString('base64url')
+        d: last.check_in_at instanceof Date ? last.check_in_at.toISOString() : String(last.check_in_at),
+        id: last.id,
+      })).toString('base64url')
       : null
 
     const toISO = (v: Date | string | null | undefined) =>
@@ -809,10 +829,10 @@ router.get('/:serviceId/sessions', guard('read', 'ServiceSession'), async (req: 
 
     return res.json({
       sessions: items.map((s: any) => ({
-        id:           s.id,
-        service_id:   s.service_id,
-        profile_id:   s.profile_id,
-        check_in_at:  toISO(s.check_in_at),
+        id: s.id,
+        service_id: s.service_id,
+        profile_id: s.profile_id,
+        check_in_at: toISO(s.check_in_at),
         check_out_at: toISO(s.check_out_at),
         profile: { firstName: s.firstName, lastName: null, image: s.image },
       })),
@@ -829,7 +849,7 @@ router.post('/:serviceId/sessions/check-in', guard('create', 'ServiceSession'), 
   try {
     const { tenantDb, profileRole, profileId } = req as AuthRequest
     const body = parseBody(RecordCheckInSchema, req.body)
-    
+
     const ability = defineServiceAbility(profileRole, profileId)
     if (ability.cannot('create', subject('ServiceSession', { profile_id: body.profileId }))) {
       throw new AppError(403, 'Staff can only check in for themselves', 'FORBIDDEN')
