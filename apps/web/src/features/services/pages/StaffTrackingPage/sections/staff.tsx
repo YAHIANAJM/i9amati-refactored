@@ -76,6 +76,7 @@ export default function StaffTable({
     useEffect(() => {
         if (staffList.length > 0 && !selectedStaff && !canManage) setSelectedStaff(staffList[0])
     }, [staffList, selectedStaff])
+
     return <>
         {/* Filter row */}
         <div className="flex items-center gap-3 flex-wrap shrink-0">
