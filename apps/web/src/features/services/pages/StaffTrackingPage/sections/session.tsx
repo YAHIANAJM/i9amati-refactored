@@ -7,7 +7,6 @@ import { ApiServiceSession, ApiStaffProfile, servicesApi } from "@/lib/services.
 import { useMemo } from "react"
 import { toastApiError, toastCreated, toastUpdated } from "@/components/toast"
 import { format } from 'date-fns'
-import { defineServiceAbility } from "@i9amati/shared"
 import { cn } from "@/lib/utils"
 import { calcDuration, staffName } from "../utils"
 
