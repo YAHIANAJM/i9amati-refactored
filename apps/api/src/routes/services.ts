@@ -231,11 +231,11 @@ router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) =
     }
 
     if (dateFromFilter) {
-      query = query.where('ssa.assigned_at', '>=', new Date(dateFromFilter) as any)
+      query = query.where('ssa.assigned_at', '>=', new Date(dateFromFilter))
     }
 
     if (dateToFilter) {
-      query = query.where('ssa.assigned_at', '<=', new Date(dateToFilter) as any)
+      query = query.where('ssa.assigned_at', '<=', new Date(dateToFilter))
     }
 
     if (cursor) {

@@ -2,7 +2,7 @@ import type { ColumnType, Generated, Insertable, Selectable, Updateable } from '
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-type Timestamp = ColumnType<Date, Date | string, Date | string>
+type Timestamp = Date
 
 // ── PUBLIC SCHEMA TABLES ──────────────────────────────────────────────────────
 // Prefixed with "public." so they stay qualified and are never affected by
