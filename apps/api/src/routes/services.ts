@@ -3,7 +3,7 @@ import { subject } from '@casl/ability'
 import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import { randomUUID } from 'crypto'
 import { hashPassword } from 'better-auth/crypto'
-import { sql, type Selectable } from 'kysely'
+import { sql, type Selectable, type SqlBool } from 'kysely'
 import { authenticate } from '../middleware/auth'
 import type { AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
@@ -174,44 +174,80 @@ router.get('/', async (req: Request, res, next) => {
 })
 
 // ── GET /api/services/staff ────────────────────────────────────────────────────
+// Returns only staff assigned to the given serviceId, paginated.
+// Query params: serviceId (required), limit (default 20), cursor (base64url JSON {d,id} for next page)
 
 router.get('/staff', guard('read', 'Service'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, activeOrganizationId, profileRole, profileId } = req as AuthRequest
+    const { tenantDb, activeOrganizationId, profileRole, profileId, orgSlug } = req as AuthRequest
     const serviceId = req.query.serviceId as string | undefined
+    const limit     = Math.min(Number(req.query.limit)  || 20, 50)
+    const cursor    = req.query.cursor as string | undefined
+
+    if (!serviceId) {
+      return res.json({ staff: [], nextCursor: null })
+    }
 
     let query = tenantDb
       .selectFrom('public.profiles as prof')
       .innerJoin('public.user as usr', 'usr.id', 'prof.user_id')
+      .innerJoin('service_staff_assignments as ssa', (join) =>
+        join.onRef('ssa.profile_id', '=', 'prof.id').on('ssa.service_id', '=', sql.lit(serviceId))
+      )
       .select([
         'prof.id',
         'prof.role',
         'usr.firstName',
         'usr.lastName',
-        'usr.image'
+        'usr.image',
+        'ssa.assigned_at',
+        sql<boolean>`EXISTS (
+          SELECT 1 FROM ${sql.raw(`"${orgSlug}".service_check_in_out`)} sio
+          WHERE sio.profile_id = prof.id
+            AND sio.service_id = ${sql.val(serviceId)}
+            AND sio.check_out_at IS NULL
+        )`.as('is_active'),
       ])
       .where('prof.organization_id', '=', activeOrganizationId!)
       .where('prof.role', '=', 'STAFF')
       .where('prof.deleted_at', 'is', null)
+      .orderBy('ssa.assigned_at', 'asc')
+      .orderBy('prof.id', 'asc')
 
     if (profileRole === 'STAFF') {
       query = query.where('prof.id', '=', profileId)
     }
 
-    if (serviceId) {
-      query = query
-        .leftJoin('service_staff_assignments as ssa', (join) =>
-          join.onRef('ssa.profile_id', '=', 'prof.id').on('ssa.service_id', '=', sql.lit(serviceId))
-        )
-        .select('ssa.assigned_at')
+    if (cursor) {
+      const { d, id: cursorId } = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as { d: string; id: string }
+      const cursorDate = new Date(d)
+      query = query.where(sql<SqlBool>`(ssa.assigned_at, prof.id) > (${cursorDate}, ${cursorId})`)
     }
 
-    const staff = await query.execute()
+    const rows  = await query.limit(limit + 1).execute()
+    const hasMore = rows.length > limit
+    const items   = hasMore ? rows.slice(0, limit) : rows
+    const last    = items[items.length - 1]
+    const nextCursor = hasMore && last
+      ? Buffer.from(JSON.stringify({
+          d: last.assigned_at instanceof Date ? last.assigned_at.toISOString() : String(last.assigned_at),
+          id: last.id,
+        })).toString('base64url')
+      : null
 
-    return res.json(staff.map(s => ({
-      ...s,
-      is_assigned: !!(s as any).assigned_at
-    })))
+    return res.json({
+      staff: items.map(s => ({
+        id:          s.id,
+        role:        s.role,
+        firstName:   s.firstName,
+        lastName:    s.lastName,
+        image:       s.image,
+        assigned_at: s.assigned_at instanceof Date ? s.assigned_at.toISOString() : s.assigned_at,
+        is_assigned: true,
+        is_active:   Boolean(s.is_active),
+      })),
+      nextCursor,
+    })
   } catch (err) {
     next(err)
   }
@@ -714,10 +750,24 @@ router.delete('/:serviceId/contracts/:contractId/files/:docId', guard('update', 
 })
 
 // ── GET /api/services/:serviceId/sessions ──────────────────────────────────────
+// Returns sessions for a single staff member. profileId is required for SYNDIC.
+// Query params: profileId (required for SYNDIC), limit (default 20), cursor (base64url JSON {d,id})
 
 router.get('/:serviceId/sessions', guard('read', 'ServiceSession'), async (req: Request, res, next) => {
   try {
-    const { tenantDb, profileRole, profileId } = req as AuthRequest
+    const { tenantDb, profileRole, profileId: myProfileId } = req as AuthRequest
+    const limit  = Math.min(Number(req.query.limit)  || 20, 50)
+    const cursor = req.query.cursor as string | undefined
+
+    // STAFF can only see their own sessions; SYNDIC must pass profileId
+    const targetProfileId = profileRole === 'STAFF'
+      ? myProfileId
+      : req.query.profileId as string | undefined
+
+    if (!targetProfileId) {
+      throw new AppError(400, 'profileId is required', 'VALIDATION_ERROR')
+    }
+
     let query = tenantDb
       .selectFrom('service_check_in_out as sesh')
       .innerJoin('public.profiles as prof', 'prof.id', 'sesh.profile_id')
@@ -729,29 +779,45 @@ router.get('/:serviceId/sessions', guard('read', 'ServiceSession'), async (req: 
         'sesh.profile_id',
         'sesh.check_in_at',
         'sesh.check_out_at',
-        'usr.name as firstName',
-        'usr.image'
+        'usr.firstName',
+        'usr.image',
       ])
       .where('sesh.service_id', '=', req.params.serviceId)
+      .where('sesh.profile_id', '=', targetProfileId)
+      .orderBy('sesh.check_in_at', 'desc')
+      .orderBy('sesh.id', 'desc')
 
-    if (profileRole === 'STAFF') {
-      query = query.where('sesh.profile_id', '=', profileId)
+    if (cursor) {
+      const { d, id: cursorId } = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as { d: string; id: string }
+      const cursorDate = new Date(d)
+      query = query.where(sql<SqlBool>`(sesh.check_in_at, sesh.id) < (${cursorDate}, ${cursorId})`)
     }
 
-    const sessions = await query.orderBy('sesh.check_in_at', 'desc').execute()
+    const rows    = await query.limit(limit + 1).execute()
+    const hasMore = rows.length > limit
+    const items   = hasMore ? rows.slice(0, limit) : rows
+    const last    = items[items.length - 1]
+    const nextCursor = hasMore && last?.check_in_at
+      ? Buffer.from(JSON.stringify({
+          d: last.check_in_at instanceof Date ? last.check_in_at.toISOString() : String(last.check_in_at),
+          id: last.id,
+        })).toString('base64url')
+      : null
 
-    return res.json(sessions.map((s: any) => ({
-      id: s.id,
-      service_id: s.service_id,
-      profile_id: s.profile_id,
-      check_in_at: s.check_in_at ? (s.check_in_at instanceof Date ? s.check_in_at.toISOString() : String(s.check_in_at)) : null,
-      check_out_at: s.check_out_at ? (s.check_out_at instanceof Date ? s.check_out_at.toISOString() : String(s.check_out_at)) : null,
-      profile: {
-        firstName: s.firstName,
-        lastName: null,
-        image: s.image
-      }
-    })))
+    const toISO = (v: Date | string | null | undefined) =>
+      v ? (v instanceof Date ? v.toISOString() : String(v)) : null
+
+    return res.json({
+      sessions: items.map((s: any) => ({
+        id:           s.id,
+        service_id:   s.service_id,
+        profile_id:   s.profile_id,
+        check_in_at:  toISO(s.check_in_at),
+        check_out_at: toISO(s.check_out_at),
+        profile: { firstName: s.firstName, lastName: null, image: s.image },
+      })),
+      nextCursor,
+    })
   } catch (err) {
     next(err)
   }

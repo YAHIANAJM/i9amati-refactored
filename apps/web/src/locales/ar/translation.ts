@@ -377,7 +377,8 @@ export const ar = {
   },
   common: {
     cancel: "إلغاء",
-    delete: "حذف"
+    delete: "حذف",
+    to: "إلى"
   },
   services: {
     pageTitle: "الخدمات والعقود",
@@ -467,7 +468,18 @@ export const ar = {
     stepContract: "العقد",
     stepDocuments: "الوثائق",
     documentsFor: "وثائق {{contract}}",
-    assignStaffDesc: "تعيين موظفين لـ {{serviceName}}"
+    assignStaffDesc: "تعيين موظفين لـ {{serviceName}}",
+    searchNameEmail: "البحث بالاسم أو البريد الإلكتروني...",
+    assignedDate: "تاريخ التعيين",
+    totalSessions: "إجمالي الجلسات",
+    noSessionsYet: "لا توجد جلسات بعد.",
+    createStaffHint: "أضف موظفاً جديداً لهذه الخدمة.",
+    noStaffAssigned: "لا يوجد موظفون مرتبطون بهذه الخدمة.",
+    allStaff: "جميع الموظفين",
+    staffOnSite: "في الموقع",
+    staffOffSite: "خارج الموقع",
+    sessionDuration: "المدة",
+    noName: "بدون اسم"
   },
   serviceAnalytics: {
     title: "تحليلات الخدمات",

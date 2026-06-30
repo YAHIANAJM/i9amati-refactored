@@ -146,6 +146,45 @@ Import as `import { PlatformRole, ProfileRole } from '@i9amati/shared'`.
 
 Note: `requirePermission` middleware is a no-op stub — per-resource permission enforcement is not yet implemented.
 
+## Pagination Strategy
+
+All paginated API endpoints use **cursor-ID pagination**: sort by a timestamp column, but use the row's `id` as the cursor value paired with the timestamp so that ties (two rows with the same timestamp) never cause data loss.
+
+**Cursor format**: opaque `base64url`-encoded JSON `{ d: ISO-timestamp, id: UUID }`. The client treats it as an opaque string — never parse it on the frontend.
+
+**Encode (Node.js, server side)**:
+```ts
+const nextCursor = Buffer.from(JSON.stringify({ d: last.created_at.toISOString(), id: last.id })).toString('base64url')
+```
+
+**Decode and apply (server side)**:
+```ts
+const { d, id: cursorId } = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as { d: string; id: string }
+// For ascending order (e.g. assigned_at ASC, id ASC):
+query = query.where(sql<SqlBool>`(tbl.some_at, tbl.id) > (${new Date(d)}, ${cursorId})`)
+// For descending order (e.g. check_in_at DESC, id DESC):
+query = query.where(sql<SqlBool>`(tbl.some_at, tbl.id) < (${new Date(d)}, ${cursorId})`)
+```
+
+PostgreSQL's row-value comparison `(a, b) < (c, d)` is equivalent to `a < c OR (a = c AND b < d)` — handles ties correctly in a single expression.
+
+**Always add `id` as the secondary ORDER BY** to match the cursor comparison:
+```ts
+.orderBy('tbl.some_at', 'desc').orderBy('tbl.id', 'desc')
+```
+
+**Response shape**: `{ items: T[], nextCursor: string | null }`. Pass `nextCursor` back as the `cursor` query param for the next page.
+
+**Frontend (React Query v5 infinite query)**:
+```ts
+useInfiniteQuery({
+  queryKey: ['resource', id],
+  queryFn: ({ pageParam }) => api.getItems(id, pageParam as string | undefined),
+  initialPageParam: undefined as string | undefined,
+  getNextPageParam: (last) => last.nextCursor ?? undefined,
+})
+```
+
 ## Validation Error Contract (API ↔ Web)
 
 When a route validates with Zod and fails, throw using `formatZodError`:

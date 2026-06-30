@@ -12,19 +12,16 @@ import { ServicesGrid } from './sections/ServicesGrid'
 import { ServiceFormDialog } from './components/ServiceFormDialog'
 import { ContractFormDialog } from './components/ContractFormDialog'
 import { PaymentDialog } from './components/PaymentDialog'
-import { StaffTrackingDialog } from './components/StaffTrackingDialog'
 
 // ── Dialog state helpers ───────────────────────────────────────────────────────
 
 type ServiceDialog = { open: boolean; service: ApiService | null }
 type ContractDialog = { open: boolean; service: ApiService | null; contract: ApiServiceContract | null }
 type PaymentDialogState = { open: boolean; service: ApiService | null; contract: ApiServiceContract | null }
-type StaffTrackingDialogState = { open: boolean; service: ApiService | null }
 
 const CLOSED_SERVICE:  ServiceDialog      = { open: false, service: null }
 const CLOSED_CONTRACT: ContractDialog     = { open: false, service: null, contract: null }
 const CLOSED_PAYMENT:  PaymentDialogState = { open: false, service: null, contract: null }
-const CLOSED_STAFF:    StaffTrackingDialogState = { open: false, service: null }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -35,7 +32,6 @@ export function Services() {
   const [serviceDialog,  setServiceDialog]  = useState<ServiceDialog>(CLOSED_SERVICE)
   const [contractDialog, setContractDialog] = useState<ContractDialog>(CLOSED_CONTRACT)
   const [paymentDialog,  setPaymentDialog]  = useState<PaymentDialogState>(CLOSED_PAYMENT)
-  const [staffDialog,    setStaffDialog]    = useState<StaffTrackingDialogState>(CLOSED_STAFF)
 
   // ── Query ──────────────────────────────────────────────────────────────────
 
@@ -242,7 +238,6 @@ export function Services() {
           onRecordPayment={(service, contract) => setPaymentDialog({ open: true, service, contract })}
           onAttachFile={handleAttachFile}
           onRemoveFile={handleRemoveFile}
-          onTrackStaff={(service) => setStaffDialog({ open: true, service })}
         />
       </div>
 
@@ -264,12 +259,6 @@ export function Services() {
         isPending={recordPayment.isPending}
         onClose={() => setPaymentDialog(CLOSED_PAYMENT)}
         onSubmit={handlePaymentSubmit}
-      />
-      <StaffTrackingDialog
-        open={staffDialog.open}
-        service={staffDialog.service}
-        profileRole={profileRole}
-        onClose={() => setStaffDialog(CLOSED_STAFF)}
       />
     </div>
   )

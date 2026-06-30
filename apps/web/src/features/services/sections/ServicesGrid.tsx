@@ -20,14 +20,13 @@ interface ServicesGridProps {
   onRecordPayment:  (service: ApiService, contract: ApiServiceContract) => void
   onAttachFile:     (service: ApiService, contract: ApiServiceContract, file: File) => void
   onRemoveFile:     (service: ApiService, contract: ApiServiceContract, docId: string) => void
-  onTrackStaff:     (service: ApiService) => void
 }
 
 export function ServicesGrid({
   services, isLoading, isError, profileRole,
   onCreateService, onEdit, onDelete,
   onAddContract, onEditContract, onDeleteContract, onRecordPayment,
-  onAttachFile, onRemoveFile, onTrackStaff
+  onAttachFile, onRemoveFile,
 }: ServicesGridProps) {
   const { t } = useTranslation()
   const canManage = defineServiceAbility(profileRole).can('manage', 'all')
@@ -90,7 +89,6 @@ export function ServicesGrid({
           onRecordPayment={onRecordPayment}
           onAttachFile={(contract, file) => onAttachFile(service, contract, file)}
           onRemoveFile={(contract, docId) => onRemoveFile(service, contract, docId)}
-          onTrackStaff={onTrackStaff}
         />
       ))}
     </div>

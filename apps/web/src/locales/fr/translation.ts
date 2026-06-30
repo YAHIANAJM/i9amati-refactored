@@ -377,7 +377,8 @@ export const fr = {
   },
   common: {
     cancel: "Annuler",
-    delete: "Supprimer"
+    delete: "Supprimer",
+    to: "au"
   },
   services: {
     pageTitle: "Services & Contrats",
@@ -467,7 +468,18 @@ export const fr = {
     stepContract: "Contrat",
     stepDocuments: "Documents",
     documentsFor: "Documents pour {{contract}}",
-    assignStaffDesc: "Assigner du personnel à {{serviceName}}"
+    assignStaffDesc: "Assigner du personnel à {{serviceName}}",
+    searchNameEmail: "Rechercher par nom ou e-mail...",
+    assignedDate: "Date d'affectation",
+    totalSessions: "Total des sessions",
+    noSessionsYet: "Aucune session pour l'instant.",
+    createStaffHint: "Ajouter un nouveau membre du personnel à ce service.",
+    noStaffAssigned: "Aucun personnel affecté à ce service.",
+    allStaff: "Tout le personnel",
+    staffOnSite: "Sur site",
+    staffOffSite: "Hors site",
+    sessionDuration: "Durée",
+    noName: "Sans nom"
   },
   serviceAnalytics: {
     title: "Analytiques des services",

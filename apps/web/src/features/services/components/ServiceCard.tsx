@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Phone, Plus, Pencil, Trash2, Wrench, CreditCard, Paperclip, FileText, X, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { defineServiceAbility } from '@i9amati/shared'
@@ -21,16 +22,16 @@ interface ServiceCardProps {
   onRecordPayment:   (service: ApiService, contract: ApiServiceContract) => void
   onAttachFile:      (contract: ApiServiceContract, file: File) => void
   onRemoveFile:      (contract: ApiServiceContract, docId: string) => void
-  onTrackStaff:      (service: ApiService) => void
 }
 
 export function ServiceCard({
   service, profileRole,
   onEdit, onDelete, onAddContract,
   onEditContract, onDeleteContract, onRecordPayment,
-  onAttachFile, onRemoveFile, onTrackStaff
+  onAttachFile, onRemoveFile,
 }: ServiceCardProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const canManage = defineServiceAbility(profileRole).can('manage', 'all')
 
   return (
@@ -107,7 +108,7 @@ export function ServiceCard({
           <Button
             variant="outline" size="sm"
             className="flex-1 h-8 gap-1.5 text-xs bg-muted/30"
-            onClick={() => onTrackStaff(service)}
+            onClick={() => navigate(`/syndic/services/${service.id}/staff`)}
           >
             <User size={12} /> {t('services.trackStaff')}
           </Button>

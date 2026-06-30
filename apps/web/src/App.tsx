@@ -40,6 +40,7 @@ const UnionMembers  = lazy(() => import('@/pages/syndic/UnionMembers').then(m =>
 const Profile       = lazy(() => import('@/pages/syndic/Profile').then(m => ({ default: m.Profile })))
 const Residences    = lazy(() => import('@/pages/syndic/Residences').then(m => ({ default: m.Residences })))
 const Chat          = lazy(() => import('@/pages/syndic/Chat').then(m => ({ default: m.Chat })))
+const StaffTracking = lazy(() => import('@/pages/syndic/StaffTracking').then(m => ({ default: m.StaffTracking })))
 
 function PageLoader() {
   return (
@@ -145,9 +146,10 @@ export default function App() {
             <Route path="accounting"      element={<Accounting />} />
 
             {/* ── COMMUNITY ── */}
-            <Route path="feed"            element={<Feed />} />
-            <Route path="services"        element={<Services />} />
-            <Route path="alerts"          element={<Alerts />} />
+            <Route path="feed"                           element={<Feed />} />
+            <Route path="services"                       element={<Services />} />
+            <Route path="services/:serviceId/staff"      element={<StaffTracking />} />
+            <Route path="alerts"                         element={<Alerts />} />
 
             {/* ── UNION ── */}
             <Route path="union-members"   element={<UnionMembers />} />

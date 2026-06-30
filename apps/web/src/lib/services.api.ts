@@ -45,6 +45,18 @@ export interface ApiStaffProfile {
   lastName: string | null
   image: string | null
   is_assigned?: boolean
+  is_active?: boolean
+  assigned_at?: string | null
+}
+
+export interface StaffPage {
+  staff:      ApiStaffProfile[]
+  nextCursor: string | null
+}
+
+export interface SessionsPage {
+  sessions:   ApiServiceSession[]
+  nextCursor: string | null
 }
 
 export interface ApiServiceSession {
@@ -132,8 +144,10 @@ export const servicesApi = {
     return api.delete(`/api/services/${serviceId}/contracts/${contractId}/files/${docId}`)
   },
 
-  async getStaff(serviceId?: string): Promise<ApiStaffProfile[]> {
-    return api.get<ApiStaffProfile[]>(`/api/services/staff${serviceId ? `?serviceId=${serviceId}` : ''}`)
+  async getStaff(serviceId: string, cursor?: string, limit = 20): Promise<StaffPage> {
+    const params = new URLSearchParams({ serviceId, limit: String(limit) })
+    if (cursor) params.set('cursor', cursor)
+    return api.get<StaffPage>(`/api/services/staff?${params}`)
   },
 
   async assignStaff(serviceId: string, profileId: string): Promise<void> {
@@ -144,8 +158,10 @@ export const servicesApi = {
     return api.delete(`/api/services/${serviceId}/assign/${profileId}`)
   },
 
-  async getSessions(serviceId: string): Promise<ApiServiceSession[]> {
-    return api.get<ApiServiceSession[]>(`/api/services/${serviceId}/sessions`)
+  async getSessions(serviceId: string, profileId: string, cursor?: string, limit = 20): Promise<SessionsPage> {
+    const params = new URLSearchParams({ profileId, limit: String(limit) })
+    if (cursor) params.set('cursor', cursor)
+    return api.get<SessionsPage>(`/api/services/${serviceId}/sessions?${params}`)
   },
 
   async checkIn(serviceId: string, profileId: string): Promise<ApiServiceSession> {

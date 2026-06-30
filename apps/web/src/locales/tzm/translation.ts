@@ -377,7 +377,8 @@ export const tzm = {
   },
   common: {
     cancel: "ⵔⴰⴼⴻⵖ",
-    delete: "ⴽⴽⵙ"
+    delete: "ⴽⴽⵙ",
+    to: "ⴰⵔ"
   },
   services: {
     pageTitle: "ⵜⵉⵍⴻⵙⵙⵉⵡⵉⵏ ⴷ ⵉⵎⴰⵙⵙⵏ",
@@ -467,7 +468,18 @@ export const tzm = {
     stepContract: "ⴰⵎⴰⵙ",
     stepDocuments: "ⵉⵏⵖⵎⵉⵙⴻⵏ",
     documentsFor: "ⵉⵏⵖⵎⵉⵙⴻⵏ ⵏ {{contract}}",
-    assignStaffDesc: "ⵙⵎⴻⵔ ⵉⵎⴰⵡⴰⵙⵏ ⵉ {{serviceName}}"
+    assignStaffDesc: "ⵙⵎⴻⵔ ⵉⵎⴰⵡⴰⵙⵏ ⵉ {{serviceName}}",
+    searchNameEmail: "ⵔⴽⴻⵙ ⵙ ⵉⵙⴻⵎ ⵏⵖ ⵉⵎⴻⵢⵍ...",
+    assignedDate: "ⴰⵙⵙ ⵏ ⵓⵙⵎⴻⵔ",
+    totalSessions: "ⴽⵓⵍⵍ ⵜⵉⵙⴻⵙⵙⵉⵡⵉⵏ",
+    noSessionsYet: "ⵓⵔ ⵍⵍⵉⵏⵜ ⵜⵉⵙⴻⵙⵙⵉⵡⵉⵏ.",
+    createStaffHint: "ⵔⵏⵓ ⴰⵎⴰⵡⴰⵙ ⴰⵎⴰⵢⵏⵓ.",
+    noStaffAssigned: "ⵓⵔ ⵉⵜⵜⵓⵙⵎⵔⴰ ⵓⵎⴰⵡⴰⵙ.",
+    allStaff: "ⵉⵎⴰⵡⴰⵙⵏ ⴽⵓⵍⵍ",
+    staffOnSite: "ⴷⴻⴳ ⵓⵙⴰⵜⵉ",
+    staffOffSite: "ⴱⴻⵔⵔⴰ",
+    sessionDuration: "ⴰⵣⵎⵣ",
+    noName: "ⵓⵔ ⵉⵙⵎ"
   },
   serviceAnalytics: {
     title: "ⵜⵉⵙⴻⵔⵜⴰⵙⵉⵏ ⵏ ⵜⵉⵍⴻⵙⵙⵉⵡⵉⵏ",
