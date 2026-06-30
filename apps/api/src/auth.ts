@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { admin, twoFactor, emailOTP, magicLink } from 'better-auth/plugins'
 import { db } from './db/db'
+import { sendPasswordResetEmail, sendMagicLinkEmail } from './lib/mailer'
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
@@ -14,10 +15,14 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    sendResetPassword: async ({ user, url, token }, request) => {
-      // Recommendation: Avoid awaiting the email sending to prevent timing attacks
-      console.log(`Sending reset password to ${user.email}: ${url} : ${token}`)
-    }
+    sendResetPassword: async ({ user, token }) => {
+      const resetUrl = `${process.env.CLIENT_URL ?? 'http://localhost:5173'}/reset-password?token=${token}`
+      sendPasswordResetEmail({
+        to:       user.email,
+        name:     user.name || user.email,
+        resetUrl,
+      }).catch(err => console.error('[Auth] sendPasswordResetEmail failed:', err))
+    },
   },
 
   user: {
@@ -90,7 +95,8 @@ export const auth = betterAuth({
     }),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
-        console.log(`Sending magic link to ${email}: ${url}`)
+        sendMagicLinkEmail({ to: email, magicUrl: url })
+          .catch(err => console.error('[Auth] sendMagicLinkEmail failed:', err))
       },
     }),
 

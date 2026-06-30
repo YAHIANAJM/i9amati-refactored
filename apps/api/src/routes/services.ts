@@ -339,9 +339,7 @@ router.post('/staff', guard('create', 'Service'), async (req: Request, res, next
       // Needs to be outside transaction so better-auth can find the committed user
       try {
         await auth.api.requestPasswordReset({
-          body: {
-            email: email.toLowerCase(),
-          },
+          body: { email: email.toLowerCase() },
         })
       } catch (e) {
         console.error('Failed to trigger reset password:', e)

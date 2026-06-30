@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Phone, Plus, Pencil, Trash2, Wrench, CreditCard, Paperclip, FileText, X, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { defineServiceAbility } from '@i9amati/shared'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import { getStatusVariant, getTypeColorClass, paymentPercent } from '../utils'
 
 interface ServiceCardProps {
   service:           ApiService
-  isSyndic:          boolean
+  profileRole:       string
   onEdit:            (service: ApiService) => void
   onDelete:          (service: ApiService) => void
   onAddContract:     (service: ApiService) => void
@@ -24,12 +25,13 @@ interface ServiceCardProps {
 }
 
 export function ServiceCard({
-  service, isSyndic,
+  service, profileRole,
   onEdit, onDelete, onAddContract,
   onEditContract, onDeleteContract, onRecordPayment,
   onAttachFile, onRemoveFile, onTrackStaff
 }: ServiceCardProps) {
   const { t } = useTranslation()
+  const canManage = defineServiceAbility(profileRole).can('manage', 'all')
 
   return (
     <Card className="hover:shadow-sm transition-shadow">
@@ -54,7 +56,7 @@ export function ServiceCard({
               </span>
             )}
           </div>
-          {isSyndic && (
+          {canManage && (
             <div className="flex gap-1.5 shrink-0">
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEdit(service)}>
                 <Pencil size={13} />
@@ -77,7 +79,7 @@ export function ServiceCard({
               <ContractRow
                 key={c.id}
                 contract={c}
-                isSyndic={isSyndic}
+                canManage={canManage}
                 onEdit={() => onEditContract(service, c)}
                 onDelete={() => onDeleteContract(service, c)}
                 onPay={() => onRecordPayment(service, c)}
@@ -93,7 +95,7 @@ export function ServiceCard({
         )}
 
         <div className="flex gap-2">
-          {isSyndic && (
+          {canManage && (
             <Button
               variant="outline" size="sm"
               className="flex-1 h-8 gap-1.5 text-xs border-dashed"
@@ -117,7 +119,7 @@ export function ServiceCard({
 
 interface ContractRowProps {
   contract:      ApiServiceContract
-  isSyndic:      boolean
+  canManage:     boolean
   onEdit:        () => void
   onDelete:      () => void
   onPay:         () => void
@@ -125,7 +127,7 @@ interface ContractRowProps {
   onRemoveFile:  (docId: string) => void
 }
 
-function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile, onRemoveFile }: ContractRowProps) {
+function ContractRow({ contract, canManage, onEdit, onDelete, onPay, onAttachFile, onRemoveFile }: ContractRowProps) {
   const { t }       = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pct          = paymentPercent(contract.amount_paid, contract.amount)
@@ -148,7 +150,7 @@ function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile
           <Badge variant={getStatusVariant(contract.status)} className="text-[10px] h-5">
             {t(`services.status_${contract.status}`)}
           </Badge>
-          {isSyndic && (
+          {canManage && (
             <>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onEdit}>
                 <Pencil size={11} />
@@ -195,7 +197,7 @@ function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile
             <FileRow
               key={f.id}
               file={f}
-              isSyndic={isSyndic}
+              canManage={canManage}
               onRemove={() => onRemoveFile(f.id)}
             />
           ))}
@@ -204,7 +206,7 @@ function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile
 
       {/* Actions */}
       <div className="flex gap-2">
-        {isSyndic && remaining > 0 && (
+        {canManage && remaining > 0 && (
           <Button
             size="sm"
             className="flex-1 h-7 gap-1.5 text-[11px]"
@@ -213,7 +215,7 @@ function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile
             <CreditCard size={11} /> {t('services.recordPayment')}
           </Button>
         )}
-        {isSyndic && (
+        {canManage && (
           <>
             <Button
               variant="outline" size="sm"
@@ -239,7 +241,7 @@ function ContractRow({ contract, isSyndic, onEdit, onDelete, onPay, onAttachFile
   )
 }
 
-function FileRow({ file, isSyndic, onRemove }: { file: ContractFile; isSyndic: boolean; onRemove: () => void }) {
+function FileRow({ file, canManage, onRemove }: { file: ContractFile; canManage: boolean; onRemove: () => void }) {
   return (
     <div className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5">
       <FileText size={12} className="text-muted-foreground shrink-0" />
@@ -256,7 +258,7 @@ function FileRow({ file, isSyndic, onRemove }: { file: ContractFile; isSyndic: b
           {(file.size / 1024).toFixed(0)} KB
         </span>
       )}
-      {isSyndic && (
+      {canManage && (
         <button
           onClick={onRemove}
           className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"

@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/button'
 import { toastDeleted, toastApiError, toastCreated, toastUpdated, toastConfirmation } from '@/components/toast'
-import { ProfileRole } from '@i9amati/shared'
+import { defineServiceAbility } from '@i9amati/shared'
 import { servicesApi } from '@/lib/services.api'
 import type { ApiService, ApiServiceContract, ServiceContractStatus, ServicesResponse } from '@/lib/services.api'
 import { ServicesGrid } from './sections/ServicesGrid'
@@ -44,8 +44,9 @@ export function Services() {
     queryFn:  servicesApi.list,
   })
 
-  const services = servicesResponse?.services ?? []
-  const isSyndic = servicesResponse?.profileRole === ProfileRole.SYNDIC
+  const services    = servicesResponse?.services ?? []
+  const profileRole = servicesResponse?.profileRole ?? ''
+  const canManage   = defineServiceAbility(profileRole).can('manage', 'all')
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -204,7 +205,7 @@ export function Services() {
         title={t('services.pageTitle')}
         subtitle={t('services.pageSubtitle')}
         actions={
-          isSyndic ? (
+          canManage ? (
             <Button size="sm" className="gap-1.5 text-xs" onClick={() => setServiceDialog({ open: true, service: null })}>
               <Plus size={13} /> {t('services.addProvider')}
             </Button>
@@ -217,7 +218,7 @@ export function Services() {
           services={services}
           isLoading={isLoading}
           isError={isError}
-          isSyndic={isSyndic}
+          profileRole={profileRole}
           onCreateService={() => setServiceDialog({ open: true, service: null })}
           onEdit={service => setServiceDialog({ open: true, service })}
           onDelete={service => {
@@ -267,7 +268,7 @@ export function Services() {
       <StaffTrackingDialog
         open={staffDialog.open}
         service={staffDialog.service}
-        isSyndic={isSyndic}
+        profileRole={profileRole}
         onClose={() => setStaffDialog(CLOSED_STAFF)}
       />
     </div>

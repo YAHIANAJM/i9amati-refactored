@@ -10,25 +10,24 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { toastApiError, toastCreated, toastUpdated, toastConfirmation, toastDeleted } from '@/components/toast'
+import { defineServiceAbility } from '@i9amati/shared'
 import { servicesApi, type ApiService } from '@/lib/services.api'
 import { CreateStaffDialog } from './CreateStaffDialog'
-import { AssignStaffDialog } from './AssignStaffDialog'
-import { Link2 } from 'lucide-react'
 
 interface StaffTrackingDialogProps {
-  open: boolean
-  service: ApiService | null
-  isSyndic: boolean
-  onClose: () => void
+  open:        boolean
+  service:     ApiService | null
+  profileRole: string
+  onClose:     () => void
 }
 
-export function StaffTrackingDialog({ open, service, isSyndic, onClose }: StaffTrackingDialogProps) {
+export function StaffTrackingDialog({ open, service, profileRole, onClose }: StaffTrackingDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const canManage = defineServiceAbility(profileRole).can('manage', 'all')
 
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
   const [showCreateStaff, setShowCreateStaff] = useState(false)
-  const [showAssignStaff, setShowAssignStaff] = useState(false)
 
   const { data: sessions = [], isLoading: loadingSessions } = useQuery({
     queryKey: ['services', service?.id, 'sessions'],
@@ -44,7 +43,7 @@ export function StaffTrackingDialog({ open, service, isSyndic, onClose }: StaffT
 
   const assignedStaff = useMemo(() => staffList.filter(s => s.is_assigned), [staffList])
 
-  // Default to selecting the staff member if there's only 1 assigned returned (e.g. for staff members viewing their own profile)
+  // Auto-select when only one assigned staff is returned (staff viewing their own)
   useEffect(() => {
     if (assignedStaff.length === 1 && !selectedStaffId) {
       setSelectedStaffId(assignedStaff[0].id)
@@ -133,17 +132,8 @@ export function StaffTrackingDialog({ open, service, isSyndic, onClose }: StaffT
                     </option>
                   ))}
                 </select>
-                {isSyndic && (
+                {canManage && (
                   <>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-10 w-10 shrink-0 border-primary/20 text-primary hover:bg-primary/5"
-                      onClick={() => setShowAssignStaff(true)}
-                      title={t('services.assignStaff')}
-                    >
-                      <Link2 size={16} />
-                    </Button>
                     <Button
                       size="icon"
                       variant="outline"
@@ -269,14 +259,6 @@ export function StaffTrackingDialog({ open, service, isSyndic, onClose }: StaffT
           open={showCreateStaff}
           serviceId={service?.id}
           onClose={() => setShowCreateStaff(false)}
-        />
-      )}
-      
-      {showAssignStaff && (
-        <AssignStaffDialog
-          open={showAssignStaff}
-          service={service}
-          onClose={() => setShowAssignStaff(false)}
         />
       )}
     </Dialog>

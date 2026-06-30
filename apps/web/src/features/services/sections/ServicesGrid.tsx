@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Plus, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { defineServiceAbility } from '@i9amati/shared'
 import { ServiceCard } from '../components/ServiceCard'
 import type { ApiService, ApiServiceContract } from '@/lib/services.api'
 
@@ -9,7 +10,7 @@ interface ServicesGridProps {
   services:         ApiService[]
   isLoading:        boolean
   isError:          boolean
-  isSyndic:         boolean
+  profileRole:      string
   onCreateService:  () => void
   onEdit:           (service: ApiService) => void
   onDelete:         (service: ApiService) => void
@@ -23,12 +24,13 @@ interface ServicesGridProps {
 }
 
 export function ServicesGrid({
-  services, isLoading, isError, isSyndic,
+  services, isLoading, isError, profileRole,
   onCreateService, onEdit, onDelete,
   onAddContract, onEditContract, onDeleteContract, onRecordPayment,
   onAttachFile, onRemoveFile, onTrackStaff
 }: ServicesGridProps) {
   const { t } = useTranslation()
+  const canManage = defineServiceAbility(profileRole).can('manage', 'all')
 
   if (isLoading) {
     return (
@@ -64,7 +66,7 @@ export function ServicesGrid({
           <p className="text-sm font-medium">{t('services.noServicesYet')}</p>
           <p className="text-xs text-muted-foreground">{t('services.addFirstService')}</p>
         </div>
-        {isSyndic && (
+        {canManage && (
           <Button size="sm" className="gap-1.5" onClick={onCreateService}>
             <Plus size={13} /> {t('services.createService')}
           </Button>
@@ -79,7 +81,7 @@ export function ServicesGrid({
         <ServiceCard
           key={service.id}
           service={service}
-          isSyndic={isSyndic}
+          profileRole={profileRole}
           onEdit={onEdit}
           onDelete={onDelete}
           onAddContract={onAddContract}

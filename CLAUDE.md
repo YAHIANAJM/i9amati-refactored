@@ -60,6 +60,8 @@ The single shared `db` instance lives in `apps/api/src/db/db.ts`. The `Database`
 
 Migration files live in `apps/api/migrations/public/` and `apps/api/migrations/tenant/`. Adding a new domain table means writing a migration in `migrations/tenant/`.
 
+**Raw SQL caveat**: `db.withSchema(orgSlug)` only qualifies Kysely *builder* queries. A raw `` sql`...`.execute(db) `` call ignores the schema context and defaults to `search_path = public`. In migration files that need raw SQL against a tenant schema, a dedicated `pg.Pool` is created with the schema baked into the connection string via the `options` query parameter (see `provisionTenant.ts`).
+
 ## Group & Membership Architecture
 
 `groups` (tenant schema) are scoped by **exactly one** FK — either `residence_id` or `building_id` — enforced by a CHECK constraint: `residence_id IS NULL OR building_id IS NULL`. Groups with both null are global.
@@ -83,6 +85,12 @@ findProfileByEmail(db, { email, organizationId })
 
 addSyndicsToGroup(db, { groupId, organizationId })
   // batch-inserts all SYNDIC profiles as ADMIN; safe to call multiple times
+
+ensureProfileExistsForEmail(db, { email, organizationId, firstName, lastName, role? })
+  // if user doesn't exist: creates a Better Auth user (hashed password = randomUUID())
+  // then creates a profile row in public.profiles with the given org and role (default OWNER)
+  // returns { profileId, created: boolean }
+  // used when registering an apartment owner who hasn't signed up yet
 ```
 
 All three accept `Kysely<Database>` or a `Transaction<Database>` — Kysely transactions extend the base type.
@@ -149,6 +157,8 @@ if (!parsed.success) throw new AppError(400, formatZodError(parsed.error), 'VALI
 
 `formatZodError` joins all Zod issue messages with `|`. The web `toastApiError` splits on `|`, calls `i18n.t(key)` on each part, and falls back to a generic string if the key isn't found. **Therefore: all Zod `.min()` / `.refine()` messages in API routes must be i18n translation keys** (e.g. `'validation.apartment.numberRequired'`), not raw English strings. Keys must exist in all four locales: `apps/web/src/locales/{ar,en,fr,tzm}/translation.ts`.
 
+**Service authorization** also uses CASL. `packages/shared/src/service-ability.ts` exports `defineServiceAbility(profileRole, profileId?)`. SYNDIC gets `manage all`; STAFF can read services/contracts/sessions and create/update only their own sessions (`{ profile_id: profileId }`). In `services.ts` a `guard(action, subject)` middleware factory calls this per-route.
+
 **Feed authorization** uses CASL instead. `packages/shared/src/feed-ability.ts` exports `defineFeedAbility(profileRole, profileId, memberships)` which returns a CASL `MongoAbility`. Feed routes call this directly:
 
 ```ts
@@ -184,11 +194,17 @@ START → sanitize → safetyCheck → (conditional)
 
 **Page split**: each domain has two pages — a **dashboard** (`pages/syndic/dashboards/`) with analytics/Recharts, and a **management page** (`pages/syndic/`) with full CRUD UI. Route prefix `dash/` = dashboard variant (e.g. `/syndic/dash/payments` → `PaymentsDash.tsx`; `/syndic/payments` → `Payments.tsx`).
 
-**Data**: `src/data/mock/` — the web app currently uses local mock data typed against `@i9amati/shared`. API integration is in progress; `@tanstack/react-query` is available for server state when connecting to the API.
+**API client**: `src/lib/api.ts` exports a thin typed `fetch` wrapper with `credentials: 'include'`. Use `api.get<T>`, `api.post<T>`, `api.patch<T>`, `api.delete<T>`, and `api.upload<T>` (multipart). `VITE_API_URL` is the base; empty string works in production with same-origin or Vite proxy in dev.
+
+**Server state**: `@tanstack/react-query` v5 is set up in `main.tsx` with `staleTime: 30_000`. Use `useQuery` / `useMutation` against `api.*` calls. `castVote` in Meetings is the reference example of an optimistic update (snapshot → apply → rollback on error) with `invalidateQueries` on success.
+
+**Data**: `src/data/mock/` — the web app currently uses local mock data typed against `@i9amati/shared`. API integration is in progress.
 
 **i18n**: `src/lib/i18n.ts` configures `i18next` with four locales (Arabic, English, French, Tamazight) loaded from `src/locales/{ar,en,fr,tzm}/translation.ts`. Default language is Arabic. Use `useTranslation()` from `react-i18next` to access translated strings. When adding new translation keys, add them to **all four** locale files.
 
 **Path alias**: `@/` resolves to `apps/web/src/` (configured in `vite.config.ts`).
+
+**Toast system**: `components/toast/` — custom toast store (not a library). Import from `@/components/toast`: `toastApiError(err)` for API errors (splits on `|` and i18n-translates each part), `toastSuccess`, `toastError`, `toastConfirmation`. The `<Toaster />` is mounted in `App.tsx`.
 
 **UI stack**: shadcn-style components (Radix UI primitives + `class-variance-authority`) in `components/ui/`. Tailwind CSS + Framer Motion for layout/animation. Recharts for charts. Three.js / React Three Fiber for 3D elements.
 
