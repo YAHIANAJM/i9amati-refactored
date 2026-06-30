@@ -52,7 +52,7 @@ export function StaffTrackingPage() {
                 <div className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
 
                     {view === 'staff' ? (
-                        <StaffTable userServiceTrackingAbility={userServiceTrackingAbility} setSelectedStaff={setSelectedStaff} serviceId={serviceId!} />
+                        <StaffTable selectedStaff={selectedStaff} userServiceTrackingAbility={userServiceTrackingAbility} setSelectedStaff={setSelectedStaff} serviceId={serviceId!} />
                     ) : (
                         <SessionTable serviceId={serviceId!} selectedStaff={selectedStaff} setSelectedStaff={setSelectedStaff} />
                     )}

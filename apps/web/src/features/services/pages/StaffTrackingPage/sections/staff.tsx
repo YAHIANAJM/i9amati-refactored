@@ -2,7 +2,7 @@ import { Calendar, Loader2, Search, Trash2, User, X } from "lucide-react";
 import InfiniteScrollTrigger from "../components/infinitScrollTriger";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiStaffProfile, servicesApi } from "@/lib/services.api";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -13,11 +13,13 @@ import { staffName } from "../utils";
 export default function StaffTable({
     serviceId,
     setSelectedStaff,
-    userServiceTrackingAbility
+    userServiceTrackingAbility,
+    selectedStaff
 }: {
     serviceId: string
     setSelectedStaff: (staff: ApiStaffProfile | null) => void
     userServiceTrackingAbility: ReturnType<typeof defineServiceAbility>
+    selectedStaff: ApiStaffProfile | null
 }) {
 
     const qc = useQueryClient()
@@ -70,6 +72,10 @@ export default function StaffTable({
 
 
     const canManage = userServiceTrackingAbility.can('manage', 'all')
+
+    useEffect(() => {
+        if (staffList.length > 0 && !selectedStaff && !canManage) setSelectedStaff(staffList[0])
+    }, [staffList, selectedStaff])
     return <>
         {/* Filter row */}
         <div className="flex items-center gap-3 flex-wrap shrink-0">
