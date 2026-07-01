@@ -9,6 +9,9 @@ import { getInitials, cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { CommentList } from './CommentList'
+import { z } from 'zod'
+import { UpdateFeedPostSchema } from '@i9amati/shared'
+import { toastApiError } from '@/components/toast'
 
 interface PostCardProps {
   post:             ApiPost
@@ -95,7 +98,19 @@ export function PostCard({
             <Button
               size="sm" className="h-7 text-xs"
               disabled={!editContent.trim()}
-              onClick={() => { onEdit(post.id, editContent.trim()); setEditMode(false) }}
+              onClick={() => {
+                try {
+                  UpdateFeedPostSchema.parse({ content: editContent.trim() })
+                  onEdit(post.id, editContent.trim())
+                  setEditMode(false)
+                } catch (err) {
+                  if (err instanceof z.ZodError) {
+                    toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+                  } else {
+                    toastApiError(err)
+                  }
+                }
+              }}
             >
               {t('feed.save')}
             </Button>

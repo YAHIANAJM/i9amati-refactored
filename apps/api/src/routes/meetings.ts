@@ -373,14 +373,15 @@ async function sendConvocationEmails(
     .selectFrom('public.profiles')
     .select(['id', 'user_id'])
     .where('id', 'in', profileIds)
+    .where('deleted_at', 'is', null)
     .execute()
 
   const userIds = profiles.map(p => p.user_id)
   if (!userIds.length) return
 
-  const users = await db
+  const users = await tenantDb
     .selectFrom('public.user')
-    .select(['id', 'email', 'name', 'first_name', 'last_name'])
+    .select(['id', 'email', 'name', 'firstName', 'lastName'])
     .where('id', 'in', userIds)
     .execute()
 
@@ -394,8 +395,8 @@ async function sendConvocationEmails(
       const attendee = attendees.find(a => a.profile_id === p.id)
       return sendConvocationEmail({
         to:            user.email,
-        recipientName: user.first_name
-          ? `${user.first_name} ${user.last_name ?? ''}`.trim()
+        recipientName: user.firstName
+          ? `${user.firstName} ${user.lastName ?? ''}`.trim()
           : (attendee?.name ?? user.name),
         meetingTitle:    meeting.title,
         meetingDate:     new Date(meeting.scheduled_at as any),

@@ -53,3 +53,5 @@ web-build/
 skills-lock.json
 .vercel
 .env*
+
+.git*

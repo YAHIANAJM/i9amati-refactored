@@ -13,7 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     # Port 5435 (not 5432/5434) to avoid conflict with other projects
     ports:
-      - "5435:5432"
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-i9amati}"]
       interval: 5s
@@ -60,7 +60,8 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} &&
       mc mb --ignore-existing local/i9amati &&
-      mc anonymous set download local/i9amati"
+      printf '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::i9amati/feed/*\",\"arn:aws:s3:::i9amati/profile/*\",\"arn:aws:s3:::i9amati/residences/*\"]}]}' > /tmp/policy.json &&
+      mc anonymous set-json /tmp/policy.json local/i9amati"
     restart: "no"
 
   # ── API (Express + Kysely) ────────────────────────────────────────────────

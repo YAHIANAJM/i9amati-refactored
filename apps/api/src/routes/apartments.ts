@@ -2,9 +2,32 @@ import { Router, Request } from 'express'
 import { z } from 'zod'
 import { authenticate, requirePermission, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
+import { linkProfileToGroup, findProfileByEmail, ensureProfileExistsForEmail } from '../services/groupMembership'
 
 const router = Router()
 router.use(authenticate)
+
+async function syncOwnerToGroups(
+  tenantDb: AuthRequest['tenantDb'],
+  buildingId: string,
+  profileId: string,
+  organizationId: string,
+) {
+  const building = await tenantDb
+    .selectFrom('buildings').select(['id', 'residence_id'])
+    .where('id', '=', buildingId).executeTakeFirst()
+  if (!building) return
+
+  const [buildingGroup, residenceGroup] = await Promise.all([
+    tenantDb.selectFrom('groups').select('id').where('building_id',  '=', building.id).executeTakeFirst(),
+    building.residence_id
+      ? tenantDb.selectFrom('groups').select('id').where('residence_id', '=', building.residence_id).executeTakeFirst()
+      : undefined,
+  ])
+
+  if (buildingGroup)  await linkProfileToGroup(tenantDb, { profileId, groupId: buildingGroup.id,  organizationId })
+  if (residenceGroup) await linkProfileToGroup(tenantDb, { profileId, groupId: residenceGroup.id, organizationId })
+}
 
 router.get('/', requirePermission('apartment', 'read'), async (req: Request, res, next) => {
   try {
@@ -43,8 +66,8 @@ router.get('/:id', requirePermission('apartment', 'read'), async (req: Request, 
 
 router.post('/', requirePermission('apartment', 'create'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
-    const { unitCode, buildingId, ...rest } = req.body
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
+    const { unitCode, buildingId, ownerProfileId, owner_profile_id, ...rest } = req.body
     if (!unitCode || !buildingId) throw new AppError(400, 'unitCode and buildingId are required')
 
     const building = await tenantDb
@@ -54,19 +77,26 @@ router.post('/', requirePermission('apartment', 'create'), async (req: Request, 
       .executeTakeFirst()
     if (!building) throw new AppError(404, 'Building not found')
 
+    const resolvedOwnerId: string | null = ownerProfileId ?? owner_profile_id ?? null
+
     const apartment = await tenantDb
       .insertInto('apartments')
-      .values({ unit_code: unitCode, building_id: buildingId, updated_at: new Date(), ...rest })
+      .values({ unit_code: unitCode, building_id: buildingId, owner_profile_id: resolvedOwnerId, updated_at: new Date(), ...rest })
       .returningAll()
       .executeTakeFirstOrThrow()
+
+    if (resolvedOwnerId) {
+      await syncOwnerToGroups(tenantDb, buildingId, resolvedOwnerId, activeOrganizationId)
+    }
+
     res.status(201).json(apartment)
   } catch (e) { next(e) }
 })
 
 router.post('/:id/shareholders', requirePermission('apartment', 'update'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
-    const apt = await tenantDb.selectFrom('apartments').select(['id', 'shareholders'])
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
+    const apt = await tenantDb.selectFrom('apartments').select(['id', 'building_id', 'shareholders'])
       .where('id', '=', req.params.id).executeTakeFirst()
     if (!apt) throw new AppError(404, 'Apartment not found')
 
@@ -86,6 +116,16 @@ router.post('/:id/shareholders', requirePermission('apartment', 'update'), async
     const result = await tenantDb.updateTable('apartments')
       .set({ shareholders: JSON.stringify(updated) as any, updated_at: new Date() })
       .where('id', '=', req.params.id).returningAll().executeTakeFirstOrThrow()
+
+    if (body.email) {
+      const profileId = await ensureProfileExistsForEmail(tenantDb, { 
+        email: body.email, 
+        firstName: body.firstName,
+        lastName: body.lastName,
+        organizationId: activeOrganizationId 
+      })
+      await syncOwnerToGroups(tenantDb, apt.building_id, profileId, activeOrganizationId)
+    }
 
     res.status(201).json(result)
   } catch (e) { next(e) }
@@ -112,10 +152,10 @@ router.put('/:id/shareholders', requirePermission('apartment', 'update'), async 
 
 router.patch('/:id', requirePermission('apartment', 'update'), async (req: Request, res, next) => {
   try {
-    const { tenantDb } = req as AuthRequest
+    const { tenantDb, activeOrganizationId } = req as AuthRequest
     const existing = await tenantDb
       .selectFrom('apartments')
-      .select('id')
+      .select(['id', 'building_id'])
       .where('id', '=', req.params.id)
       .executeTakeFirst()
     if (!existing) throw new AppError(404, 'Apartment not found')
@@ -126,6 +166,12 @@ router.patch('/:id', requirePermission('apartment', 'update'), async (req: Reque
       .where('id', '=', req.params.id)
       .returningAll()
       .executeTakeFirstOrThrow()
+
+    const newOwnerId: string | undefined = req.body.owner_profile_id ?? req.body.ownerProfileId
+    if (newOwnerId) {
+      await syncOwnerToGroups(tenantDb, existing.building_id, newOwnerId, activeOrganizationId)
+    }
+
     res.json(apartment)
   } catch (e) { next(e) }
 })

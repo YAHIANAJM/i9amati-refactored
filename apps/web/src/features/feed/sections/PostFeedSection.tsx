@@ -8,7 +8,10 @@ import { cn } from '@/lib/utils'
 import { PostCard } from '../components/PostCard'
 import { PostSkeleton } from '../components/PostSkeleton'
 import type { FeedAbility } from '@i9amati/shared'
+import { CreateFeedPostSchema } from '@i9amati/shared'
+import { z } from 'zod'
 import { subject } from '@casl/ability'
+import { toastApiError } from '@/components/toast'
 
 interface PostFeedSectionProps {
   activeGroupId:      string | null
@@ -75,9 +78,18 @@ export function PostFeedSection({
 
   function submitPost() {
     if (!newPost.trim()) return
-    onCreatePost(newPost.trim(), selectedFile)
-    setNewPost('')
-    clearFile()
+    try {
+      CreateFeedPostSchema.parse({ content: newPost.trim() })
+      onCreatePost(newPost.trim(), selectedFile)
+      setNewPost('')
+      clearFile()
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toastApiError({ error: { code: 'VALIDATION_ERROR', message: err.errors.map(e => e.message).join('|') } })
+      } else {
+        toastApiError(err)
+      }
+    }
   }
 
   const canPost = ability?.can('create', subject('FeedPost', { groupId: activeGroupId ?? '', authorId: profileId })) ?? false
@@ -104,13 +116,21 @@ export function PostFeedSection({
                 placeholder={t('feed.whatAreYouThinking')}
                 className="w-full resize-none text-sm border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-ring bg-muted/30"
               />
-              {previewUrl && (
-                <div className="relative inline-block">
-                  <img
-                    src={previewUrl}
-                    alt="preview"
-                    className="max-h-40 rounded-lg border object-cover"
-                  />
+              {previewUrl && selectedFile && (
+                <div className="relative inline-block max-w-full">
+                  {selectedFile.type.startsWith('video/') ? (
+                    <video
+                      src={previewUrl}
+                      controls
+                      className="max-h-40 rounded-lg border bg-black"
+                    />
+                  ) : (
+                    <img
+                      src={previewUrl}
+                      alt="preview"
+                      className="max-h-40 rounded-lg border object-cover"
+                    />
+                  )}
                   <button
                     onClick={clearFile}
                     className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center"

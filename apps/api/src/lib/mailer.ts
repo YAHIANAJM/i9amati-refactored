@@ -2,8 +2,8 @@ import nodemailer from 'nodemailer'
 
 function createTransport() {
   return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST,
-    port:   Number(process.env.SMTP_PORT) || 587,
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
@@ -13,12 +13,12 @@ function createTransport() {
 }
 
 interface ConvocationEmailOpts {
-  to:            string
+  to: string
   recipientName: string
-  meetingTitle:  string
-  meetingDate:   Date
+  meetingTitle: string
+  meetingDate: Date
   meetingLocation: string | null
-  agendaItems:   { title: string; description?: string }[]
+  agendaItems: { title: string; description?: string }[]
 }
 
 // ─── Shared HTML shell ────────────────────────────────────────────────────────
@@ -46,11 +46,11 @@ const FOOTER = `<p style="margin:24px 0 0;font-size:12px;color:#94a3b8;border-to
 // ─── Delegate invitation ──────────────────────────────────────────────────────
 
 interface DelegateInvitationOpts {
-  to:            string
+  to: string
   recipientName: string
-  building:      string
-  syndicName:    string
-  note?:         string
+  building: string
+  syndicName: string
+  note?: string
 }
 
 export async function sendDelegateInvitationEmail(opts: DelegateInvitationOpts): Promise<boolean> {
@@ -61,8 +61,8 @@ export async function sendDelegateInvitationEmail(opts: DelegateInvitationOpts):
 
   const transport = createTransport()
   await transport.sendMail({
-    from:    `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-    to:      opts.to,
+    from: `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to: opts.to,
     subject: `[IQAMATI] Vous avez été désigné délégué d'immeuble`,
     html: emailShell('#1e3a8a', '#93c5fd', `
       <p style="margin:0 0 16px;color:#1e293b">Bonjour <strong>${opts.recipientName}</strong>,</p>
@@ -99,13 +99,13 @@ export async function sendDelegateInvitationEmail(opts: DelegateInvitationOpts):
 // ─── Partner syndic invitation ────────────────────────────────────────────────
 
 interface PartnerInvitationOpts {
-  to:           string
+  to: string
   recipientName: string
-  residence:    string
-  sharedParts:  string[]
-  syndicName:   string
+  residence: string
+  sharedParts: string[]
+  syndicName: string
   syndicResidence: string
-  note?:        string
+  note?: string
 }
 
 export async function sendPartnerInvitationEmail(opts: PartnerInvitationOpts): Promise<boolean> {
@@ -120,8 +120,8 @@ export async function sendPartnerInvitationEmail(opts: PartnerInvitationOpts): P
 
   const transport = createTransport()
   await transport.sendMail({
-    from:    `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-    to:      opts.to,
+    from: `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to: opts.to,
     subject: `[IQAMATI] Invitation de partenariat syndic`,
     html: emailShell('#064e3b', '#6ee7b7', `
       <p style="margin:0 0 16px;color:#1e293b">Bonjour <strong>${opts.recipientName}</strong>,</p>
@@ -152,6 +152,79 @@ export async function sendPartnerInvitationEmail(opts: PartnerInvitationOpts): P
   return true
 }
 
+// ─── Password reset ───────────────────────────────────────────────────────────
+
+export async function sendPasswordResetEmail(opts: { to: string; name: string; resetUrl: string }): Promise<boolean> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    console.warn('[Mailer] SMTP not configured — skipping password reset ', opts)
+    return false
+  }
+
+  const transport = createTransport()
+  await transport.sendMail({
+    from: `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to: opts.to,
+    subject: `[IQAMATI] Réinitialisation de votre mot de passe`,
+    html: emailShell('#1e3a8a', '#93c5fd', `
+      <p style="margin:0 0 16px;color:#1e293b">Bonjour <strong>${opts.name}</strong>,</p>
+      <p style="margin:0 0 20px;color:#475569">
+        Vous avez demandé la réinitialisation de votre mot de passe IQAMATI.
+        Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe&nbsp;:
+      </p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="${opts.resetUrl}"
+           style="display:inline-block;background:#1e3a8a;color:#fff;font-size:14px;font-weight:600;
+                  padding:13px 32px;border-radius:100px;text-decoration:none;letter-spacing:0.3px">
+          Réinitialiser le mot de passe
+        </a>
+      </div>
+      <p style="margin:0 0 8px;color:#94a3b8;font-size:12px;text-align:center">
+        Ce lien est valable pendant 1 heure.
+      </p>
+      <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">
+        Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+      </p>
+      ${FOOTER}
+    `),
+  })
+  return true
+}
+
+// ─── Magic link ───────────────────────────────────────────────────────────────
+
+export async function sendMagicLinkEmail(opts: { to: string; magicUrl: string }): Promise<boolean> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    console.warn('[Mailer] SMTP not configured — skipping magic link to', opts.to)
+    return false
+  }
+
+  const transport = createTransport()
+  await transport.sendMail({
+    from: `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to: opts.to,
+    subject: `[IQAMATI] Votre lien de connexion`,
+    html: emailShell('#0f172a', '#94a3b8', `
+      <p style="margin:0 0 16px;color:#1e293b">Bonjour,</p>
+      <p style="margin:0 0 20px;color:#475569">
+        Cliquez sur le bouton ci-dessous pour vous connecter à IQAMATI.
+        Ce lien est à usage unique.
+      </p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="${opts.magicUrl}"
+           style="display:inline-block;background:#0f172a;color:#fff;font-size:14px;font-weight:600;
+                  padding:13px 32px;border-radius:100px;text-decoration:none;letter-spacing:0.3px">
+          Se connecter
+        </a>
+      </div>
+      <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">
+        Ce lien expire dans 5 minutes. Si vous n'avez pas fait cette demande, ignorez cet email.
+      </p>
+      ${FOOTER}
+    `),
+  })
+  return true
+}
+
 // ─── Convocation ──────────────────────────────────────────────────────────────
 
 export async function sendConvocationEmail(opts: ConvocationEmailOpts): Promise<void> {
@@ -168,16 +241,15 @@ export async function sendConvocationEmail(opts: ConvocationEmailOpts): Promise<
 
   const agendaHtml = opts.agendaItems.length
     ? opts.agendaItems.map((item, i) =>
-        `<li style="margin-bottom:8px"><strong>${i + 1}. ${item.title}</strong>${
-          item.description ? `<br><span style="color:#64748b;font-size:13px">${item.description}</span>` : ''
-        }</li>`
-      ).join('')
+      `<li style="margin-bottom:8px"><strong>${i + 1}. ${item.title}</strong>${item.description ? `<br><span style="color:#64748b;font-size:13px">${item.description}</span>` : ''
+      }</li>`
+    ).join('')
     : '<li style="color:#94a3b8">Aucun point à l\'ordre du jour</li>'
 
   const transport = createTransport()
   await transport.sendMail({
-    from:    `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-    to:      opts.to,
+    from: `"IQAMATI Syndic" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to: opts.to,
     subject: `[IQAMATI] Convocation — ${opts.meetingTitle}`,
     html: `
 <!DOCTYPE html>

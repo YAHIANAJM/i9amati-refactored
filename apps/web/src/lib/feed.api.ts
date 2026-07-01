@@ -1,10 +1,15 @@
 import { api } from './api'
-import { deriveGroupType } from '@i9amati/shared'
+import { deriveGroupType, UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, mimeToMediaType } from '@i9amati/shared'
 import type {
   FeedGroup, FeedGroupsResponse, FeedPost, FeedComment,
   FeedMember, FeedOrgProfile, GroupType,
-  FeedAnalyticsResponse,
+  FeedAnalyticsResponse, UploadMediaType, OrgProfilesQuery,
 } from '@i9amati/shared'
+
+const BASE = import.meta.env.VITE_API_URL || ''
+
+export { UPLOAD_MAX_SIZE_BYTES, UPLOAD_MAX_SIZE_LABEL, mimeToMediaType }
+export type { UploadMediaType }
 
 // ── Re-export shared types under their Api* aliases used throughout the web app
 
@@ -145,11 +150,35 @@ export const feedApi = {
     return api.delete(`/api/feed/groups/${groupId}/members/${profileId}`)
   },
 
-  // ── Org profiles (for member picker) ───────────────────────────────────────
+  // ── File upload ─────────────────────────────────────────────────────────────
 
-  async getOrgProfiles(): Promise<ApiOrgProfile[]> {
-    const data = await api.get<{ profiles: ApiOrgProfile[] }>('/api/feed/org-profiles')
-    return data.profiles
+  async uploadMedia(file: File, scope = 'feed'): Promise<{ url: string; key: string }> {
+    if (file.size > UPLOAD_MAX_SIZE_BYTES) {
+      throw new Error(`File exceeds the ${UPLOAD_MAX_SIZE_LABEL} limit`)
+    }
+    const form = new FormData()
+    form.append('file', file)
+    // Do NOT set Content-Type — browser sets it with the correct multipart boundary
+    const res = await fetch(`${BASE}/api/upload?scope=${scope}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`)
+    }
+    return res.json()
+  },
+
+  // ── Org profiles (for member picker, cursor-paginated) ────────────────────
+
+  async getOrgProfiles(params?: Partial<OrgProfilesQuery>): Promise<{ profiles: ApiOrgProfile[]; hasMore: boolean; nextCursor: string | null }> {
+    const p = new URLSearchParams()
+    if (params?.cursor)         p.set('cursor',         params.cursor)
+    if (params?.limit)          p.set('limit',          String(params.limit))
+    if (params?.excludeGroupId) p.set('excludeGroupId', params.excludeGroupId)
+    return api.get(`/api/feed/org-profiles?${p}`)
   },
 
   // ── Analytics (SYNDIC only) ─────────────────────────────────────────────────

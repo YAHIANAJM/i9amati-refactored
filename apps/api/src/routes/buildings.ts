@@ -2,26 +2,34 @@ import { Router, Request } from 'express'
 import { z } from 'zod'
 import { authenticate, requirePermission, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/errorHandler'
+import { formatZodError } from '../lib/zod-errors'
+import { linkProfileToGroup, findProfileByEmail, ensureProfileExistsForEmail } from '../services/groupMembership'
 
 const router = Router()
 router.use(authenticate)
 
 const ownerSchema = z.object({
-  firstName: z.string().min(1),
-  lastName:  z.string().min(1),
+  firstName: z.string().min(1, 'validation.owner.firstNameRequired'),
+  lastName:  z.string().min(1, 'validation.owner.lastNameRequired'),
   email:     z.string().email().optional().or(z.literal('')),
   isPrimary: z.boolean(),
   gender:    z.enum(['MALE', 'FEMALE']).default('MALE'),
 })
 
 const apartmentSchema = z.object({
-  number:             z.string().min(1),
+  number:             z.string().min(1, 'validation.apartment.numberRequired'),
   floor:              z.number().int().min(0),
   lotNumber:          z.string().optional(),
   quotePart:          z.number().optional(),
   quotePartResidence: z.number().optional(),
   areaSqm:            z.number().positive().optional(),
-  owners:             z.array(ownerSchema).min(0).default([]),
+  ownerProfileId:     z.string().uuid().optional(),
+  owners: z.preprocess(
+    (arr) => Array.isArray(arr)
+      ? arr.filter((o: any) => o?.firstName?.trim() || o?.lastName?.trim())
+      : [],
+    z.array(ownerSchema).default([]),
+  ),
 })
 
 // POST /api/buildings/:id/apartments
@@ -30,16 +38,27 @@ router.post('/:id/apartments', requirePermission('residence', 'create'), async (
   try {
     const { tenantDb } = req as AuthRequest
 
-    const building = await tenantDb.selectFrom('buildings').select(['id', 'floors'])
+    const building = await tenantDb.selectFrom('buildings').select(['id', 'floors', 'residence_id'])
       .where('id', '=', req.params.id).executeTakeFirst()
     if (!building) throw new AppError(404, 'Building not found')
 
     const parsed = z.object({
       apartments: z.array(apartmentSchema).min(1),
     }).safeParse(req.body)
-    if (!parsed.success) throw new AppError(400, 'Invalid payload', 'VALIDATION_ERROR')
+    if (!parsed.success) throw new AppError(400, formatZodError(parsed.error), 'VALIDATION_ERROR')
+
+    const { activeOrganizationId } = req as AuthRequest
 
     const apartments = await tenantDb.transaction().execute(async (trx) => {
+      const buildingGroup = await trx
+        .selectFrom('groups').select('id')
+        .where('building_id', '=', req.params.id)
+        .executeTakeFirst()
+
+      const residenceGroup = building.residence_id
+        ? await trx.selectFrom('groups').select('id').where('residence_id', '=', building.residence_id).executeTakeFirst()
+        : null
+
       const created: any[] = []
       for (const aptInput of parsed.data.apartments) {
         const shareholders = aptInput.owners.map(o => ({
@@ -54,13 +73,30 @@ router.post('/:id/apartments', requirePermission('residence', 'create'), async (
           quote_part:           aptInput.quotePart ?? null,
           quote_part_residence: aptInput.quotePartResidence ?? null,
           building_id:          req.params.id,
-          owner_profile_id:     null,
+          owner_profile_id:     aptInput.ownerProfileId ?? null,
           shareholders:         JSON.stringify(shareholders) as any,
           status:               'VACANT',
           usage_type:           'RESIDENTIAL',
           updated_at:           new Date(),
         }).returningAll().executeTakeFirstOrThrow()
         created.push(apt)
+
+        const ownerIds = new Set<string>()
+        if (aptInput.ownerProfileId) ownerIds.add(aptInput.ownerProfileId)
+        for (const owner of aptInput.owners) {
+          if (!owner.email) continue
+          const pid = await ensureProfileExistsForEmail(trx, { 
+            email: owner.email, 
+            firstName: owner.firstName, 
+            lastName: owner.lastName, 
+            organizationId: activeOrganizationId 
+          })
+          if (pid) ownerIds.add(pid)
+        }
+        for (const pid of ownerIds) {
+          if (buildingGroup)  await linkProfileToGroup(trx, { profileId: pid, groupId: buildingGroup.id,  organizationId: activeOrganizationId })
+          if (residenceGroup) await linkProfileToGroup(trx, { profileId: pid, groupId: residenceGroup.id, organizationId: activeOrganizationId })
+        }
       }
       return created
     })

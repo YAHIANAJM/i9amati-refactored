@@ -14,6 +14,8 @@ import { AuthLayout }  from '@/pages/auth/AuthLayout'
 import { Login }       from '@/pages/auth/Login'
 import { Register }    from '@/pages/auth/Register'
 import { Setup }       from '@/pages/auth/Setup'
+import { Forgot }        from '@/pages/auth/Forgot'
+import { ResetPassword } from '@/pages/auth/ResetPassword'
 
 // ── Lazily loaded syndic pages ────────────────────────────────────────────────
 const Dashboard     = lazy(() => import('@/pages/syndic/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -38,6 +40,7 @@ const UnionMembers  = lazy(() => import('@/pages/syndic/UnionMembers').then(m =>
 const Profile       = lazy(() => import('@/pages/syndic/Profile').then(m => ({ default: m.Profile })))
 const Residences    = lazy(() => import('@/pages/syndic/Residences').then(m => ({ default: m.Residences })))
 const Chat          = lazy(() => import('@/pages/syndic/Chat').then(m => ({ default: m.Chat })))
+const StaffTracking = lazy(() => import('@/pages/syndic/StaffTracking').then(m => ({ default: m.StaffTracking })))
 
 function PageLoader() {
   return (
@@ -112,6 +115,10 @@ export default function App() {
           <Route path="login"    element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="setup"    element={<Setup />} />
+          <Route path="forgot"   element={<Forgot />} />
+        </Route>
+        <Route element={<AuthLayout />}>
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
         <Route path="/syndic" element={<ProtectedRoute><SyndicLayout /></ProtectedRoute>}>
           <Route element={<SuspenseLayout />}>
@@ -139,9 +146,10 @@ export default function App() {
             <Route path="accounting"      element={<Accounting />} />
 
             {/* ── COMMUNITY ── */}
-            <Route path="feed"            element={<Feed />} />
-            <Route path="services"        element={<Services />} />
-            <Route path="alerts"          element={<Alerts />} />
+            <Route path="feed"                           element={<Feed />} />
+            <Route path="services"                       element={<Services />} />
+            <Route path="services/:serviceId/staff"      element={<StaffTracking />} />
+            <Route path="alerts"                         element={<Alerts />} />
 
             {/* ── UNION ── */}
             <Route path="union-members"   element={<UnionMembers />} />

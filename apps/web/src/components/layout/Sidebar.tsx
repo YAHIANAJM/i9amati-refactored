@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Home, CreditCard, FileText, CalendarCheck,
   BarChart3, Rss, Wrench, Bell, Users, User, Settings, LogOut,
   ChevronLeft, ChevronRight, ChevronDown, PieChart, TrendingUp, Bot, MessageSquare,
 } from 'lucide-react'
+import { defineServiceAbility } from '@i9amati/shared'
 import { cn } from '@/lib/utils'
 
 /* ─── Section definitions ────────────────────────────────── */
@@ -14,15 +16,16 @@ const sections = [
     key: 'dashboards',
     label: 'DASHBOARDS',
     defaultOpen: true,
+    requireManage: true,
     items: [
-      { label: 'Global Overview',       icon: LayoutDashboard, to: '/syndic' },
-      { label: "Owners' Association",    icon: PieChart,        to: '/syndic/dash/apartments' },
-      { label: 'Payments Analytics',    icon: TrendingUp,      to: '/syndic/dash/payments' },
-      { label: 'Meetings Analytics',    icon: CalendarCheck,   to: '/syndic/dash/meetings' },
-      { label: 'Accounting Analytics',  icon: BarChart3,       to: '/syndic/dash/accounting' },
-      { label: 'Feed Analytics',        icon: Rss,             to: '/syndic/dash/feed' },
-      { label: 'Services Analytics',    icon: Wrench,          to: '/syndic/dash/services' },
-      { label: 'Union Analytics',       icon: Users,           to: '/syndic/dash/union' },
+      { label: 'Global Overview', icon: LayoutDashboard, to: '/syndic' },
+      { label: "Owners' Association", icon: PieChart, to: '/syndic/dash/apartments' },
+      { label: 'Payments Analytics', icon: TrendingUp, to: '/syndic/dash/payments' },
+      { label: 'Meetings Analytics', icon: CalendarCheck, to: '/syndic/dash/meetings' },
+      { label: 'Accounting Analytics', icon: BarChart3, to: '/syndic/dash/accounting' },
+      { label: 'Feed Analytics', icon: Rss, to: '/syndic/dash/feed' },
+      { label: 'Services Analytics', icon: Wrench, to: '/syndic/dash/services' },
+      { label: 'Union Analytics', icon: Users, to: '/syndic/dash/union' },
     ],
   },
   {
@@ -37,6 +40,7 @@ const sections = [
     key: 'management',
     label: 'MANAGEMENT',
     defaultOpen: false,
+    requireManage: true,
     items: [
       { label: "Owners' Association", icon: Home, to: '/syndic/association' },
       { label: 'Payments', icon: CreditCard, to: '/syndic/payments' },
@@ -52,13 +56,14 @@ const sections = [
     items: [
       { label: 'Feed Management', icon: Rss, to: '/syndic/feed' },
       { label: 'Service Tracking', icon: Wrench, to: '/syndic/services' },
-      { label: 'Alerts & Notifications', icon: Bell, to: '/syndic/alerts' },
+      { label: 'Alerts & Notifications', icon: Bell, to: '/syndic/alerts', requireManage: true },
     ],
   },
   {
     key: 'union',
     label: 'UNION',
     defaultOpen: false,
+    requireManage: true,
     items: [
       { label: 'Union Members', icon: Users, to: '/syndic/union-members' },
     ],
@@ -68,12 +73,16 @@ const sections = [
     label: 'CHATBOT ASSISTANCE',
     defaultOpen: false,
     special: true,
+    requireManage: true,
     items: [
-      { label: 'Chatbot Analytics', icon: Bot,          to: '/syndic/dash/chatbot' },
-      { label: 'Chat Interface',    icon: MessageSquare, to: '/syndic/chat' },
+      { label: 'Chatbot Analytics', icon: Bot, to: '/syndic/dash/chatbot' },
+      { label: 'Chat Interface', icon: MessageSquare, to: '/syndic/chat' },
     ],
   },
-]
+] as const
+
+type SectionDef = (typeof sections)[number]
+type ItemDef = SectionDef['items'][number]
 
 /* ─── Component ──────────────────────────────────────────── */
 
@@ -82,13 +91,29 @@ interface SidebarProps { open: boolean; onToggle: () => void }
 export function Sidebar({ open, onToggle }: SidebarProps) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+
+  const { data: me } = useQuery<{ profileRole: string }>({
+    queryKey: ['me'],
+    queryFn: () => fetch('/api/me').then(r => r.json()),
+    staleTime: 60_000,
+  })
+
+  const canManage = defineServiceAbility(me?.profileRole ?? '').can('manage', 'all')
+
+  const visibleSections = sections
+    .map(s => ({
+      ...s,
+      items: s.items.filter((item: ItemDef) => !('requireManage' in item && item.requireManage) || canManage),
+    }))
+    .filter(s => (!('requireManage' in s && s.requireManage) || canManage) && s.items.length > 0)
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
     Object.fromEntries(sections.map(s => [s.key, s.defaultOpen]))
   )
 
   // Auto-open the section that owns the current route
   useEffect(() => {
-    const active = sections.find(s => s.items.some(item =>
+    const active = visibleSections.find(s => s.items.some((item: ItemDef) =>
       item.to === '/syndic'
         ? pathname === '/syndic'
         : pathname.startsWith(item.to)
@@ -134,11 +159,11 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
 
       {/* ── Scrollable nav ──────────────────────────────── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 space-y-1">
-        {sections.map(section => (
+        {visibleSections.map(section => (
           <div key={section.key}>
 
             {/* Special chatbot section gets a prominent header with image */}
-            {section.special && open && (
+            {'special' in section && section.special && open && (
               <div className="mx-2 mt-3 mb-1 rounded-xl bg-slate-900 px-3 py-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -158,7 +183,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
             )}
 
             {/* Normal section header */}
-            {!section.special && (
+            {!('special' in section && section.special) && (
               <button
                 onClick={() => open && toggleSection(section.key)}
                 className={cn(
@@ -188,7 +213,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
             {/* Section items */}
             {(open ? expanded[section.key] : true) && (
               <div className={cn('space-y-0.5', open ? 'px-2 pb-1' : 'px-2 pb-1')}>
-                {section.items.map(item => (
+                {section.items.map((item: ItemDef) => (
                   <NavLink
                     key={item.to}
                     to={item.to}

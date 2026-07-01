@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { admin, twoFactor, emailOTP, magicLink } from 'better-auth/plugins'
 import { db } from './db/db'
+import { sendPasswordResetEmail, sendMagicLinkEmail } from './lib/mailer'
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
@@ -14,22 +15,30 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, token }) => {
+      const resetUrl = `${process.env.CLIENT_URL ?? 'http://localhost:5173'}/reset-password?token=${token}`
+      sendPasswordResetEmail({
+        to:       user.email,
+        name:     user.name || user.email,
+        resetUrl,
+      }).catch(err => console.error('[Auth] sendPasswordResetEmail failed:', err))
+    },
   },
 
   user: {
     additionalFields: {
-      firstName:    { type: 'string',  required: false, defaultValue: '' },
-      lastName:     { type: 'string',  required: false, defaultValue: '' },
-      phone:        { type: 'string',  required: false },
-      platformRole: { type: 'string',  required: false, defaultValue: 'USER' },
-      verifiedAt:   { type: 'date',    required: false },
+      firstName: { type: 'string', required: false, defaultValue: '' },
+      lastName: { type: 'string', required: false, defaultValue: '' },
+      phone: { type: 'string', required: false },
+      platformRole: { type: 'string', required: false, defaultValue: 'USER' },
+      verifiedAt: { type: 'date', required: false },
     },
   },
 
   session: {
     additionalFields: {
       activeOrganizationId: { type: 'string', required: false },
-      profileId:            { type: 'string', required: false },
+      profileId: { type: 'string', required: false },
     },
   },
 
@@ -43,6 +52,7 @@ export const auth = betterAuth({
             .selectFrom('public.profiles')
             .select(['id', 'organization_id'])
             .where('user_id', '=', session.userId)
+            .where('deleted_at', 'is', null)
             .executeTakeFirst()
 
           if (!profile) return
@@ -51,7 +61,7 @@ export const auth = betterAuth({
             data: {
               ...session,
               activeOrganizationId: profile.organization_id,
-              profileId:            profile.id,
+              profileId: profile.id,
             },
           }
         },
@@ -62,13 +72,13 @@ export const auth = betterAuth({
   socialProviders: {
     ...(process.env.GOOGLE_CLIENT_ID ? {
       google: {
-        clientId:     process.env.GOOGLE_CLIENT_ID,
+        clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       },
     } : {}),
     ...(process.env.FACEBOOK_APP_ID ? {
       facebook: {
-        clientId:     process.env.FACEBOOK_APP_ID,
+        clientId: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET!,
       },
     } : {}),
@@ -81,11 +91,15 @@ export const auth = betterAuth({
       async sendVerificationOTP({ email, otp, type }) {
         console.log(`Sending ${type} OTP to ${email}: ${otp}`)
       },
+
     }),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
-        console.log(`Sending magic link to ${email}: ${url}`)
+        sendMagicLinkEmail({ to: email, magicUrl: url })
+          .catch(err => console.error('[Auth] sendMagicLinkEmail failed:', err))
       },
     }),
+
+
   ],
 })

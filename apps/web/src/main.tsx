@@ -5,6 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './lib/i18n'
 import './index.css'
+import { patchGoogleTranslateCrash } from './lib/translate-fix'
+
+// Patch React crash issues caused by Google Translate extensions modifying the DOM
+patchGoogleTranslateCrash()
 
 const queryClient = new QueryClient({
   defaultOptions: {
